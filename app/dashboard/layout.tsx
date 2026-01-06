@@ -14,7 +14,9 @@ import {
   Bell,
   Settings,
   UserCog,
-  CreditCard
+  CreditCard,
+  Menu,
+  X
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -60,10 +62,16 @@ export default function DashboardLayout({
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [accessDenied, setAccessDenied] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     fetchUser()
   }, [])
+
+  // Close sidebar when route changes (for mobile)
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     if (user && pathname) {
@@ -151,9 +159,16 @@ export default function DashboardLayout({
   if (accessDenied) {
     return (
       <div className="min-h-screen bg-slate-50 flex">
-        <Sidebar user={user} pathname={pathname} onLogout={handleLogout} />
-        <main className="flex-1 ml-64 flex items-center justify-center">
-          <div className="text-center">
+        <Sidebar user={user} pathname={pathname} onLogout={handleLogout} isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+        {/* Mobile menu button */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-slate-900 text-white rounded-md"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+        <main className="flex-1 lg:ml-64 flex items-center justify-center">
+          <div className="text-center px-4">
             <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
               <Shield className="h-8 w-8 text-red-500" />
             </div>
@@ -178,23 +193,48 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <Sidebar user={user} pathname={pathname} onLogout={handleLogout} />
-      <main className="flex-1 ml-64">
+      <Sidebar user={user} pathname={pathname} onLogout={handleLogout} isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      {/* Mobile menu button */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-slate-900 text-white rounded-md shadow-lg"
+        aria-label="Open menu"
+      >
+        <Menu className="h-6 w-6" />
+      </button>
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <main className="flex-1 lg:ml-64 pt-16 lg:pt-0">
         {children}
       </main>
     </div>
   )
 }
 
-function Sidebar({ user, pathname, onLogout }: { user: User; pathname: string; onLogout: () => void }) {
+function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; pathname: string; onLogout: () => void; isOpen: boolean; onToggle: () => void }) {
   const isAdmin = user.role === 'admin'
 
   return (
-    <aside className="w-64 bg-slate-900 text-white flex flex-col fixed h-screen">
+    <aside className={`w-64 bg-slate-900 text-white flex flex-col fixed h-screen z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
       <div className="p-4 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <Shield className="h-8 w-8 text-primary" />
-          <span className="text-lg font-semibold">RiskShield AI</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-8 w-8 text-primary" />
+            <span className="text-lg font-semibold">RiskShield AI</span>
+          </div>
+          {/* Close button for mobile */}
+          <button
+            onClick={onToggle}
+            className="lg:hidden p-1 hover:bg-slate-800 rounded"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
