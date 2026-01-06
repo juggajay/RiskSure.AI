@@ -215,6 +215,15 @@ export async function POST(request: NextRequest) {
       status
     )
 
+    // If exception is auto-approved (active), update project_subcontractor status to 'exception'
+    if (autoApproved) {
+      db.prepare(`
+        UPDATE project_subcontractors
+        SET status = 'exception', updated_at = datetime('now')
+        WHERE id = ?
+      `).run(projectSubcontractorId)
+    }
+
     // Log the action
     db.prepare(`
       INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
