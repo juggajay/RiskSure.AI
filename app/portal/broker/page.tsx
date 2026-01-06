@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   Shield, Loader2, Upload, Users, Building2, CheckCircle, XCircle, Clock, LogOut,
-  AlertTriangle, ChevronRight, FileCheck, Phone, Mail, User
+  AlertTriangle, ChevronRight, FileCheck, Phone, Mail, User, FileUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -164,9 +164,19 @@ export default function BrokerPortalPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Broker Dashboard</h1>
-          <p className="text-slate-600">Manage insurance compliance for all your client subcontractors.</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Broker Dashboard</h1>
+            <p className="text-slate-600">Manage insurance compliance for all your client subcontractors.</p>
+          </div>
+          {clients.length > 0 && (
+            <Link href="/portal/broker/bulk-upload">
+              <Button>
+                <FileUp className="h-4 w-4 mr-2" />
+                Bulk Upload
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Status Overview */}
