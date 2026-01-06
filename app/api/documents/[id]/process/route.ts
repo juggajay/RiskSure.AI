@@ -49,12 +49,24 @@ function extractPolicyDetails(document: CocDocument, subcontractor: Subcontracto
   const randomInsurer = insurers[Math.floor(Math.random() * insurers.length)]
   const policyNumber = `POL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`
 
+  // Check for test scenarios based on filename
+  const fileName = document.file_name || ''
+  const isEarlyExpiry = fileName.toLowerCase().includes('expiring_early') ||
+                        fileName.toLowerCase().includes('early_expiry')
+
   // Generate dates - policy typically valid for 1 year
   const now = new Date()
   const startDate = new Date(now)
   startDate.setMonth(startDate.getMonth() - Math.floor(Math.random() * 6)) // Started 0-6 months ago
-  const endDate = new Date(startDate)
-  endDate.setFullYear(endDate.getFullYear() + 1) // 1 year policy
+
+  let endDate: Date
+  if (isEarlyExpiry) {
+    // For testing: policy expires in Oct 2025 (before typical project end dates)
+    endDate = new Date('2025-10-31')
+  } else {
+    endDate = new Date(startDate)
+    endDate.setFullYear(endDate.getFullYear() + 1) // 1 year policy
+  }
 
   // Generate coverage limits
   const publicLiabilityLimit = [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
@@ -132,7 +144,11 @@ function extractPolicyDetails(document: CocDocument, subcontractor: Subcontracto
 }
 
 // Verify extracted data against project requirements
-function verifyAgainstRequirements(extractedData: ReturnType<typeof extractPolicyDetails>, requirements: InsuranceRequirement[]) {
+function verifyAgainstRequirements(
+  extractedData: ReturnType<typeof extractPolicyDetails>,
+  requirements: InsuranceRequirement[],
+  projectEndDate?: string | null
+) {
   const checks: Array<{
     check_type: string
     description: string
@@ -181,6 +197,33 @@ function verifyAgainstRequirements(extractedData: ReturnType<typeof extractPolic
       status: 'pass',
       details: `Policy valid until ${extractedData.period_of_insurance_end}`
     })
+  }
+
+  // Check policy covers project period (if project has end date)
+  if (projectEndDate) {
+    const projectEnd = new Date(projectEndDate)
+    if (policyEnd < projectEnd) {
+      checks.push({
+        check_type: 'project_coverage',
+        description: 'Project period coverage',
+        status: 'fail',
+        details: `Policy expires before project end date (${projectEndDate})`
+      })
+      deficiencies.push({
+        type: 'policy_expires_before_project',
+        severity: 'critical',
+        description: 'Policy expires before project completion date',
+        required_value: `Valid until ${projectEndDate}`,
+        actual_value: `Expires ${extractedData.period_of_insurance_end}`
+      })
+    } else {
+      checks.push({
+        check_type: 'project_coverage',
+        description: 'Project period coverage',
+        status: 'pass',
+        details: `Policy covers project period (ends ${projectEndDate})`
+      })
+    }
   }
 
   // Check ABN matches
@@ -366,6 +409,11 @@ export async function POST(
       SELECT * FROM insurance_requirements WHERE project_id = ?
     `).all(document.project_id) as InsuranceRequirement[]
 
+    // Get project end date for policy coverage check
+    const project = db.prepare('SELECT end_date FROM projects WHERE id = ?')
+      .get(document.project_id) as { end_date: string | null } | undefined
+    const projectEndDate = project?.end_date || null
+
     // Update processing status
     db.prepare(`
       UPDATE coc_documents
@@ -376,8 +424,8 @@ export async function POST(
     // Extract policy details using AI (simulated)
     const extractedData = extractPolicyDetails(document, subcontractor)
 
-    // Verify against requirements
-    const verification = verifyAgainstRequirements(extractedData, requirements)
+    // Verify against requirements (including project end date check)
+    const verification = verifyAgainstRequirements(extractedData, requirements, projectEndDate)
 
     // Update or create verification record
     if (document.verification_id) {

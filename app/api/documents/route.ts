@@ -16,7 +16,8 @@ interface InsuranceRequirement {
 }
 
 // Simulated AI extraction of policy details from COC document
-function performAIExtraction(subcontractor: { id: string; name: string; abn: string }) {
+// fileName parameter allows for test scenarios (e.g., "expiring_early" triggers early expiry)
+function performAIExtraction(subcontractor: { id: string; name: string; abn: string }, fileName?: string) {
   const insurers = [
     'QBE Insurance (Australia) Limited',
     'Allianz Australia Insurance Limited',
@@ -31,11 +32,22 @@ function performAIExtraction(subcontractor: { id: string; name: string; abn: str
   const randomInsurer = insurers[Math.floor(Math.random() * insurers.length)]
   const policyNumber = `POL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`
 
+  // Check for test scenarios based on filename
+  const isEarlyExpiry = fileName?.toLowerCase().includes('expiring_early') ||
+                        fileName?.toLowerCase().includes('early_expiry')
+
   const now = new Date()
   const startDate = new Date(now)
   startDate.setMonth(startDate.getMonth() - Math.floor(Math.random() * 6))
-  const endDate = new Date(startDate)
-  endDate.setFullYear(endDate.getFullYear() + 1)
+
+  let endDate: Date
+  if (isEarlyExpiry) {
+    // For testing: policy expires in Oct 2025 (before typical project end dates)
+    endDate = new Date('2025-10-31')
+  } else {
+    endDate = new Date(startDate)
+    endDate.setFullYear(endDate.getFullYear() + 1)
+  }
 
   const publicLiabilityLimit = [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
   const productsLiabilityLimit = [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
@@ -110,7 +122,8 @@ function formatCoverageType(type: string): string {
 
 function verifyAgainstRequirements(
   extractedData: ReturnType<typeof performAIExtraction>,
-  requirements: InsuranceRequirement[]
+  requirements: InsuranceRequirement[],
+  projectEndDate?: string | null
 ) {
   const checks: Array<{
     check_type: string
@@ -160,6 +173,33 @@ function verifyAgainstRequirements(
       status: 'pass',
       details: `Policy valid until ${extractedData.period_of_insurance_end}`
     })
+  }
+
+  // Check policy covers project period (if project has end date)
+  if (projectEndDate) {
+    const projectEnd = new Date(projectEndDate)
+    if (policyEnd < projectEnd) {
+      checks.push({
+        check_type: 'project_coverage',
+        description: 'Project period coverage',
+        status: 'fail',
+        details: `Policy expires before project end date (${projectEndDate})`
+      })
+      deficiencies.push({
+        type: 'policy_expires_before_project',
+        severity: 'critical',
+        description: 'Policy expires before project completion date',
+        required_value: `Valid until ${projectEndDate}`,
+        actual_value: `Expires ${extractedData.period_of_insurance_end}`
+      })
+    } else {
+      checks.push({
+        check_type: 'project_coverage',
+        description: 'Project period coverage',
+        status: 'pass',
+        details: `Policy covers project period (ends ${projectEndDate})`
+      })
+    }
   }
 
   // Check ABN matches
@@ -455,13 +495,16 @@ export async function POST(request: NextRequest) {
       WHERE id = ?
     `).run(documentId)
 
-    // Perform AI extraction immediately
-    const extractedData = performAIExtraction(subcontractor as { id: string; name: string; abn: string })
+    // Perform AI extraction immediately (pass fileName for test scenarios)
+    const extractedData = performAIExtraction(subcontractor as { id: string; name: string; abn: string }, file.name)
     const requirements = db.prepare(`
       SELECT * FROM insurance_requirements WHERE project_id = ?
     `).all(projectId) as InsuranceRequirement[]
 
-    const verification = verifyAgainstRequirements(extractedData, requirements)
+    // Get project end date for coverage check
+    const projectEndDate = project.end_date
+
+    const verification = verifyAgainstRequirements(extractedData, requirements, projectEndDate)
 
     // Update verification record with extracted data
     db.prepare(`
