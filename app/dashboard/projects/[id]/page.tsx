@@ -15,7 +15,8 @@ import {
   FileCheck,
   Settings,
   Shield,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -89,6 +90,10 @@ export default function ProjectDetailPage() {
   const [selectedSubcontractorId, setSelectedSubcontractorId] = useState('')
   const [isAddingSub, setIsAddingSub] = useState(false)
 
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   useEffect(() => {
     fetchUserRole()
     fetchProject()
@@ -108,6 +113,9 @@ export default function ProjectDetailPage() {
 
   // Check if user can modify data (not read_only)
   const canModify = userRole && userRole !== 'read_only'
+
+  // Only admins can delete projects
+  const canDelete = userRole === 'admin'
 
   const fetchAvailableSubcontractors = async () => {
     try {
@@ -166,6 +174,38 @@ export default function ProjectDetailPage() {
       })
     } finally {
       setIsAddingSub(false)
+    }
+  }
+
+  const handleDeleteProject = async () => {
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/projects/${params.id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete project')
+      }
+
+      toast({
+        title: "Project Archived",
+        description: "The project has been archived successfully"
+      })
+
+      // Redirect to projects list
+      router.push('/dashboard/projects')
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete project',
+        variant: "destructive"
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteModal(false)
     }
   }
 
@@ -294,10 +334,18 @@ export default function ProjectDetailPage() {
             </div>
           </div>
           {canModify && (
-            <Button variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+              {canDelete && (
+                <Button variant="destructive" onClick={() => setShowDeleteModal(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </header>
@@ -557,6 +605,43 @@ export default function ProjectDetailPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent onClose={() => setShowDeleteModal(false)}>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              <DialogTitle>Delete Project</DialogTitle>
+            </div>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{project?.name}&quot;? This action will archive the project and it will no longer appear in your active projects list.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mt-4">
+            <p className="text-sm text-amber-800">
+              <strong>Note:</strong> This is a soft delete. The project data will be retained but marked as completed/archived.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteProject}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Project'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
