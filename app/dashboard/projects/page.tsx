@@ -12,11 +12,14 @@ import {
   CheckCircle,
   AlertTriangle,
   Clock,
-  MoreHorizontal
+  MoreHorizontal,
+  Filter,
+  ArrowUpDown
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select } from "@/components/ui/select"
 
 interface Project {
   id: string
@@ -44,10 +47,16 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }>
   on_hold: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'On Hold' }
 }
 
+const AUSTRALIAN_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
+
+type SortOption = 'name' | 'compliance_asc' | 'compliance_desc' | 'date'
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [stateFilter, setStateFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<SortOption>('name')
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
@@ -79,11 +88,46 @@ export default function ProjectsPage() {
 
   const canCreateProject = user && ['admin', 'risk_manager'].includes(user.role)
 
-  const filteredProjects = projects.filter(project =>
-    project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.state?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Get unique states from projects for filter options
+  const availableStates = Array.from(new Set(projects.map(p => p.state).filter(Boolean))) as string[]
+
+  // Filter projects
+  const filteredProjects = projects
+    .filter(project => {
+      // Search filter
+      const matchesSearch = searchQuery === '' ||
+        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.state?.toLowerCase().includes(searchQuery.toLowerCase())
+
+      // State filter
+      const matchesState = stateFilter === 'all' || project.state === stateFilter
+
+      return matchesSearch && matchesState
+    })
+    .sort((a, b) => {
+      // Calculate compliance rates
+      const complianceA = a.subcontractor_count > 0
+        ? (a.compliant_count / a.subcontractor_count) * 100
+        : -1
+      const complianceB = b.subcontractor_count > 0
+        ? (b.compliant_count / b.subcontractor_count) * 100
+        : -1
+
+      switch (sortBy) {
+        case 'compliance_asc':
+          return complianceA - complianceB
+        case 'compliance_desc':
+          return complianceB - complianceA
+        case 'date':
+          const dateA = a.start_date ? new Date(a.start_date).getTime() : 0
+          const dateB = b.start_date ? new Date(b.start_date).getTime() : 0
+          return dateB - dateA
+        case 'name':
+        default:
+          return a.name.localeCompare(b.name)
+      }
+    })
 
   return (
     <>
@@ -107,8 +151,8 @@ export default function ProjectsPage() {
 
       {/* Projects Content */}
       <div className="p-6 space-y-6">
-        {/* Search */}
-        <div className="flex items-center gap-4">
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
@@ -117,6 +161,36 @@ export default function ProjectsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
+          </div>
+
+          {/* State Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-slate-400" />
+            <Select
+              value={stateFilter}
+              onChange={(e) => setStateFilter(e.target.value)}
+              className="w-[140px]"
+            >
+              <option value="all">All States</option>
+              {availableStates.map(state => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-slate-400" />
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="w-[180px]"
+            >
+              <option value="name">Name (A-Z)</option>
+              <option value="compliance_desc">Compliance (High to Low)</option>
+              <option value="compliance_asc">Compliance (Low to High)</option>
+              <option value="date">Date (Newest First)</option>
+            </Select>
           </div>
         </div>
 
