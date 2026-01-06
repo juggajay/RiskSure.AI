@@ -3,6 +3,66 @@ import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { getUserByToken, verifyPassword } from '@/lib/auth'
 
+// Helper function to check and update expired exceptions
+function checkExpiredExceptions(companyId: string) {
+  const db = getDb()
+  const now = new Date().toISOString()
+
+  // Find all active exceptions that have expired
+  // Only check exceptions with expiration_type that have an expires_at date (not permanent or until_resolved)
+  const expiredExceptions = db.prepare(`
+    SELECT e.id, e.project_subcontractor_id
+    FROM exceptions e
+    JOIN project_subcontractors ps ON e.project_subcontractor_id = ps.id
+    JOIN projects p ON ps.project_id = p.id
+    WHERE e.status = 'active'
+      AND e.expires_at IS NOT NULL
+      AND e.expires_at < ?
+      AND e.expiration_type IN ('fixed_duration', 'specific_date')
+      AND p.company_id = ?
+  `).all(now, companyId) as { id: string; project_subcontractor_id: string }[]
+
+  // Update each expired exception
+  for (const exception of expiredExceptions) {
+    // Update exception status to expired
+    db.prepare(`
+      UPDATE exceptions
+      SET status = 'expired', updated_at = datetime('now')
+      WHERE id = ?
+    `).run(exception.id)
+
+    // Check if there are other active exceptions for this project_subcontractor
+    const otherActiveExceptions = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM exceptions
+      WHERE project_subcontractor_id = ?
+        AND status = 'active'
+    `).get(exception.project_subcontractor_id) as { count: number }
+
+    // If no other active exceptions, revert to non_compliant
+    if (otherActiveExceptions.count === 0) {
+      db.prepare(`
+        UPDATE project_subcontractors
+        SET status = 'non_compliant', updated_at = datetime('now')
+        WHERE id = ?
+      `).run(exception.project_subcontractor_id)
+    }
+
+    // Log the expiration
+    db.prepare(`
+      INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
+      VALUES (?, ?, NULL, 'exception', ?, 'expire', ?)
+    `).run(
+      uuidv4(),
+      companyId,
+      exception.id,
+      JSON.stringify({ reason: 'Automatic expiration', expired_at: now })
+    )
+  }
+
+  return expiredExceptions.length
+}
+
 // GET /api/exceptions - List all exceptions for the company
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +78,9 @@ export async function GET(request: NextRequest) {
     }
 
     const db = getDb()
+
+    // Check and update any expired exceptions for this company
+    checkExpiredExceptions(user.company_id)
 
     // Get exceptions based on user role
     let exceptions
