@@ -1,0 +1,1054 @@
+<project_specification>
+  <project_name>RiskShield AI</project_name>
+
+  <overview>
+    RiskShield AI is an autonomous Certificate of Currency (COC) compliance platform for the Australian construction industry. It transforms manual insurance document verification from a time-consuming administrative burden into an automated system that reads insurance certificates via AI, verifies them against project-specific requirements, communicates deficiencies directly to brokers, and provides real-time portfolio risk visibility. The platform eliminates "rubber stamping" of certificates and ensures head contractors never have uninsured subcontractors on site.
+  </overview>
+
+  <technology_stack>
+    <frontend>
+      <framework>Next.js 14 (App Router)</framework>
+      <hosting>Vercel</hosting>
+      <styling>Tailwind CSS + shadcn/ui</styling>
+      <state_management>React Query (TanStack Query) for server state</state_management>
+      <forms>React Hook Form + Zod validation</forms>
+    </frontend>
+    <backend>
+      <database>Supabase PostgreSQL</database>
+      <auth>Supabase Auth (email/password + magic links)</auth>
+      <file_storage>Supabase Storage</file_storage>
+      <realtime>Convex (real-time subscriptions, background jobs, agent orchestration)</realtime>
+      <api_routes>Next.js API Routes (Vercel serverless functions)</api_routes>
+    </backend>
+    <ai_services>
+      <document_processing>OpenAI GPT-4V (via Vercel API routes)</document_processing>
+      <ocr_fallback>Tesseract.js for scanned documents</ocr_fallback>
+    </ai_services>
+    <external_services>
+      <email>SendGrid (transactional email)</email>
+      <sms>Twilio (SMS alerts)</sms>
+      <abn_validation>ABR (Australian Business Register) API</abn_validation>
+      <insurer_validation>APRA Register lookup</insurer_validation>
+    </external_services>
+    <communication>
+      <api>REST API with Next.js API routes</api>
+      <realtime>Convex subscriptions for live dashboard updates</realtime>
+    </communication>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - Node.js 18+
+      - npm or pnpm
+      - Supabase account and project
+      - Convex account and project
+      - Vercel account (for deployment)
+      - OpenAI API key
+      - SendGrid API key
+      - Twilio account credentials
+    </environment_setup>
+  </prerequisites>
+
+  <feature_count>220</feature_count>
+
+  <security_and_access_control>
+    <user_roles>
+      <role name="admin">
+        <description>Company administrator with full access</description>
+        <permissions>
+          - Full access to all company data
+          - User management (invite, remove, change roles)
+          - Company settings configuration
+          - Billing and subscription management
+          - All project access
+          - Exception approval authority
+          - Template management
+          - Audit log access
+        </permissions>
+        <protected_routes>
+          - /admin/*
+          - /settings/company
+          - /settings/billing
+          - /settings/users
+        </protected_routes>
+      </role>
+      <role name="risk_manager">
+        <description>Risk oversight across all projects</description>
+        <permissions>
+          - View all projects and subcontractors
+          - Portfolio-wide reporting and analytics
+          - Exception approval authority
+          - Communication template editing
+          - Cannot manage users or billing
+        </permissions>
+        <protected_routes>
+          - /reports/*
+          - /portfolio/*
+          - /exceptions/approve
+        </protected_routes>
+      </role>
+      <role name="project_manager">
+        <description>Manages assigned projects</description>
+        <permissions>
+          - Full access to assigned projects only
+          - Add/remove subcontractors from projects
+          - Create exceptions (requires approval for high-risk)
+          - View project-level reports
+          - Cannot access other projects
+        </permissions>
+        <protected_routes>
+          - /projects/:id (only assigned projects)
+        </protected_routes>
+      </role>
+      <role name="project_administrator">
+        <description>Day-to-day compliance operations</description>
+        <permissions>
+          - View assigned projects
+          - Upload and review COCs
+          - Send communications
+          - Create exceptions (requires approval)
+          - Cannot modify project settings
+        </permissions>
+        <protected_routes>
+          - /projects/:id (only assigned projects, limited actions)
+        </protected_routes>
+      </role>
+      <role name="read_only">
+        <description>View-only access for auditors/stakeholders</description>
+        <permissions>
+          - View projects and compliance status
+          - View reports
+          - Cannot modify any data
+          - Cannot send communications
+        </permissions>
+        <protected_routes>
+          - Read-only access to assigned projects
+        </protected_routes>
+      </role>
+      <role name="subcontractor">
+        <description>External subcontractor portal access</description>
+        <permissions>
+          - Access subcontractor portal only
+          - View own compliance status across builders
+          - Upload COC documents
+          - View deficiency explanations
+          - Cannot access main application
+        </permissions>
+        <protected_routes>
+          - /portal/* (subcontractor portal only)
+        </protected_routes>
+      </role>
+      <role name="broker">
+        <description>Insurance broker portal access</description>
+        <permissions>
+          - Access broker portal only
+          - View clients' compliance status
+          - Upload COCs on behalf of clients
+          - Bulk upload capability
+          - Cannot access main application
+        </permissions>
+        <protected_routes>
+          - /broker/* (broker portal only)
+        </protected_routes>
+      </role>
+    </user_roles>
+    <authentication>
+      <method>Email/password for main app, Magic links for portal users</method>
+      <session_timeout>8 hours of inactivity</session_timeout>
+      <password_requirements>Minimum 8 characters, at least one uppercase, one lowercase, one number</password_requirements>
+    </authentication>
+    <sensitive_operations>
+      - Delete project requires confirmation dialog
+      - Remove subcontractor requires confirmation
+      - Create permanent exception requires password re-entry
+      - User role changes require admin confirmation
+      - Billing changes require admin confirmation
+    </sensitive_operations>
+  </security_and_access_control>
+
+  <core_features>
+    <module_01_onboarding_setup>
+      <company_setup>
+        - Company profile creation (name, ABN, ACN, logo, address)
+        - Primary contact information
+        - Default insurance requirement templates
+        - Forwarding email generation
+      </company_setup>
+      <user_management>
+        - User invitation via email
+        - Role assignment (Admin, Risk Manager, PM, PA, Read-Only)
+        - User profile editing
+        - Deactivate/reactivate users
+      </user_management>
+      <project_creation>
+        - Project basic info (name, address, state, dates, value)
+        - Project manager assignment
+        - Project-specific email alias generation
+        - Insurance requirement configuration
+        - Standard template selection (Commercial, Residential, Civil, Fit-out)
+        - Custom requirement entry
+      </project_creation>
+      <contract_parsing>
+        - PDF/Word contract upload
+        - AI-powered insurance clause extraction
+        - Requirement identification (coverage types, limits, extensions)
+        - Human review and adjustment interface
+        - Save as project template
+      </contract_parsing>
+      <email_integration>
+        - Microsoft 365 OAuth connection
+        - Google Workspace OAuth connection
+        - Automatic inbox scanning for COC attachments
+        - Attachment detection rules
+      </email_integration>
+      <subcontractor_import>
+        - CSV bulk upload with field mapping
+        - Manual entry form
+        - ABN validation on entry
+        - Duplicate detection and merge suggestions
+        - Trade classification
+      </subcontractor_import>
+    </module_01_onboarding_setup>
+
+    <module_02_coc_intake>
+      <email_intake>
+        - Automatic inbox scanning (configurable frequency)
+        - PDF attachment detection and extraction
+        - Document classification (COC vs other)
+        - Project auto-assignment based on email/subject
+        - Subcontractor auto-matching by ABN/name
+        - Processing queue management
+      </email_intake>
+      <direct_upload>
+        - Drag-and-drop upload interface
+        - Multi-file upload support
+        - Project and subcontractor selection
+        - Instant processing trigger
+        - Upload progress indicator
+      </direct_upload>
+      <portal_upload>
+        - Unique upload URL per subcontractor/project
+        - White-labeled upload page
+        - No-registration upload option
+        - Real-time verification display
+        - Success/failure feedback
+      </portal_upload>
+    </module_02_coc_intake>
+
+    <module_03_ai_verification_engine>
+      <document_processing>
+        - PDF text extraction (native PDFs)
+        - OCR for scanned/image PDFs (Tesseract fallback)
+        - Multi-page document handling
+        - Document quality assessment
+        - Processing status tracking
+      </document_processing>
+      <multi_insurer_support>
+        - QBE Insurance format parsing
+        - Allianz format parsing
+        - CGU Insurance format parsing
+        - Zurich format parsing
+        - Vero Insurance format parsing
+        - Suncorp format parsing
+        - Chubb format parsing
+        - AIG format parsing
+        - Generic format handling for other insurers
+        - Continuous format learning
+      </multi_insurer_support>
+      <data_extraction>
+        - Insured party details (Company name, ABN, Trading name)
+        - Insurer details (Name, APRA license validation)
+        - Broker details (Company, contact, email, phone)
+        - Policy identification (Number, type)
+        - Period of insurance (Effective date, Expiry date)
+        - Coverage limits (Per occurrence, Aggregate, by type)
+        - Excess/deductible amounts
+        - Interested party notations
+        - Extensions and endorsements
+      </data_extraction>
+      <coverage_type_recognition>
+        - Public Liability identification
+        - Products Liability identification
+        - Workers Compensation (with state scheme detection)
+        - Professional Indemnity
+        - Motor Vehicle Liability
+        - Contract Works / Construction All Risks
+        - Plant and Equipment
+      </coverage_type_recognition>
+      <extension_analysis>
+        - Principal Indemnity extension detection
+        - Principal naming verification (not just Interested Party)
+        - Cross Liability clause detection
+        - Waiver of Subrogation detection
+        - Contractual Liability extension
+        - Extension wording analysis (AI-powered)
+      </extension_analysis>
+      <workers_compensation_verification>
+        - State scheme identification (NSW icare, VIC WorkSafe, QLD WorkCover, etc.)
+        - Employer name matching to subcontractor
+        - Currency verification
+        - Scheme-to-project-state matching
+        - Multi-state worker handling
+      </workers_compensation_verification>
+      <compliance_verification>
+        - Requirement-to-COC matching engine
+        - Limit comparison (found vs. required)
+        - Extension checklist verification
+        - Date validity check (policy active, not expiring during project)
+        - Principal/certificate holder verification
+        - Excess within maximum allowed
+        - Insurer validity (APRA check)
+        - ABN match verification
+        - Gap identification with specificity
+        - Confidence scoring per check
+        - Overall status determination (PASS / FAIL / REVIEW)
+      </compliance_verification>
+      <verification_output>
+        - Status assignment with visual indicator
+        - Itemized checklist with pass/fail per item
+        - Deficiency list with plain English explanations
+        - Business impact description
+        - Fix instructions for broker
+        - Risk level per deficiency (High/Medium/Low)
+        - Contract clause references
+        - Confidence score display
+        - Extracted data display for human verification
+        - Original document viewer alongside results
+      </verification_output>
+    </module_03_ai_verification_engine>
+
+    <module_04_dashboard_portfolio>
+      <morning_brief>
+        - Stop Work Risks section (subs on-site today with issues)
+        - Severity indicators (red for critical, amber for warning)
+        - Quick actions (Call, Email, Create Exception)
+        - New COCs section (overnight arrivals)
+        - Auto-approved count (no action needed)
+        - Needs review queue with action buttons
+        - Pending Responses section (broker responses overdue)
+        - Days waiting indicator
+        - Resend/escalate actions
+        - Expiring Soon section (grouped: 7/14/30/60 days)
+        - Bulk reminder action
+        - Portfolio health summary
+      </morning_brief>
+      <portfolio_overview>
+        - Compliance percentage gauge (visual)
+        - Total active projects count
+        - Total active subcontractors count
+        - COCs verified today/this week/this month
+        - Trend chart (compliance over time)
+        - Drill-down on all metrics
+        - Risk score calculation
+      </portfolio_overview>
+      <project_list_view>
+        - Project cards with status summary
+        - Subcontractor count per project
+        - Next expiration date
+        - Compliance percentage
+        - Sort by name/date/status/compliance
+        - Filter by status/state/PM
+        - Search by name
+        - Quick actions per project
+      </project_list_view>
+      <project_detail_view>
+        - Project header (name, address, dates, value, PM)
+        - Insurance requirements summary
+        - Subcontractor list with compliance status
+        - Status filters (All, Compliant, Pending, Non-Compliant, Exception)
+        - Compliance breakdown chart
+        - Recent activity feed
+        - Quick add subcontractor
+        - Export project report
+        - Edit project settings
+      </project_detail_view>
+      <subcontractor_detail_view>
+        - Company information (Name, ABN, trade, contacts)
+        - Current COC section with document viewer
+        - Extracted data summary
+        - Compliance checklist (expandable with explanations)
+        - Historical COCs list
+        - Communication log
+        - Exception history
+        - Actions: Request update, Resend, Create exception, View original
+        - Edit subcontractor details
+      </subcontractor_detail_view>
+    </module_04_dashboard_portfolio>
+
+    <module_05_automated_communication>
+      <deficiency_notifications>
+        - Auto-trigger on FAIL verification
+        - Friendly, non-accusatory tone
+        - Plain English explanation of each deficiency
+        - "Why it matters" business context
+        - "How to fix" instructions for broker
+        - Direct upload link inclusion
+        - Contract clause references
+        - Human contact for questions
+        - Recipients: Broker (To), Subcontractor (CC) configurable
+      </deficiency_notifications>
+      <follow_up_automation>
+        - Configurable schedule (default: Day 2, 5, 7)
+        - Escalating urgency in language
+        - Different templates per follow-up stage
+        - Stop conditions (COC received, exception created, sub removed)
+        - Day 7+: Human escalation alert
+        - Manual override to stop follow-ups
+      </follow_up_automation>
+      <confirmation_emails>
+        - Auto-trigger on PASS verification
+        - Positive, welcoming tone
+        - Project details and approval confirmation
+        - "You're approved to work" messaging
+      </confirmation_emails>
+      <expiration_reminders>
+        - Configurable windows (60, 30, 14 days before expiry)
+        - Email to subcontractor and broker
+        - Bulk send option for multiple expirations
+        - Snooze option
+      </expiration_reminders>
+      <critical_alerts>
+        - On-site today with expired coverage (SMS option)
+        - Mid-term cancellation detection
+        - Configurable alert channels (email, SMS)
+        - Immediate notification to project team
+      </critical_alerts>
+      <template_management>
+        - Default templates for all email types
+        - Template editor with preview
+        - Variable support ({{sub_name}}, {{project_name}}, {{deficiencies}}, etc.)
+        - Save custom templates
+        - Template versioning
+      </template_management>
+    </module_05_automated_communication>
+
+    <module_06_exception_management>
+      <exception_creation>
+        - Issue display (what is being excepted)
+        - Risk level indicator
+        - Reason/justification field (required)
+        - Approver selection (self or supervisor based on risk level)
+        - Expiration options (until resolved, 7/14/30 days, specific date, permanent)
+        - Risk acknowledgment checkbox
+        - Supporting document upload (optional)
+        - Notification to relevant parties
+      </exception_creation>
+      <exception_tracking>
+        - Status indicator: EXCEPTION (amber) vs NON-COMPLIANT (red)
+        - Expiry countdown display
+        - Expiration warnings (3 days before)
+        - Exception list view with filters
+        - Search exceptions
+      </exception_tracking>
+      <exception_resolution>
+        - Resolved: COC updated (auto-detected)
+        - Extended: Additional time granted
+        - Closed: Without resolution (reason required)
+        - Converted: To permanent waiver
+        - Resolution notes
+      </exception_resolution>
+      <audit_trail>
+        - Immutable log of all exception activity
+        - Who created, when, reason, approver, expiry
+        - All status changes logged
+        - Export audit trail to PDF
+        - Filter by date/user/project
+      </audit_trail>
+    </module_06_exception_management>
+
+    <module_07_subcontractor_portal>
+      <portal_access>
+        - Invitation email with unique link
+        - Simple registration (name, email, phone only)
+        - Magic link login (passwordless)
+        - Remember device option
+        - White-labeled appearance
+      </portal_access>
+      <portal_dashboard>
+        - Compliance summary across all builder relationships
+        - Builder list with status per builder
+        - Outstanding requests highlight
+        - Quick upload action
+        - Clear status indicators
+      </portal_dashboard>
+      <portal_upload>
+        - Drag-and-drop interface
+        - Real-time verification result display
+        - Pass: Celebration/success message
+        - Fail: Specific issues with plain English explanations
+        - Re-upload option
+        - Upload history
+      </portal_upload>
+      <broker_access>
+        - Broker invitation from subcontractor
+        - Broker dashboard showing all client subs
+        - Bulk upload capability
+        - Client management
+        - Upload on behalf of clients
+      </broker_access>
+    </module_07_subcontractor_portal>
+
+    <module_08_monitoring_alerts>
+      <expiration_monitoring>
+        - Daily scan of all expiration dates
+        - Auto-trigger renewal reminders
+        - Calendar view of upcoming expirations
+        - Configurable warning thresholds
+        - Bulk actions for expiring COCs
+      </expiration_monitoring>
+      <insurer_validity_monitoring>
+        - APRA register lookup on verification
+        - Alert on unlicensed/invalid insurer
+        - Periodic re-check of existing COCs
+        - Run-off/administration detection
+      </insurer_validity_monitoring>
+      <real_time_notifications>
+        - In-app notification center
+        - Browser push notifications (optional)
+        - Email digest options (immediate, daily, weekly)
+        - Notification preferences per user
+        - Mark as read/unread
+      </real_time_notifications>
+    </module_08_monitoring_alerts>
+
+    <module_10_administration>
+      <user_management>
+        - User list with roles and status
+        - Invite new users
+        - Edit user roles
+        - Deactivate users
+        - Activity logging per user
+        - Last login tracking
+      </user_management>
+      <company_settings>
+        - Company profile editing
+        - Default insurance requirements
+        - Follow-up schedule configuration
+        - Email sender settings
+        - Notification preferences
+        - Data retention settings
+      </company_settings>
+      <requirement_templates>
+        - Standard templates (Commercial, Residential, Civil, Fit-out)
+        - Custom template creation
+        - Template editing
+        - Template sharing across projects
+      </requirement_templates>
+    </module_10_administration>
+  </core_features>
+
+  <database_schema>
+    <tables>
+      <companies>
+        - id (uuid, primary key)
+        - name (text, required)
+        - abn (text, required, unique)
+        - acn (text)
+        - logo_url (text)
+        - address (text)
+        - primary_contact_name (text)
+        - primary_contact_email (text)
+        - primary_contact_phone (text)
+        - forwarding_email (text, unique)
+        - settings (jsonb)
+        - subscription_tier (text)
+        - subscription_status (text)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </companies>
+      <users>
+        - id (uuid, primary key, references auth.users)
+        - company_id (uuid, references companies)
+        - email (text, required, unique)
+        - name (text, required)
+        - phone (text)
+        - role (text: admin, risk_manager, project_manager, project_administrator, read_only)
+        - avatar_url (text)
+        - notification_preferences (jsonb)
+        - last_login_at (timestamp)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </users>
+      <projects>
+        - id (uuid, primary key)
+        - company_id (uuid, references companies)
+        - name (text, required)
+        - address (text)
+        - state (text: NSW, VIC, QLD, WA, SA, TAS, NT, ACT)
+        - start_date (date)
+        - end_date (date)
+        - estimated_value (numeric)
+        - project_manager_id (uuid, references users)
+        - forwarding_email (text, unique)
+        - status (text: active, completed, on_hold)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </projects>
+      <insurance_requirements>
+        - id (uuid, primary key)
+        - project_id (uuid, references projects)
+        - coverage_type (text: public_liability, products_liability, workers_comp, professional_indemnity, motor_vehicle, contract_works)
+        - minimum_limit (numeric)
+        - limit_type (text: per_occurrence, aggregate)
+        - maximum_excess (numeric)
+        - principal_indemnity_required (boolean)
+        - cross_liability_required (boolean)
+        - other_requirements (text)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </insurance_requirements>
+      <subcontractors>
+        - id (uuid, primary key)
+        - company_id (uuid, references companies)
+        - name (text, required)
+        - abn (text, required)
+        - acn (text)
+        - trading_name (text)
+        - address (text)
+        - trade (text)
+        - contact_name (text)
+        - contact_email (text)
+        - contact_phone (text)
+        - broker_name (text)
+        - broker_email (text)
+        - broker_phone (text)
+        - workers_comp_state (text)
+        - portal_access (boolean, default false)
+        - portal_user_id (uuid, references auth.users)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </subcontractors>
+      <project_subcontractors>
+        - id (uuid, primary key)
+        - project_id (uuid, references projects)
+        - subcontractor_id (uuid, references subcontractors)
+        - status (text: pending, compliant, non_compliant, exception)
+        - on_site_date (date)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+        - UNIQUE(project_id, subcontractor_id)
+      </project_subcontractors>
+      <coc_documents>
+        - id (uuid, primary key)
+        - subcontractor_id (uuid, references subcontractors)
+        - project_id (uuid, references projects)
+        - file_url (text, required)
+        - file_name (text)
+        - file_size (integer)
+        - source (text: email, upload, portal, api)
+        - source_email (text)
+        - received_at (timestamp)
+        - processed_at (timestamp)
+        - processing_status (text: pending, processing, completed, failed)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </coc_documents>
+      <verifications>
+        - id (uuid, primary key)
+        - coc_document_id (uuid, references coc_documents)
+        - project_id (uuid, references projects)
+        - status (text: pass, fail, review)
+        - confidence_score (numeric)
+        - extracted_data (jsonb)
+        - checks (jsonb - array of check results)
+        - deficiencies (jsonb - array of deficiency objects)
+        - verified_by_user_id (uuid, references users)
+        - verified_at (timestamp)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </verifications>
+      <communications>
+        - id (uuid, primary key)
+        - subcontractor_id (uuid, references subcontractors)
+        - project_id (uuid, references projects)
+        - verification_id (uuid, references verifications)
+        - type (text: deficiency, follow_up, confirmation, expiration_reminder, critical_alert)
+        - channel (text: email, sms)
+        - recipient_email (text)
+        - cc_emails (text[])
+        - subject (text)
+        - body (text)
+        - status (text: pending, sent, delivered, opened, failed)
+        - sent_at (timestamp)
+        - delivered_at (timestamp)
+        - opened_at (timestamp)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </communications>
+      <exceptions>
+        - id (uuid, primary key)
+        - project_subcontractor_id (uuid, references project_subcontractors)
+        - verification_id (uuid, references verifications)
+        - issue_summary (text, required)
+        - reason (text, required)
+        - risk_level (text: low, medium, high)
+        - created_by_user_id (uuid, references users)
+        - approved_by_user_id (uuid, references users)
+        - approved_at (timestamp)
+        - expires_at (timestamp)
+        - expiration_type (text: until_resolved, fixed_duration, specific_date, permanent)
+        - status (text: pending_approval, active, expired, resolved, closed)
+        - resolved_at (timestamp)
+        - resolution_type (text: coc_updated, extended, closed, converted_permanent)
+        - resolution_notes (text)
+        - supporting_document_url (text)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </exceptions>
+      <audit_logs>
+        - id (uuid, primary key)
+        - company_id (uuid, references companies)
+        - user_id (uuid, references users)
+        - entity_type (text)
+        - entity_id (uuid)
+        - action (text)
+        - details (jsonb)
+        - ip_address (text)
+        - user_agent (text)
+        - created_at (timestamp)
+      </audit_logs>
+      <email_templates>
+        - id (uuid, primary key)
+        - company_id (uuid, references companies)
+        - type (text: deficiency, follow_up_1, follow_up_2, follow_up_3, confirmation, expiration_reminder)
+        - name (text)
+        - subject (text)
+        - body (text)
+        - is_default (boolean)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </email_templates>
+      <requirement_templates>
+        - id (uuid, primary key)
+        - company_id (uuid, references companies)
+        - name (text)
+        - type (text: commercial, residential, civil, fitout, custom)
+        - requirements (jsonb)
+        - is_default (boolean)
+        - created_at (timestamp)
+        - updated_at (timestamp)
+      </requirement_templates>
+    </tables>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <auth>
+      - POST /api/auth/signup - Register new company/user
+      - POST /api/auth/login - User login
+      - POST /api/auth/logout - User logout
+      - POST /api/auth/magic-link - Send magic link (portal)
+      - POST /api/auth/reset-password - Password reset
+    </auth>
+    <companies>
+      - GET /api/companies/me - Get current company
+      - PUT /api/companies/me - Update company
+      - POST /api/companies/logo - Upload company logo
+    </companies>
+    <users>
+      - GET /api/users - List company users
+      - POST /api/users/invite - Invite new user
+      - GET /api/users/:id - Get user details
+      - PUT /api/users/:id - Update user
+      - DELETE /api/users/:id - Deactivate user
+    </users>
+    <projects>
+      - GET /api/projects - List projects
+      - POST /api/projects - Create project
+      - GET /api/projects/:id - Get project details
+      - PUT /api/projects/:id - Update project
+      - DELETE /api/projects/:id - Archive project
+      - GET /api/projects/:id/subcontractors - List project subcontractors
+      - POST /api/projects/:id/subcontractors - Add subcontractor to project
+      - DELETE /api/projects/:id/subcontractors/:subId - Remove subcontractor
+      - GET /api/projects/:id/requirements - Get project requirements
+      - PUT /api/projects/:id/requirements - Update requirements
+    </projects>
+    <subcontractors>
+      - GET /api/subcontractors - List subcontractors
+      - POST /api/subcontractors - Create subcontractor
+      - POST /api/subcontractors/import - Bulk import from CSV
+      - GET /api/subcontractors/:id - Get subcontractor details
+      - PUT /api/subcontractors/:id - Update subcontractor
+      - DELETE /api/subcontractors/:id - Archive subcontractor
+      - POST /api/subcontractors/:id/portal-invite - Send portal invitation
+    </subcontractors>
+    <documents>
+      - POST /api/documents/upload - Upload COC document
+      - GET /api/documents/:id - Get document details
+      - GET /api/documents/:id/download - Download original document
+      - POST /api/documents/:id/reprocess - Reprocess document
+    </documents>
+    <verifications>
+      - GET /api/verifications - List verifications
+      - GET /api/verifications/:id - Get verification details
+      - POST /api/verifications/:id/approve - Manual approve
+      - POST /api/verifications/:id/reject - Manual reject
+    </verifications>
+    <communications>
+      - GET /api/communications - List communications
+      - POST /api/communications/send - Send communication
+      - POST /api/communications/:id/resend - Resend communication
+      - PUT /api/communications/templates - Update templates
+    </communications>
+    <exceptions>
+      - GET /api/exceptions - List exceptions
+      - POST /api/exceptions - Create exception
+      - GET /api/exceptions/:id - Get exception details
+      - PUT /api/exceptions/:id - Update exception
+      - POST /api/exceptions/:id/approve - Approve exception
+      - POST /api/exceptions/:id/resolve - Resolve exception
+    </exceptions>
+    <dashboard>
+      - GET /api/dashboard/morning-brief - Get morning brief data
+      - GET /api/dashboard/portfolio - Get portfolio overview
+      - GET /api/dashboard/stats - Get dashboard statistics
+    </dashboard>
+    <portal>
+      - GET /api/portal/status - Get subcontractor compliance status
+      - POST /api/portal/upload - Upload COC from portal
+      - GET /api/portal/builders - List builder relationships
+    </portal>
+    <external>
+      - GET /api/external/abn/:abn - Validate ABN
+      - GET /api/external/apra/:insurer - Validate insurer
+    </external>
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <main_structure>
+      Dark sidebar (left) + Light main content area (right) - modern SaaS pattern
+      Sidebar: 250px width, collapsible to icons on mobile
+      Main content: Fluid width, max-width 1400px centered
+      Topbar: User menu, notifications, search
+    </main_structure>
+    <sidebar_navigation>
+      - Logo (top)
+      - Morning Brief (default view)
+      - Portfolio Overview
+      - Projects (expandable list)
+      - Subcontractors
+      - Exceptions
+      - Communications
+      - Reports (Risk Manager+)
+      - Settings (bottom)
+      - User profile (bottom)
+    </sidebar_navigation>
+    <page_layouts>
+      - Dashboard: Card-based sections, action-focused
+      - List views: Data tables with filters, sort, search, bulk actions
+      - Detail views: Header + tabbed content + activity sidebar
+      - Forms: Single column, clear sections, inline validation
+      - Modals: Centered, max-width 600px, clear actions
+    </page_layouts>
+    <responsive_breakpoints>
+      - Desktop: 1200px+
+      - Tablet: 768px - 1199px (sidebar collapses)
+      - Mobile: <768px (bottom nav, stacked layouts)
+    </responsive_breakpoints>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      <primary>
+        - Primary Blue: #3B82F6 (trust, professional)
+        - Primary Dark: #1E40AF (hover states)
+        - Primary Light: #DBEAFE (backgrounds)
+      </primary>
+      <semantic>
+        - Success/Compliant: #22C55E (green)
+        - Warning/Exception: #F59E0B (amber)
+        - Error/Non-Compliant: #EF4444 (red)
+        - Info/Pending: #6B7280 (gray)
+      </semantic>
+      <neutral>
+        - Sidebar Background: #0F172A (slate-900)
+        - Sidebar Text: #F8FAFC (slate-50)
+        - Main Background: #FFFFFF
+        - Card Background: #F8FAFC (slate-50)
+        - Border: #E2E8F0 (slate-200)
+        - Text Primary: #0F172A (slate-900)
+        - Text Secondary: #64748B (slate-500)
+      </neutral>
+    </color_palette>
+    <typography>
+      - Font Family: Inter (system fallback: -apple-system, BlinkMacSystemFont, Segoe UI)
+      - Headings: Semibold (600)
+      - Body: Regular (400)
+      - Scale: 12px, 14px, 16px, 18px, 20px, 24px, 30px, 36px
+    </typography>
+    <spacing>
+      - Base unit: 4px
+      - Component padding: 16px (4 units)
+      - Card padding: 24px (6 units)
+      - Section spacing: 32px (8 units)
+      - Page padding: 24px mobile, 32px tablet, 48px desktop
+    </spacing>
+    <components>
+      - Using shadcn/ui component library
+      - Rounded corners: 6px (small), 8px (medium), 12px (large)
+      - Shadows: Subtle, using Tailwind shadow-sm, shadow, shadow-md
+      - Borders: 1px solid slate-200
+      - Focus rings: 2px blue outline
+    </components>
+    <status_indicators>
+      - Compliant: Green dot + "Compliant" badge
+      - Non-Compliant: Red dot + "Non-Compliant" badge
+      - Exception: Amber dot + "Exception" badge
+      - Pending: Gray dot + "Pending" badge
+      - Review: Blue dot + "Review" badge
+    </status_indicators>
+    <icons>
+      - Icon library: Lucide React
+      - Size: 16px (inline), 20px (buttons), 24px (headers)
+      - Color: Inherit from text color
+    </icons>
+  </design_system>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Phase 1: Core Engine (Foundation)</title>
+      <tasks>
+        - Set up Next.js 14 project with App Router
+        - Configure Tailwind CSS and shadcn/ui
+        - Set up Supabase project (database, auth, storage)
+        - Set up Convex project (real-time, background jobs)
+        - Implement authentication (signup, login, logout)
+        - Create company and user database tables
+        - Build basic layout (sidebar, topbar, main content)
+        - Implement user roles and permissions
+        - Create project CRUD operations
+        - Create subcontractor CRUD operations
+        - Build COC upload interface (drag-and-drop)
+        - Implement file storage in Supabase
+        - Build basic AI verification (OpenAI GPT-4V integration)
+        - Create verification results display
+        - Build basic dashboard showing verification status
+      </tasks>
+    </step>
+    <step number="2">
+      <title>Phase 2: Communications (Automation)</title>
+      <tasks>
+        - Set up SendGrid integration
+        - Build email template system
+        - Implement deficiency notification emails
+        - Create follow-up automation (Convex scheduled jobs)
+        - Build confirmation emails on PASS
+        - Implement expiration reminder system
+        - Set up email inbox integration (M365/Gmail OAuth)
+        - Build automatic COC detection from emails
+        - Create communication log and history
+        - Implement email tracking (sent, delivered, opened)
+      </tasks>
+    </step>
+    <step number="3">
+      <title>Phase 3: Intelligence (AI Enhancement)</title>
+      <tasks>
+        - Enhance document processing (multi-page, OCR fallback)
+        - Build multi-insurer format support
+        - Implement contract parsing for requirements extraction
+        - Create confidence scoring system
+        - Build Principal Indemnity wording analysis
+        - Implement Workers Comp state matching
+        - Create ABN validation integration (ABR API)
+        - Build insurer validation (APRA lookup)
+        - Implement human review queue for low-confidence verifications
+        - Create verification audit trail
+      </tasks>
+    </step>
+    <step number="4">
+      <title>Phase 4: Portal and Exceptions</title>
+      <tasks>
+        - Build subcontractor portal (separate auth flow)
+        - Implement magic link authentication
+        - Create portal dashboard (multi-builder view)
+        - Build portal upload with real-time verification
+        - Implement broker portal access
+        - Create exception creation workflow
+        - Build exception approval flow
+        - Implement exception tracking and expiration
+        - Create exception audit trail
+        - Build exception resolution workflow
+        - Implement Morning Brief dashboard
+        - Create portfolio overview with drill-down
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - All CRUD operations work for projects, subcontractors, documents
+      - AI verification completes in under 10 seconds
+      - Verification accuracy above 98% (validated against manual review)
+      - Auto-approval rate above 70% for valid COCs
+      - Email communications sent reliably with tracking
+      - Follow-up automation triggers correctly
+      - Subcontractor portal allows self-service uploads
+      - Exceptions can be created, tracked, and resolved
+      - All user roles have correct permissions enforced
+    </functionality>
+    <user_experience>
+      - New user can complete onboarding in under 5 minutes
+      - Sarah (Project Admin) can handle daily compliance in under 20 minutes
+      - All actions provide clear feedback (loading, success, error states)
+      - Mobile-responsive design works on tablet and phone
+      - Accessibility meets WCAG 2.1 AA standards
+      - Page load times under 3 seconds
+    </user_experience>
+    <technical_quality>
+      - No mock data - all data from real database
+      - API responses properly typed
+      - Error handling for all failure cases
+      - Secure authentication and authorization
+      - Data validation on both client and server
+      - Audit logging for sensitive operations
+      - Clean code following Next.js and React best practices
+    </technical_quality>
+    <design_polish>
+      - Consistent use of design system colors and spacing
+      - All interactive elements have hover/focus states
+      - Status indicators clearly visible and meaningful
+      - Professional appearance suitable for enterprise SaaS
+      - Clean typography hierarchy
+      - Smooth transitions and animations where appropriate
+    </design_polish>
+  </success_criteria>
+
+  <australian_specifics>
+    <terminology>
+      - Certificate of Currency (COC) - not Certificate of Insurance
+      - Public Liability - not General Liability
+      - Excess - not Deductible
+      - Principal Indemnity - not Additional Insured
+      - Head Contractor - not General Contractor
+      - Workers Compensation - state-based schemes
+    </terminology>
+    <states>
+      - NSW, VIC, QLD, WA, SA, TAS, NT, ACT
+    </states>
+    <workers_comp_schemes>
+      - NSW: icare (Nominal Insurer) under SIRA
+      - VIC: WorkSafe Victoria
+      - QLD: WorkCover Queensland
+      - WA: WorkCover WA + private insurers
+      - SA: ReturnToWorkSA
+      - TAS: WorkSafe Tasmania + private insurers
+      - NT: Private insurers under NT WorkSafe
+      - ACT: Private insurers under Access Canberra
+    </workers_comp_schemes>
+    <standard_limits>
+      - Commercial Construction: $20M Public Liability, $10K max excess
+      - Residential Construction: $10M Public Liability, $5K max excess
+      - Civil/Infrastructure: $50M Public Liability, $25K max excess
+    </standard_limits>
+    <major_insurers>
+      - QBE Insurance
+      - Allianz
+      - CGU Insurance
+      - Zurich
+      - Vero Insurance
+      - Suncorp
+      - Chubb
+      - AIG
+    </major_insurers>
+  </australian_specifics>
+</project_specification>
