@@ -20,8 +20,20 @@ import {
   Shield,
   ExternalLink,
   Download,
-  Eye
+  Eye,
+  MessageSquare,
+  Send,
+  CheckCheck,
+  MailOpen,
+  X
 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
@@ -102,6 +114,40 @@ interface COCDocument {
   verification: Verification | null
 }
 
+interface Communication {
+  id: string
+  projectId: string
+  projectName: string | null
+  verificationId: string | null
+  type: string
+  channel: string
+  recipientEmail: string | null
+  ccEmails: string[]
+  subject: string | null
+  body: string | null
+  status: string
+  sentAt: string | null
+  deliveredAt: string | null
+  openedAt: string | null
+  createdAt: string
+}
+
+const COMMUNICATION_TYPE_LABELS: Record<string, string> = {
+  deficiency: 'Deficiency Notice',
+  follow_up: 'Follow-up',
+  confirmation: 'Confirmation',
+  expiration_reminder: 'Expiration Reminder',
+  critical_alert: 'Critical Alert'
+}
+
+const COMMUNICATION_STATUS_STYLES: Record<string, { bg: string; text: string; label: string; icon: typeof Send }> = {
+  pending: { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Pending', icon: Clock },
+  sent: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Sent', icon: Send },
+  delivered: { bg: 'bg-green-100', text: 'text-green-700', label: 'Delivered', icon: CheckCheck },
+  opened: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Opened', icon: MailOpen },
+  failed: { bg: 'bg-red-100', text: 'text-red-700', label: 'Failed', icon: AlertTriangle }
+}
+
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   compliant: { bg: 'bg-green-100', text: 'text-green-700', label: 'Compliant' },
   non_compliant: { bg: 'bg-red-100', text: 'text-red-700', label: 'Non-Compliant' },
@@ -121,8 +167,11 @@ export default function SubcontractorDetailPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [cocDocuments, setCocDocuments] = useState<COCDocument[]>([])
   const [currentCoc, setCurrentCoc] = useState<COCDocument | null>(null)
+  const [communications, setCommunications] = useState<Communication[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [activeTab, setActiveTab] = useState<'insurance' | 'communications'>('insurance')
+  const [selectedCommunication, setSelectedCommunication] = useState<Communication | null>(null)
 
   useEffect(() => {
     fetchSubcontractor()
@@ -143,6 +192,7 @@ export default function SubcontractorDetailPage() {
         setProjects(data.projects || [])
         setCocDocuments(data.cocDocuments || [])
         setCurrentCoc(data.currentCoc || null)
+        setCommunications(data.communications || [])
       }
     } catch (error) {
       console.error('Failed to fetch subcontractor:', error)
@@ -233,6 +283,40 @@ export default function SubcontractorDetailPage() {
 
       {/* Content */}
       <div className="p-6 space-y-6">
+        {/* Tabs */}
+        <div className="border-b">
+          <nav className="flex gap-4">
+            <button
+              onClick={() => setActiveTab('insurance')}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'insurance'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Shield className="h-4 w-4 inline-block mr-2" />
+              Insurance & COCs
+            </button>
+            <button
+              onClick={() => setActiveTab('communications')}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'communications'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <MessageSquare className="h-4 w-4 inline-block mr-2" />
+              Communications
+              {communications.length > 0 && (
+                <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">
+                  {communications.length}
+                </span>
+              )}
+            </button>
+          </nav>
+        </div>
+
+        {activeTab === 'insurance' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -558,7 +642,174 @@ export default function SubcontractorDetailPage() {
             </Card>
           </div>
         </div>
+        )}
+
+        {/* Communications Tab */}
+        {activeTab === 'communications' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                Communication History
+              </CardTitle>
+              <CardDescription>All emails sent to this subcontractor</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {communications.length > 0 ? (
+                <div className="space-y-3">
+                  {communications.map((comm) => {
+                    const statusStyle = COMMUNICATION_STATUS_STYLES[comm.status] || COMMUNICATION_STATUS_STYLES.pending
+                    const StatusIcon = statusStyle.icon
+                    return (
+                      <div
+                        key={comm.id}
+                        className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer"
+                        onClick={() => setSelectedCommunication(comm)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">
+                                {COMMUNICATION_TYPE_LABELS[comm.type] || comm.type}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${statusStyle.bg} ${statusStyle.text}`}>
+                                <StatusIcon className="h-3 w-3" />
+                                {statusStyle.label}
+                              </span>
+                            </div>
+                            {comm.subject && (
+                              <p className="text-sm text-slate-600 mt-1 line-clamp-1">{comm.subject}</p>
+                            )}
+                            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                              {comm.projectName && (
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="h-3 w-3" />
+                                  {comm.projectName}
+                                </span>
+                              )}
+                              {comm.recipientEmail && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {comm.recipientEmail}
+                                </span>
+                              )}
+                              {comm.sentAt && (
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {new Date(comm.sentAt).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                  <p>No communications sent yet</p>
+                  <p className="text-sm">Emails will appear here when they are sent</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Communication Detail Modal */}
+      <Dialog open={!!selectedCommunication} onOpenChange={() => setSelectedCommunication(null)}>
+        <DialogContent onClose={() => setSelectedCommunication(null)} className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />
+              {selectedCommunication && (COMMUNICATION_TYPE_LABELS[selectedCommunication.type] || selectedCommunication.type)}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCommunication?.subject}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCommunication && (
+            <div className="space-y-4 mt-4">
+              {/* Status and dates */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                <div>
+                  <span className="text-xs text-slate-500">Status</span>
+                  <div className="mt-1">
+                    {(() => {
+                      const statusStyle = COMMUNICATION_STATUS_STYLES[selectedCommunication.status] || COMMUNICATION_STATUS_STYLES.pending
+                      const StatusIcon = statusStyle.icon
+                      return (
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 ${statusStyle.bg} ${statusStyle.text}`}>
+                          <StatusIcon className="h-3 w-3" />
+                          {statusStyle.label}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500">Channel</span>
+                  <p className="font-medium text-sm capitalize mt-1">{selectedCommunication.channel}</p>
+                </div>
+                {selectedCommunication.sentAt && (
+                  <div>
+                    <span className="text-xs text-slate-500">Sent</span>
+                    <p className="font-medium text-sm mt-1">{new Date(selectedCommunication.sentAt).toLocaleString()}</p>
+                  </div>
+                )}
+                {selectedCommunication.deliveredAt && (
+                  <div>
+                    <span className="text-xs text-slate-500">Delivered</span>
+                    <p className="font-medium text-sm mt-1">{new Date(selectedCommunication.deliveredAt).toLocaleString()}</p>
+                  </div>
+                )}
+                {selectedCommunication.openedAt && (
+                  <div>
+                    <span className="text-xs text-slate-500">Opened</span>
+                    <p className="font-medium text-sm mt-1">{new Date(selectedCommunication.openedAt).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Recipients */}
+              <div>
+                <span className="text-xs text-slate-500">To</span>
+                <p className="font-medium text-sm mt-1">{selectedCommunication.recipientEmail || 'N/A'}</p>
+              </div>
+              {selectedCommunication.ccEmails && selectedCommunication.ccEmails.length > 0 && (
+                <div>
+                  <span className="text-xs text-slate-500">CC</span>
+                  <p className="font-medium text-sm mt-1">{selectedCommunication.ccEmails.join(', ')}</p>
+                </div>
+              )}
+
+              {/* Project */}
+              {selectedCommunication.projectName && (
+                <div>
+                  <span className="text-xs text-slate-500">Project</span>
+                  <p className="font-medium text-sm mt-1">{selectedCommunication.projectName}</p>
+                </div>
+              )}
+
+              {/* Email Body */}
+              {selectedCommunication.body && (
+                <div>
+                  <span className="text-xs text-slate-500">Message</span>
+                  <div className="mt-2 p-4 bg-white border rounded-lg">
+                    <pre className="whitespace-pre-wrap text-sm font-sans">{selectedCommunication.body}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

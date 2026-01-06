@@ -152,6 +152,65 @@ export async function GET(
     // Get the most recent COC with a verification
     const currentCoc = formattedCocs.find(coc => coc.verification)
 
+    // Get communications for this subcontractor
+    const communications = db.prepare(`
+      SELECT
+        c.id,
+        c.project_id,
+        p.name as project_name,
+        c.verification_id,
+        c.type,
+        c.channel,
+        c.recipient_email,
+        c.cc_emails,
+        c.subject,
+        c.body,
+        c.status,
+        c.sent_at,
+        c.delivered_at,
+        c.opened_at,
+        c.created_at
+      FROM communications c
+      LEFT JOIN projects p ON c.project_id = p.id
+      WHERE c.subcontractor_id = ?
+      ORDER BY c.created_at DESC
+    `).all(id) as Array<{
+      id: string
+      project_id: string
+      project_name: string | null
+      verification_id: string | null
+      type: string
+      channel: string
+      recipient_email: string | null
+      cc_emails: string | null
+      subject: string | null
+      body: string | null
+      status: string
+      sent_at: string | null
+      delivered_at: string | null
+      opened_at: string | null
+      created_at: string
+    }>
+
+    // Format communications
+    const formattedCommunications = communications.map(comm => ({
+      id: comm.id,
+      projectId: comm.project_id,
+      projectName: comm.project_name,
+      verificationId: comm.verification_id,
+      type: comm.type,
+      channel: comm.channel,
+      recipientEmail: comm.recipient_email,
+      ccEmails: comm.cc_emails ? comm.cc_emails.split(',') : [],
+      subject: comm.subject,
+      body: comm.body,
+      status: comm.status,
+      sentAt: comm.sent_at,
+      deliveredAt: comm.delivered_at,
+      openedAt: comm.opened_at,
+      createdAt: comm.created_at
+    }))
+
     return NextResponse.json({
       subcontractor: {
         id: subcontractor.id,
@@ -175,7 +234,8 @@ export async function GET(
       },
       projects,
       cocDocuments: formattedCocs,
-      currentCoc
+      currentCoc,
+      communications: formattedCommunications
     })
 
   } catch (error) {
