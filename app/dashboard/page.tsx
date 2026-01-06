@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
 import {
   LineChart,
   Line,
@@ -191,10 +192,7 @@ export default function DashboardPage() {
             <p className="text-slate-500">Here&apos;s your compliance overview for today.</p>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifications
-            </Button>
+            <NotificationsDropdown />
           </div>
         </div>
       </header>

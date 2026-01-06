@@ -329,6 +329,23 @@ function initializeSchema(db: Database.Database) {
     )
   `)
 
+  // Notifications table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      company_id TEXT NOT NULL REFERENCES companies(id),
+      type TEXT NOT NULL CHECK(type IN ('coc_received', 'coc_verified', 'coc_failed', 'exception_created', 'exception_approved', 'exception_expired', 'expiration_warning', 'communication_sent', 'stop_work_risk', 'system')),
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      link TEXT,
+      entity_type TEXT,
+      entity_id TEXT,
+      read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `)
+
   // Create indexes for performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -346,6 +363,9 @@ function initializeSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(user_id);
     CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_token ON magic_link_tokens(token);
     CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_email ON magic_link_tokens(email);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_company ON notifications(company_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(user_id, read);
   `)
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb, type Project } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
+import { createNotificationForProjectTeam } from '@/lib/notifications'
 import fs from 'fs'
 import path from 'path'
 
@@ -765,6 +766,44 @@ export async function POST(request: NextRequest) {
         SET status = 'non_compliant', updated_at = datetime('now')
         WHERE project_id = ? AND subcontractor_id = ?
       `).run(projectId, subcontractorId)
+    }
+
+    // Create notifications for project team
+    const subcontractorName = (subcontractor as { name: string }).name
+    const projectName = project.name
+
+    if (verification.status === 'pass') {
+      createNotificationForProjectTeam(
+        projectId,
+        'coc_verified',
+        'COC Verified - Compliant',
+        `${subcontractorName}'s Certificate of Currency has passed verification for ${projectName}`,
+        `/dashboard/documents/${documentId}`,
+        'coc_document',
+        documentId
+      )
+    } else if (verification.status === 'fail') {
+      const deficiencyCount = verification.deficiencies.length
+      createNotificationForProjectTeam(
+        projectId,
+        'coc_failed',
+        'COC Verification Failed',
+        `${subcontractorName}'s Certificate of Currency has ${deficiencyCount} deficienc${deficiencyCount === 1 ? 'y' : 'ies'} for ${projectName}`,
+        `/dashboard/documents/${documentId}`,
+        'coc_document',
+        documentId
+      )
+    } else {
+      // Review required
+      createNotificationForProjectTeam(
+        projectId,
+        'coc_received',
+        'COC Requires Review',
+        `${subcontractorName}'s Certificate of Currency requires manual review for ${projectName}`,
+        `/dashboard/documents/${documentId}`,
+        'coc_document',
+        documentId
+      )
     }
 
     return NextResponse.json({
