@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useEffect, useState, useCallback } from "react"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -27,7 +27,11 @@ import {
   MailOpen,
   X,
   ChevronRight,
-  Home
+  Home,
+  AlertCircle,
+  ShieldAlert,
+  ShieldCheck,
+  XCircle
 } from "lucide-react"
 import {
   Dialog,
@@ -134,6 +138,31 @@ interface Communication {
   createdAt: string
 }
 
+interface Exception {
+  id: string
+  projectSubcontractorId: string
+  verificationId: string | null
+  issueSummary: string
+  reason: string
+  riskLevel: string
+  createdByUserId: string
+  createdByName: string
+  approvedByUserId: string | null
+  approvedByName: string | null
+  approvedAt: string | null
+  expiresAt: string | null
+  expirationType: string
+  status: string
+  resolvedAt: string | null
+  resolutionType: string | null
+  resolutionNotes: string | null
+  supportingDocumentUrl: string | null
+  projectId: string
+  projectName: string
+  createdAt: string
+  updatedAt: string
+}
+
 const COMMUNICATION_TYPE_LABELS: Record<string, string> = {
   deficiency: 'Deficiency Notice',
   follow_up: 'Follow-up',
@@ -163,20 +192,61 @@ const VERIFICATION_STATUS_STYLES: Record<string, { bg: string; text: string; lab
   review: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Needs Review' }
 }
 
+const EXCEPTION_STATUS_STYLES: Record<string, { bg: string; text: string; label: string; icon: typeof AlertCircle }> = {
+  pending_approval: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pending Approval', icon: Clock },
+  active: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Active', icon: ShieldAlert },
+  expired: { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Expired', icon: XCircle },
+  resolved: { bg: 'bg-green-100', text: 'text-green-700', label: 'Resolved', icon: ShieldCheck },
+  closed: { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Closed', icon: XCircle },
+  rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected', icon: XCircle }
+}
+
+const RISK_LEVEL_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  low: { bg: 'bg-green-100', text: 'text-green-700', label: 'Low' },
+  medium: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Medium' },
+  high: { bg: 'bg-red-100', text: 'text-red-700', label: 'High' }
+}
+
+const EXPIRATION_TYPE_LABELS: Record<string, string> = {
+  until_resolved: 'Until Resolved',
+  fixed_duration: 'Fixed Duration',
+  specific_date: 'Specific Date',
+  permanent: 'Permanent'
+}
+
 export default function SubcontractorDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const fromProjectId = searchParams.get('fromProject')
   const projectName = searchParams.get('projectName')
+  const tabFromUrl = searchParams.get('tab')
   const [subcontractor, setSubcontractor] = useState<Subcontractor | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [cocDocuments, setCocDocuments] = useState<COCDocument[]>([])
   const [currentCoc, setCurrentCoc] = useState<COCDocument | null>(null)
   const [communications, setCommunications] = useState<Communication[]>([])
+  const [exceptions, setExceptions] = useState<Exception[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [activeTab, setActiveTab] = useState<'insurance' | 'communications'>('insurance')
+  const [activeTab, setActiveTab] = useState<'insurance' | 'communications' | 'exceptions'>(
+    tabFromUrl === 'communications' ? 'communications' : tabFromUrl === 'exceptions' ? 'exceptions' : 'insurance'
+  )
   const [selectedCommunication, setSelectedCommunication] = useState<Communication | null>(null)
+  const [selectedException, setSelectedException] = useState<Exception | null>(null)
+
+  // Update URL when tab changes
+  const handleTabChange = useCallback((tab: 'insurance' | 'communications' | 'exceptions') => {
+    setActiveTab(tab)
+    const newSearchParams = new URLSearchParams(searchParams.toString())
+    if (tab === 'insurance') {
+      newSearchParams.delete('tab')
+    } else {
+      newSearchParams.set('tab', tab)
+    }
+    const queryString = newSearchParams.toString()
+    router.replace(`/dashboard/subcontractors/${params.id}${queryString ? `?${queryString}` : ''}`, { scroll: false })
+  }, [searchParams, params.id, router])
 
   useEffect(() => {
     fetchSubcontractor()
@@ -198,6 +268,7 @@ export default function SubcontractorDetailPage() {
         setCocDocuments(data.cocDocuments || [])
         setCurrentCoc(data.currentCoc || null)
         setCommunications(data.communications || [])
+        setExceptions(data.exceptions || [])
       }
     } catch (error) {
       console.error('Failed to fetch subcontractor:', error)
@@ -311,7 +382,7 @@ export default function SubcontractorDetailPage() {
         <div className="border-b">
           <nav className="flex gap-4">
             <button
-              onClick={() => setActiveTab('insurance')}
+              onClick={() => handleTabChange('insurance')}
               className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'insurance'
                   ? 'border-primary text-primary'
@@ -322,7 +393,7 @@ export default function SubcontractorDetailPage() {
               Insurance & COCs
             </button>
             <button
-              onClick={() => setActiveTab('communications')}
+              onClick={() => handleTabChange('communications')}
               className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'communications'
                   ? 'border-primary text-primary'
@@ -334,6 +405,22 @@ export default function SubcontractorDetailPage() {
               {communications.length > 0 && (
                 <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">
                   {communications.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => handleTabChange('exceptions')}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'exceptions'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <AlertCircle className="h-4 w-4 inline-block mr-2" />
+              Exceptions
+              {exceptions.length > 0 && (
+                <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">
+                  {exceptions.length}
                 </span>
               )}
             </button>
@@ -743,6 +830,86 @@ export default function SubcontractorDetailPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Exceptions Tab */}
+        {activeTab === 'exceptions' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-primary" />
+                Exception History
+              </CardTitle>
+              <CardDescription>Compliance exceptions for this subcontractor</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {exceptions.length > 0 ? (
+                <div className="space-y-3">
+                  {exceptions.map((exc) => {
+                    const statusStyle = EXCEPTION_STATUS_STYLES[exc.status] || EXCEPTION_STATUS_STYLES.pending_approval
+                    const StatusIcon = statusStyle.icon
+                    const riskStyle = RISK_LEVEL_STYLES[exc.riskLevel] || RISK_LEVEL_STYLES.medium
+                    return (
+                      <div
+                        key={exc.id}
+                        className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer"
+                        onClick={() => setSelectedException(exc)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">
+                                {exc.issueSummary}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${statusStyle.bg} ${statusStyle.text}`}>
+                                <StatusIcon className="h-3 w-3" />
+                                {statusStyle.label}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${riskStyle.bg} ${riskStyle.text}`}>
+                                {riskStyle.label} Risk
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600 mt-1 line-clamp-2">{exc.reason}</p>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                              {exc.projectName && (
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="h-3 w-3" />
+                                  {exc.projectName}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {exc.createdByName}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(exc.createdAt).toLocaleDateString()}
+                              </span>
+                              {exc.expiresAt && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Expires: {new Date(exc.expiresAt).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                  <p>No exceptions recorded</p>
+                  <p className="text-sm">Exceptions will appear here when they are created</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Communication Detail Modal */}
@@ -827,6 +994,136 @@ export default function SubcontractorDetailPage() {
                   <span className="text-xs text-slate-500">Message</span>
                   <div className="mt-2 p-4 bg-white border rounded-lg">
                     <pre className="whitespace-pre-wrap text-sm font-sans">{selectedCommunication.body}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Exception Detail Modal */}
+      <Dialog open={!!selectedException} onOpenChange={() => setSelectedException(null)}>
+        <DialogContent onClose={() => setSelectedException(null)} className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-primary" />
+              Exception Details
+            </DialogTitle>
+            <DialogDescription>
+              {selectedException?.issueSummary}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedException && (
+            <div className="space-y-4 mt-4">
+              {/* Status and Risk Level */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                <div>
+                  <span className="text-xs text-slate-500">Status</span>
+                  <div className="mt-1">
+                    {(() => {
+                      const statusStyle = EXCEPTION_STATUS_STYLES[selectedException.status] || EXCEPTION_STATUS_STYLES.pending_approval
+                      const StatusIcon = statusStyle.icon
+                      return (
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 ${statusStyle.bg} ${statusStyle.text}`}>
+                          <StatusIcon className="h-3 w-3" />
+                          {statusStyle.label}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500">Risk Level</span>
+                  <div className="mt-1">
+                    {(() => {
+                      const riskStyle = RISK_LEVEL_STYLES[selectedException.riskLevel] || RISK_LEVEL_STYLES.medium
+                      return (
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskStyle.bg} ${riskStyle.text}`}>
+                          {riskStyle.label}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500">Expiration Type</span>
+                  <p className="font-medium text-sm mt-1">
+                    {EXPIRATION_TYPE_LABELS[selectedException.expirationType] || selectedException.expirationType}
+                  </p>
+                </div>
+                {selectedException.expiresAt && (
+                  <div>
+                    <span className="text-xs text-slate-500">Expires</span>
+                    <p className="font-medium text-sm mt-1">{new Date(selectedException.expiresAt).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Project */}
+              {selectedException.projectName && (
+                <div>
+                  <span className="text-xs text-slate-500">Project</span>
+                  <p className="font-medium text-sm mt-1">{selectedException.projectName}</p>
+                </div>
+              )}
+
+              {/* Reason */}
+              <div>
+                <span className="text-xs text-slate-500">Reason</span>
+                <div className="mt-2 p-4 bg-white border rounded-lg">
+                  <p className="text-sm">{selectedException.reason}</p>
+                </div>
+              </div>
+
+              {/* Created By and Approval Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-slate-500">Created By</span>
+                  <p className="font-medium text-sm mt-1">{selectedException.createdByName}</p>
+                  <p className="text-xs text-slate-500">{new Date(selectedException.createdAt).toLocaleString()}</p>
+                </div>
+                {selectedException.approvedByName && (
+                  <div>
+                    <span className="text-xs text-slate-500">Approved By</span>
+                    <p className="font-medium text-sm mt-1">{selectedException.approvedByName}</p>
+                    {selectedException.approvedAt && (
+                      <p className="text-xs text-slate-500">{new Date(selectedException.approvedAt).toLocaleString()}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Resolution Info */}
+              {selectedException.resolvedAt && (
+                <div className="border-t pt-4">
+                  <span className="text-xs text-slate-500">Resolution</span>
+                  <div className="mt-2">
+                    <p className="font-medium text-sm">
+                      {selectedException.resolutionType?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                    </p>
+                    {selectedException.resolutionNotes && (
+                      <p className="text-sm text-slate-600 mt-1">{selectedException.resolutionNotes}</p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-1">
+                      Resolved on {new Date(selectedException.resolvedAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Supporting Document */}
+              {selectedException.supportingDocumentUrl && (
+                <div>
+                  <span className="text-xs text-slate-500">Supporting Document</span>
+                  <div className="mt-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={selectedException.supportingDocumentUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View Document
+                      </a>
+                    </Button>
                   </div>
                 </div>
               )}

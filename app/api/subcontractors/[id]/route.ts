@@ -211,6 +211,89 @@ export async function GET(
       createdAt: comm.created_at
     }))
 
+    // Get exceptions for this subcontractor
+    const exceptions = db.prepare(`
+      SELECT
+        e.id,
+        e.project_subcontractor_id,
+        e.verification_id,
+        e.issue_summary,
+        e.reason,
+        e.risk_level,
+        e.created_by_user_id,
+        e.approved_by_user_id,
+        e.approved_at,
+        e.expires_at,
+        e.expiration_type,
+        e.status,
+        e.resolved_at,
+        e.resolution_type,
+        e.resolution_notes,
+        e.supporting_document_url,
+        e.created_at,
+        e.updated_at,
+        p.id as project_id,
+        p.name as project_name,
+        creator.name as created_by_name,
+        approver.name as approved_by_name
+      FROM exceptions e
+      JOIN project_subcontractors ps ON e.project_subcontractor_id = ps.id
+      JOIN projects p ON ps.project_id = p.id
+      JOIN users creator ON e.created_by_user_id = creator.id
+      LEFT JOIN users approver ON e.approved_by_user_id = approver.id
+      WHERE ps.subcontractor_id = ?
+      ORDER BY e.created_at DESC
+    `).all(id) as Array<{
+      id: string
+      project_subcontractor_id: string
+      verification_id: string | null
+      issue_summary: string
+      reason: string
+      risk_level: string
+      created_by_user_id: string
+      approved_by_user_id: string | null
+      approved_at: string | null
+      expires_at: string | null
+      expiration_type: string
+      status: string
+      resolved_at: string | null
+      resolution_type: string | null
+      resolution_notes: string | null
+      supporting_document_url: string | null
+      created_at: string
+      updated_at: string
+      project_id: string
+      project_name: string
+      created_by_name: string
+      approved_by_name: string | null
+    }>
+
+    // Format exceptions
+    const formattedExceptions = exceptions.map(exc => ({
+      id: exc.id,
+      projectSubcontractorId: exc.project_subcontractor_id,
+      verificationId: exc.verification_id,
+      issueSummary: exc.issue_summary,
+      reason: exc.reason,
+      riskLevel: exc.risk_level,
+      createdByUserId: exc.created_by_user_id,
+      createdByName: exc.created_by_name,
+      approvedByUserId: exc.approved_by_user_id,
+      approvedByName: exc.approved_by_name,
+      approvedAt: exc.approved_at,
+      expiresAt: exc.expires_at,
+      expirationType: exc.expiration_type,
+      status: exc.status,
+      resolvedAt: exc.resolved_at,
+      resolutionType: exc.resolution_type,
+      resolutionNotes: exc.resolution_notes,
+      supportingDocumentUrl: exc.supporting_document_url,
+      projectId: exc.project_id,
+      projectName: exc.project_name,
+      createdAt: exc.created_at,
+      updatedAt: exc.updated_at
+    }))
+
     return NextResponse.json({
       subcontractor: {
         id: subcontractor.id,
@@ -235,7 +318,8 @@ export async function GET(
       projects,
       cocDocuments: formattedCocs,
       currentCoc,
-      communications: formattedCommunications
+      communications: formattedCommunications,
+      exceptions: formattedExceptions
     })
 
   } catch (error) {
