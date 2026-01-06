@@ -122,6 +122,23 @@ export async function GET(request: NextRequest) {
       verification_status: string | null
     }>
 
+    // Calculate COC statistics for overnight arrivals
+    const cocStats = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN v.status = 'pass' THEN 1 ELSE 0 END) as auto_approved,
+        SUM(CASE WHEN v.status = 'fail' OR v.status IS NULL OR d.processing_status = 'pending' THEN 1 ELSE 0 END) as needs_review
+      FROM coc_documents d
+      JOIN projects p ON d.project_id = p.id
+      LEFT JOIN verifications v ON d.id = v.coc_document_id
+      WHERE p.company_id = ?
+        AND d.received_at >= ?
+    `).get(user.company_id, yesterday) as {
+      total: number
+      auto_approved: number
+      needs_review: number
+    }
+
     return NextResponse.json({
       stopWorkRisks,
       stats: {
@@ -131,7 +148,12 @@ export async function GET(request: NextRequest) {
         stopWorkCount: stopWorkRisks.length,
         ...complianceStats
       },
-      newCocs
+      newCocs,
+      cocStats: {
+        total: cocStats.total || 0,
+        autoApproved: cocStats.auto_approved || 0,
+        needsReview: cocStats.needs_review || 0
+      }
     })
 
   } catch (error) {

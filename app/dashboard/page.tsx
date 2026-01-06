@@ -53,6 +53,12 @@ interface NewCoc {
   verification_status: string | null
 }
 
+interface CocStats {
+  total: number
+  autoApproved: number
+  needsReview: number
+}
+
 interface MorningBriefData {
   stopWorkRisks: StopWorkRisk[]
   stats: {
@@ -67,6 +73,7 @@ interface MorningBriefData {
     exception: number
   }
   newCocs: NewCoc[]
+  cocStats: CocStats
 }
 
 export default function DashboardPage() {
@@ -233,8 +240,36 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">New COCs Received</CardTitle>
-              <CardDescription>Certificates received in the last 24 hours</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">New COCs Received</CardTitle>
+                  <CardDescription>Certificates received in the last 24 hours</CardDescription>
+                </div>
+                {morningBrief?.cocStats && morningBrief.cocStats.total > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-slate-100 text-slate-700">
+                      {morningBrief.cocStats.total} Total
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              {/* COC Stats Summary */}
+              {morningBrief?.cocStats && morningBrief.cocStats.total > 0 && (
+                <div className="flex gap-4 mt-3 pt-3 border-t">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="text-sm text-slate-600">
+                      <span className="font-medium">{morningBrief.cocStats.autoApproved}</span> Auto-approved
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-500" />
+                    <span className="text-sm text-slate-600">
+                      <span className="font-medium">{morningBrief.cocStats.needsReview}</span> Needs review
+                    </span>
+                  </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {morningBrief?.newCocs?.length ? (
