@@ -15,23 +15,39 @@ interface InsuranceRequirement {
   cross_liability_required: number
 }
 
+// List of APRA-licensed general insurers in Australia
+// This is a representative list - in production this would be fetched from APRA's register
+const APRA_LICENSED_INSURERS = [
+  'QBE Insurance (Australia) Limited',
+  'Allianz Australia Insurance Limited',
+  'Suncorp Group Limited',
+  'CGU Insurance Limited',
+  'Zurich Australian Insurance Limited',
+  'AIG Australia Limited',
+  'Vero Insurance',
+  'GIO General Limited',
+  'Insurance Australia Limited',
+  'AAI Limited',
+  'Chubb Insurance Australia Limited',
+  'HDI Global Specialty SE - Australia',
+  'Liberty Mutual Insurance Company',
+  'Tokio Marine & Nichido Fire Insurance Co., Ltd',
+  'XL Insurance Company SE',
+  'AXA Corporate Solutions Assurance',
+  'Swiss Re International SE',
+  'Munich Holdings of Australasia Pty Limited'
+]
+
+// Unlicensed/offshore insurers for testing purposes
+const UNLICENSED_INSURERS = [
+  'Offshore Insurance Ltd',
+  'Unregistered Underwriters Co',
+  'Non-APRA Insurance Company'
+]
+
 // Simulated AI extraction of policy details from COC document
 // fileName parameter allows for test scenarios (e.g., "expiring_early" triggers early expiry)
 function performAIExtraction(subcontractor: { id: string; name: string; abn: string }, fileName?: string) {
-  const insurers = [
-    'QBE Insurance (Australia) Limited',
-    'Allianz Australia Insurance Limited',
-    'Suncorp Group Limited',
-    'CGU Insurance Limited',
-    'Zurich Australian Insurance Limited',
-    'AIG Australia Limited',
-    'Vero Insurance',
-    'GIO General Limited'
-  ]
-
-  const randomInsurer = insurers[Math.floor(Math.random() * insurers.length)]
-  const policyNumber = `POL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`
-
   // Check for test scenarios based on filename
   const isEarlyExpiry = fileName?.toLowerCase().includes('expiring_early') ||
                         fileName?.toLowerCase().includes('early_expiry')
@@ -43,6 +59,19 @@ function performAIExtraction(subcontractor: { id: string; name: string; abn: str
                   fileName?.toLowerCase().includes('wc_vic')
   const isWrongAbn = fileName?.toLowerCase().includes('wrong_abn') ||
                      fileName?.toLowerCase().includes('abn_mismatch')
+  const isHighExcess = fileName?.toLowerCase().includes('high_excess') ||
+                       fileName?.toLowerCase().includes('excess_high')
+  const isUnlicensedInsurer = fileName?.toLowerCase().includes('unlicensed') ||
+                              fileName?.toLowerCase().includes('offshore') ||
+                              fileName?.toLowerCase().includes('unregistered')
+
+  const insurers = APRA_LICENSED_INSURERS.slice(0, 8) // Use first 8 APRA-licensed insurers for normal extraction
+
+  // Select insurer - use unlicensed insurer for testing APRA validation
+  const randomInsurer = isUnlicensedInsurer
+    ? UNLICENSED_INSURERS[Math.floor(Math.random() * UNLICENSED_INSURERS.length)]
+    : insurers[Math.floor(Math.random() * insurers.length)]
+  const policyNumber = `POL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`
 
   const now = new Date()
   const startDate = new Date(now)
@@ -65,6 +94,11 @@ function performAIExtraction(subcontractor: { id: string; name: string; abn: str
   // Use a different ABN for testing ABN mismatch scenarios
   const extractedAbn = isWrongAbn ? '99999999999' : subcontractor.abn
 
+  // Use high excess values for testing excess limit scenarios
+  const publicLiabilityExcess = isHighExcess ? 15000 : 1000
+  const productsLiabilityExcess = isHighExcess ? 15000 : 1000
+  const professionalIndemnityExcess = isHighExcess ? 25000 : 5000
+
   return {
     insured_party_name: subcontractor.name,
     insured_party_abn: extractedAbn,
@@ -79,7 +113,7 @@ function performAIExtraction(subcontractor: { id: string; name: string; abn: str
         type: 'public_liability',
         limit: publicLiabilityLimit,
         limit_type: 'per_occurrence',
-        excess: 1000,
+        excess: publicLiabilityExcess,
         principal_indemnity: !isNoPrincipalIndemnity,
         cross_liability: !isNoCrossLiability
       },
@@ -87,7 +121,7 @@ function performAIExtraction(subcontractor: { id: string; name: string; abn: str
         type: 'products_liability',
         limit: productsLiabilityLimit,
         limit_type: 'aggregate',
-        excess: 1000,
+        excess: productsLiabilityExcess,
         principal_indemnity: !isNoPrincipalIndemnity,
         cross_liability: !isNoCrossLiability
       },
@@ -103,7 +137,7 @@ function performAIExtraction(subcontractor: { id: string; name: string; abn: str
         type: 'professional_indemnity',
         limit: professionalIndemnityLimit,
         limit_type: 'per_claim',
-        excess: 5000,
+        excess: professionalIndemnityExcess,
         retroactive_date: '2020-01-01'
       }
     ],
@@ -249,6 +283,35 @@ function verifyAgainstRequirements(
       description: 'ABN verification',
       status: 'pass',
       details: `ABN ${extractedData.insured_party_abn} verified`
+    })
+  }
+
+  // Check if insurer is APRA-licensed
+  const insurerName = extractedData.insurer_name
+  const isApraLicensed = APRA_LICENSED_INSURERS.some(
+    apraInsurer => apraInsurer.toLowerCase() === insurerName?.toLowerCase()
+  )
+
+  if (!isApraLicensed) {
+    checks.push({
+      check_type: 'apra_insurer_validation',
+      description: 'APRA insurer validation',
+      status: 'fail',
+      details: `Insurer "${insurerName}" is not on the APRA-licensed insurers register`
+    })
+    deficiencies.push({
+      type: 'unlicensed_insurer',
+      severity: 'critical',
+      description: 'Insurer is not APRA-licensed in Australia',
+      required_value: 'APRA-licensed insurer',
+      actual_value: insurerName || 'Unknown'
+    })
+  } else {
+    checks.push({
+      check_type: 'apra_insurer_validation',
+      description: 'APRA insurer validation',
+      status: 'pass',
+      details: `Insurer "${insurerName}" is APRA-licensed`
     })
   }
 
