@@ -19,6 +19,10 @@ interface Subcontractor {
   id: string
   name: string
   abn: string
+  broker_name?: string
+  broker_email?: string
+  contact_name?: string
+  contact_email?: string
 }
 
 interface InsuranceRequirement {
@@ -458,8 +462,8 @@ export async function POST(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    // Get subcontractor details
-    const subcontractor = db.prepare('SELECT id, name, abn FROM subcontractors WHERE id = ?')
+    // Get subcontractor details (including broker info for deficiency emails)
+    const subcontractor = db.prepare('SELECT id, name, abn, broker_name, broker_email, contact_name, contact_email FROM subcontractors WHERE id = ?')
       .get(document.subcontractor_id) as Subcontractor
 
     // Get project insurance requirements
@@ -540,6 +544,88 @@ export async function POST(
       checks_count: verification.checks.length,
       deficiencies_count: verification.deficiencies.length
     }))
+
+    // If verification failed, auto-send deficiency notification email to broker
+    if (verification.status === 'fail' && verification.deficiencies.length > 0) {
+      // Get project name for email
+      const projectDetails = db.prepare('SELECT name FROM projects WHERE id = ?')
+        .get(document.project_id) as { name: string } | undefined
+      const projectName = projectDetails?.name || 'Unknown Project'
+
+      // Determine recipient (prefer broker, fall back to subcontractor contact)
+      const recipientEmail = subcontractor.broker_email || subcontractor.contact_email
+      const recipientName = subcontractor.broker_name || subcontractor.contact_name || 'Insurance Contact'
+
+      if (recipientEmail) {
+        // Generate the upload link for the subcontractor portal
+        const uploadLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/portal/upload?subcontractor=${document.subcontractor_id}&project=${document.project_id}`
+
+        // Format deficiencies for email
+        const deficiencyList = verification.deficiencies.map((d: { description: string; severity: string; required_value: string | null; actual_value: string | null }) =>
+          `• ${d.description}\n  Severity: ${d.severity.toUpperCase()}\n  Required: ${d.required_value || 'N/A'}\n  Actual: ${d.actual_value || 'N/A'}`
+        ).join('\n\n')
+
+        // Create email subject and body
+        const emailSubject = `Certificate of Currency Deficiency Notice - ${subcontractor.name} / ${projectName}`
+        const emailBody = `Dear ${recipientName},
+
+We have identified deficiencies in the Certificate of Currency submitted for ${subcontractor.name} (ABN: ${subcontractor.abn}) on the ${projectName} project.
+
+DEFICIENCIES FOUND:
+
+${deficiencyList}
+
+ACTION REQUIRED:
+Please provide an updated Certificate of Currency that addresses the above deficiencies.
+
+You can upload the updated certificate directly using this secure link:
+${uploadLink}
+
+If you have any questions, please contact our project team.
+
+Best regards,
+RiskShield AI Compliance Team`
+
+        // Get or create verification ID for linking
+        let verificationId = document.verification_id
+        if (!verificationId) {
+          const newVerification = db.prepare('SELECT id FROM verifications WHERE coc_document_id = ?')
+            .get(params.id) as { id: string } | undefined
+          verificationId = newVerification?.id || null
+        }
+
+        // Queue the deficiency email
+        const communicationId = uuidv4()
+        db.prepare(`
+          INSERT INTO communications (id, subcontractor_id, project_id, verification_id, type, channel, recipient_email, subject, body, status)
+          VALUES (?, ?, ?, ?, 'deficiency', 'email', ?, ?, ?, 'sent')
+        `).run(
+          communicationId,
+          document.subcontractor_id,
+          document.project_id,
+          verificationId,
+          recipientEmail,
+          emailSubject,
+          emailBody
+        )
+
+        // Mark as sent (in production, this would integrate with an email service)
+        db.prepare(`
+          UPDATE communications SET sent_at = datetime('now'), status = 'sent' WHERE id = ?
+        `).run(communicationId)
+
+        // Log the email action
+        db.prepare(`
+          INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
+          VALUES (?, ?, ?, 'communication', ?, 'deficiency_email_sent', ?)
+        `).run(uuidv4(), user.company_id, user.id, communicationId, JSON.stringify({
+          recipient: recipientEmail,
+          subcontractor_name: subcontractor.name,
+          project_name: projectName,
+          deficiency_count: verification.deficiencies.length
+        }))
+      }
+    }
 
     return NextResponse.json({
       success: true,
