@@ -162,6 +162,16 @@ export default function ProjectDetailPage() {
   // Export report state
   const [isExporting, setIsExporting] = useState(false)
 
+  // Edit project modal state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [isSavingProject, setIsSavingProject] = useState(false)
+  const [editingProject, setEditingProject] = useState<{
+    name: string
+    address: string
+    state: string
+    status: string
+  }>({ name: '', address: '', state: '', status: '' })
+
   useEffect(() => {
     fetchUserRole()
     fetchProject()
@@ -203,6 +213,65 @@ export default function ProjectDetailPage() {
           variant: "destructive"
         })
       }
+    }
+  }
+
+  const handleOpenEditModal = () => {
+    if (project) {
+      setEditingProject({
+        name: project.name,
+        address: project.address || '',
+        state: project.state || '',
+        status: project.status
+      })
+      setShowEditModal(true)
+    }
+  }
+
+  const handleSaveProject = async () => {
+    if (!editingProject.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Project name is required",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsSavingProject(true)
+    try {
+      const response = await fetch(`/api/projects/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingProject.name.trim(),
+          address: editingProject.address.trim() || null,
+          state: editingProject.state || null,
+          status: editingProject.status
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update project')
+      }
+
+      toast({
+        title: "Success",
+        description: "Project updated successfully"
+      })
+
+      setShowEditModal(false)
+      fetchProject() // Refresh project data
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to update project',
+        variant: "destructive"
+      })
+    } finally {
+      setIsSavingProject(false)
     }
   }
 
@@ -696,7 +765,7 @@ export default function ProjectDetailPage() {
             </Button>
             {canModify && (
               <>
-                <Button variant="outline">
+                <Button variant="outline" onClick={handleOpenEditModal}>
                   <Settings className="h-4 w-4 mr-2" />
                   Settings
                 </Button>
@@ -1413,6 +1482,96 @@ export default function ProjectDetailPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent onClose={() => setShowEditModal(false)}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Edit Project
+            </DialogTitle>
+            <DialogDescription>
+              Update project details
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveProject(); }} className="space-y-4 mt-4">
+            {/* Project Name */}
+            <div className="space-y-2">
+              <Label htmlFor="editProjectName">Project Name *</Label>
+              <Input
+                id="editProjectName"
+                value={editingProject.name}
+                onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                placeholder="Enter project name"
+                required
+              />
+            </div>
+
+            {/* Address */}
+            <div className="space-y-2">
+              <Label htmlFor="editProjectAddress">Address</Label>
+              <Input
+                id="editProjectAddress"
+                value={editingProject.address}
+                onChange={(e) => setEditingProject({ ...editingProject, address: e.target.value })}
+                placeholder="Enter project address"
+              />
+            </div>
+
+            {/* State */}
+            <div className="space-y-2">
+              <Label htmlFor="editProjectState">State/Territory</Label>
+              <Select
+                id="editProjectState"
+                value={editingProject.state}
+                onChange={(e) => setEditingProject({ ...editingProject, state: e.target.value })}
+              >
+                <option value="">Select a state...</option>
+                <option value="NSW">New South Wales (NSW)</option>
+                <option value="VIC">Victoria (VIC)</option>
+                <option value="QLD">Queensland (QLD)</option>
+                <option value="WA">Western Australia (WA)</option>
+                <option value="SA">South Australia (SA)</option>
+                <option value="TAS">Tasmania (TAS)</option>
+                <option value="NT">Northern Territory (NT)</option>
+                <option value="ACT">Australian Capital Territory (ACT)</option>
+              </Select>
+            </div>
+
+            {/* Status */}
+            <div className="space-y-2">
+              <Label htmlFor="editProjectStatus">Status</Label>
+              <Select
+                id="editProjectStatus"
+                value={editingProject.status}
+                onChange={(e) => setEditingProject({ ...editingProject, status: e.target.value })}
+              >
+                <option value="active">Active</option>
+                <option value="on_hold">On Hold</option>
+                <option value="completed">Completed</option>
+              </Select>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSavingProject || !editingProject.name.trim()}>
+                {isSavingProject ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>
