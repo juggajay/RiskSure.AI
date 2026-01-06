@@ -327,3 +327,87 @@ export async function GET(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+// DELETE /api/subcontractors/[id] - Delete a subcontractor
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = request.cookies.get('auth_token')?.value
+
+    if (!token) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    const user = getUserByToken(token)
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    // Only admin and risk_manager can delete subcontractors
+    if (!['admin', 'risk_manager'].includes(user.role)) {
+      return NextResponse.json({ error: 'Only admins and risk managers can delete subcontractors' }, { status: 403 })
+    }
+
+    const { id } = await params
+    const db = getDb()
+
+    // Check if subcontractor exists and belongs to user's company
+    const subcontractor = db.prepare(`
+      SELECT id, name, company_id
+      FROM subcontractors
+      WHERE id = ? AND company_id = ?
+    `).get(id, user.company_id) as { id: string; name: string; company_id: string } | undefined
+
+    if (!subcontractor) {
+      return NextResponse.json({ error: 'Subcontractor not found' }, { status: 404 })
+    }
+
+    // Check if subcontractor is assigned to any projects
+    const projectAssignments = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM project_subcontractors
+      WHERE subcontractor_id = ?
+    `).get(id) as { count: number }
+
+    if (projectAssignments.count > 0) {
+      return NextResponse.json({
+        error: 'Cannot delete subcontractor that is assigned to projects. Remove from all projects first.',
+        assignedProjects: projectAssignments.count
+      }, { status: 400 })
+    }
+
+    // Delete related records first (cascade)
+    // Delete COC documents
+    db.prepare('DELETE FROM coc_documents WHERE subcontractor_id = ?').run(id)
+
+    // Delete communications
+    db.prepare('DELETE FROM communications WHERE subcontractor_id = ?').run(id)
+
+    // Delete the subcontractor
+    db.prepare('DELETE FROM subcontractors WHERE id = ?').run(id)
+
+    // Log the action
+    const { v4: uuidv4 } = await import('uuid')
+    db.prepare(`
+      INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
+      VALUES (?, ?, ?, 'subcontractor', ?, 'delete', ?)
+    `).run(
+      uuidv4(),
+      user.company_id,
+      user.id,
+      id,
+      JSON.stringify({ name: subcontractor.name })
+    )
+
+    return NextResponse.json({
+      success: true,
+      message: 'Subcontractor deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('Delete subcontractor error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

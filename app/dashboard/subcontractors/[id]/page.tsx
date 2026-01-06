@@ -31,17 +31,21 @@ import {
   AlertCircle,
   ShieldAlert,
   ShieldCheck,
-  XCircle
+  XCircle,
+  Trash2,
+  Loader2
 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogFooter,
   DialogTitle,
   DialogDescription
 } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Subcontractor {
   id: string
@@ -218,6 +222,7 @@ export default function SubcontractorDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { toast } = useToast()
   const fromProjectId = searchParams.get('fromProject')
   const projectName = searchParams.get('projectName')
   const tabFromUrl = searchParams.get('tab')
@@ -234,6 +239,10 @@ export default function SubcontractorDetailPage() {
   )
   const [selectedCommunication, setSelectedCommunication] = useState<Communication | null>(null)
   const [selectedException, setSelectedException] = useState<Exception | null>(null)
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Update URL when tab changes
   const handleTabChange = useCallback((tab: 'insurance' | 'communications' | 'exceptions') => {
@@ -290,6 +299,38 @@ export default function SubcontractorDetailPage() {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  const handleDeleteSubcontractor = async () => {
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/subcontractors/${params.id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete subcontractor')
+      }
+
+      toast({
+        title: "Subcontractor Deleted",
+        description: "The subcontractor has been deleted successfully"
+      })
+
+      // Redirect to subcontractors list
+      router.push('/dashboard/subcontractors')
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete subcontractor',
+        variant: "destructive"
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteModal(false)
+    }
   }
 
   if (isLoading) {
@@ -373,6 +414,16 @@ export default function SubcontractorDetailPage() {
               )}
             </div>
           </div>
+          {/* Delete button - only show if not assigned to any projects */}
+          {subcontractor.projectCount === 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteModal(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          )}
         </div>
       </header>
 
@@ -1129,6 +1180,50 @@ export default function SubcontractorDetailPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent onClose={() => setShowDeleteModal(false)}>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              <DialogTitle>Delete Subcontractor</DialogTitle>
+            </div>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{subcontractor?.name}&quot;? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mt-4">
+            <p className="text-sm text-amber-800">
+              <strong>Warning:</strong> This will permanently delete the subcontractor and all associated data including certificates of currency and communications history.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteSubcontractor}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Subcontractor'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
