@@ -715,3 +715,91 @@ Date: 2026-01-06
   - $10K maximum excess for Public Liability
   - Workers Comp requirement
 - All compliance checks are working (dates, ABN, limits, excess, state, APRA)
+
+---
+
+## Session 11 Summary (Coding Agent)
+Date: 2026-01-07
+
+### Completed Features
+
+1. **Feature #87: In-app notification center** ✅
+   - Created notifications database table with support for various event types
+   - Built API endpoints at /api/notifications (GET, POST, PATCH, DELETE):
+     - GET: List notifications with unread count and pagination
+     - POST: Create new notifications
+     - PATCH: Mark as read (single or all)
+     - DELETE: Clear all notifications
+   - Created NotificationsDropdown component with:
+     - Real-time polling every 30 seconds
+     - Unread count badge on bell icon
+     - Notification list with type-specific icons
+     - Mark all as read and clear all buttons
+     - Click to navigate to linked entity
+   - Added automatic notification creation when COC uploaded:
+     - coc_verified: COC passed verification
+     - coc_failed: COC failed verification
+     - coc_received: COC requires manual review
+   - Full end-to-end test:
+     - Created subcontractor "NOTIFICATION_TEST_SUBBIE"
+     - Added to project, uploaded test_coc.pdf
+     - Verification failed → notification created
+     - Clicked bell → dropdown showed "1" badge
+     - Notification displayed: "COC Verification Failed"
+     - Clicked notification → navigated to document detail page
+
+### Key Files Created
+
+```
+app/api/notifications/route.ts - Full CRUD API for notifications
+components/ui/notifications-dropdown.tsx - Notification center UI component
+components/ui/popover.tsx - Radix UI popover for dropdown
+lib/notifications.ts - Helper utilities for creating notifications
+lib/db/index.ts - Added notifications table to schema
+app/api/documents/route.ts - Added notification triggers on COC upload
+app/dashboard/page.tsx - Integrated NotificationsDropdown component
+```
+
+### Database Schema Addition
+
+```sql
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  company_id TEXT NOT NULL REFERENCES companies(id),
+  type TEXT NOT NULL CHECK(type IN ('coc_received', 'coc_verified', 'coc_failed',
+    'exception_created', 'exception_approved', 'exception_expired',
+    'expiration_warning', 'communication_sent', 'stop_work_risk', 'system')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  link TEXT,
+  entity_type TEXT,
+  entity_id TEXT,
+  read INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+)
+```
+
+### Regression Tests Performed
+
+1. **Feature #26: Create new project** ✅
+   - Created project "REGRESSION_TEST_PROJECT_JAN7" with Commercial Construction template
+   - Project saved and displayed correctly
+
+2. **Feature #29: Select standard template** ✅
+   - Selected "Commercial Construction" template
+   - Requirements auto-populated: $20M PL, $5M PI, Workers Comp required
+
+### Feature Statistics
+- Total Features: 221
+- Passing: 82
+- In Progress: 0
+- Percentage Complete: 37.1%
+
+### Notes for Next Agent
+- Dev server runs on port 3001
+- Test user: regression_test_jan7@example.com / TestPass123!
+- Notifications system fully functional with real-time updates
+- Test subcontractor: NOTIFICATION_TEST_SUBBIE (added to REGRESSION_TEST_PROJECT_JAN7)
+- Notification dropdown shows in dashboard header
+- Notifications created automatically when COC uploaded
