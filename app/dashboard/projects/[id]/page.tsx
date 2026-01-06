@@ -22,7 +22,8 @@ import {
   Check,
   Loader2,
   X,
-  Filter
+  Filter,
+  FileDown
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -158,6 +159,9 @@ export default function ProjectDetailPage() {
   const [isSavingTemplate, setIsSavingTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
+  // Export report state
+  const [isExporting, setIsExporting] = useState(false)
+
   useEffect(() => {
     fetchUserRole()
     fetchProject()
@@ -199,6 +203,41 @@ export default function ProjectDetailPage() {
           variant: "destructive"
         })
       }
+    }
+  }
+
+  const handleExportReport = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`/api/projects/${params.id}/report`)
+      if (!response.ok) {
+        throw new Error('Failed to generate report')
+      }
+
+      // Get the blob and create download link
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${project?.name.replace(/[^a-zA-Z0-9]/g, '_')}_Compliance_Report.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({
+        title: "Report Generated",
+        description: "Your compliance report has been downloaded"
+      })
+    } catch (error) {
+      console.error('Failed to export report:', error)
+      toast({
+        title: "Error",
+        description: "Failed to generate report",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -646,20 +685,30 @@ export default function ProjectDetailPage() {
               )}
             </div>
           </div>
-          {canModify && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-              {canDelete && (
-                <Button variant="destructive" onClick={() => setShowDeleteModal(true)}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExportReport} disabled={isExporting}>
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4 mr-2" />
               )}
-            </div>
-          )}
+              {isExporting ? 'Generating...' : 'Export Report'}
+            </Button>
+            {canModify && (
+              <>
+                <Button variant="outline">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+                {canDelete && (
+                  <Button variant="destructive" onClick={() => setShowDeleteModal(true)}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </header>
 
