@@ -133,11 +133,15 @@ export default function ExceptionsPage() {
 
   const canCreateException = user && ['admin', 'risk_manager', 'project_manager'].includes(user.role)
 
-  const filteredExceptions = exceptions.filter(exception =>
-    exception.issue_summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exception.subcontractor_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exception.project_name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Trim search query - whitespace-only should be treated as empty search
+  const trimmedSearchQuery = searchQuery.trim()
+
+  const filteredExceptions = exceptions.filter(exception => {
+    if (!trimmedSearchQuery) return true
+    return exception.issue_summary.toLowerCase().includes(trimmedSearchQuery.toLowerCase()) ||
+      exception.subcontractor_name.toLowerCase().includes(trimmedSearchQuery.toLowerCase()) ||
+      exception.project_name.toLowerCase().includes(trimmedSearchQuery.toLowerCase())
+  })
 
   const handleCreateException = async (passwordValue?: string) => {
     // If permanent expiration, require password

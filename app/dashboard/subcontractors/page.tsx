@@ -689,12 +689,18 @@ export default function SubcontractorsPage() {
     }
   }
 
-  const filteredSubcontractors = subcontractors.filter(sub =>
-    sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sub.abn.includes(searchQuery) ||
-    sub.trade?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sub.contact_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Trim search query - whitespace-only should be treated as empty search
+  const trimmedSearchQuery = searchQuery.trim()
+
+  const filteredSubcontractors = subcontractors.filter(sub => {
+    // If search query is empty (or whitespace-only), show all results
+    if (!trimmedSearchQuery) return true
+
+    return sub.name.toLowerCase().includes(trimmedSearchQuery.toLowerCase()) ||
+      sub.abn.includes(trimmedSearchQuery) ||
+      sub.trade?.toLowerCase().includes(trimmedSearchQuery.toLowerCase()) ||
+      sub.contact_name?.toLowerCase().includes(trimmedSearchQuery.toLowerCase())
+  })
 
   if (isLoading) {
     return (
@@ -824,10 +830,10 @@ export default function SubcontractorsPage() {
                 <Card className="h-full hover:shadow-md hover:border-primary transition-all cursor-pointer">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{sub.name}</CardTitle>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg truncate" title={sub.name}>{sub.name}</CardTitle>
                         {sub.trading_name && sub.trading_name !== sub.name && (
-                          <CardDescription>Trading as: {sub.trading_name}</CardDescription>
+                          <CardDescription className="truncate" title={`Trading as: ${sub.trading_name}`}>Trading as: {sub.trading_name}</CardDescription>
                         )}
                       </div>
                       {sub.trade && (
@@ -853,7 +859,7 @@ export default function SubcontractorsPage() {
                     {sub.contact_email && (
                       <div className="text-sm flex items-center gap-2">
                         <Mail className="h-4 w-4 text-slate-400" />
-                        <span className="truncate">{sub.contact_email}</span>
+                        <span className="truncate" title={sub.contact_email}>{sub.contact_email}</span>
                       </div>
                     )}
 
@@ -867,7 +873,7 @@ export default function SubcontractorsPage() {
                     {sub.address && (
                       <div className="text-sm flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-slate-400" />
-                        <span className="truncate">{sub.address}</span>
+                        <span className="truncate" title={sub.address}>{sub.address}</span>
                       </div>
                     )}
 

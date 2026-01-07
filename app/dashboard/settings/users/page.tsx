@@ -299,10 +299,14 @@ export default function UserManagementPage() {
     return date.toLocaleDateString()
   }
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Trim search query - whitespace-only should be treated as empty search
+  const trimmedSearchQuery = searchQuery.trim()
+
+  const filteredUsers = users.filter(user => {
+    if (!trimmedSearchQuery) return true
+    return user.name.toLowerCase().includes(trimmedSearchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(trimmedSearchQuery.toLowerCase())
+  })
 
   if (isLoading) {
     return (
@@ -510,8 +514,8 @@ export default function UserManagementPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-lg font-semibold text-slate-900">Invite New User</h2>
-              <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(false)}>
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(false)} aria-label="Close invite user modal">
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
             <div className="p-4 space-y-4">
@@ -584,8 +588,8 @@ export default function UserManagementPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-lg font-semibold text-slate-900">Edit User</h2>
-              <Button variant="ghost" size="sm" onClick={() => setIsEditModalOpen(false)}>
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={() => setIsEditModalOpen(false)} aria-label="Close edit user modal">
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
             <div className="p-4 space-y-4">
@@ -666,13 +670,13 @@ export default function UserManagementPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-lg font-semibold text-slate-900">Deactivate User</h2>
-              <Button variant="ghost" size="sm" onClick={() => setIsDeleteModalOpen(false)}>
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={() => setIsDeleteModalOpen(false)} aria-label="Close deactivate user modal">
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-4 p-4 bg-red-50 rounded-lg">
-                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center" aria-hidden="true">
                   <Trash2 className="h-6 w-6 text-red-600" />
                 </div>
                 <div>

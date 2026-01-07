@@ -91,14 +91,17 @@ export default function ProjectsPage() {
   // Get unique states from projects for filter options
   const availableStates = Array.from(new Set(projects.map(p => p.state).filter(Boolean))) as string[]
 
+  // Trim search query - whitespace-only should be treated as empty search
+  const trimmedSearchQuery = searchQuery.trim()
+
   // Filter projects
   const filteredProjects = projects
     .filter(project => {
-      // Search filter
-      const matchesSearch = searchQuery === '' ||
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.state?.toLowerCase().includes(searchQuery.toLowerCase())
+      // Search filter - empty or whitespace-only shows all results
+      const matchesSearch = !trimmedSearchQuery ||
+        project.name.toLowerCase().includes(trimmedSearchQuery.toLowerCase()) ||
+        project.address?.toLowerCase().includes(trimmedSearchQuery.toLowerCase()) ||
+        project.state?.toLowerCase().includes(trimmedSearchQuery.toLowerCase())
 
       // State filter
       const matchesState = stateFilter === 'all' || project.state === stateFilter
@@ -260,13 +263,13 @@ function ProjectCard({ project }: { project: Project }) {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg truncate group-hover:text-primary">
+              <CardTitle className="text-lg truncate group-hover:text-primary" title={project.name}>
                 {project.name}
               </CardTitle>
               {project.address && (
                 <CardDescription className="flex items-center gap-1 mt-1">
                   <MapPin className="h-3 w-3" />
-                  <span className="truncate">{project.address}</span>
+                  <span className="truncate" title={project.address}>{project.address}</span>
                 </CardDescription>
               )}
             </div>

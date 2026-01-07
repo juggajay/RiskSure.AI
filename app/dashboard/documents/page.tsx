@@ -342,8 +342,10 @@ export default function DocumentsPage() {
   }
 
   const filteredDocuments = documents.filter(doc => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
+    // Trim search query - whitespace-only should be treated as empty search
+    const trimmedQuery = searchQuery.trim()
+    if (!trimmedQuery) return true
+    const query = trimmedQuery.toLowerCase()
     return (
       (doc.file_name && doc.file_name.toLowerCase().includes(query)) ||
       doc.subcontractor_name.toLowerCase().includes(query) ||
@@ -610,7 +612,7 @@ export default function DocumentsPage() {
                     <div key={index} className="flex items-center justify-between p-2 hover:bg-slate-50">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-slate-400" />
-                        <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                        <span className="text-sm truncate max-w-[200px]" title={file.name}>{file.name}</span>
                         <span className="text-xs text-slate-400">{formatFileSize(file.size)}</span>
                       </div>
                       <Button
@@ -618,8 +620,9 @@ export default function DocumentsPage() {
                         size="sm"
                         className="h-6 w-6 p-0"
                         onClick={() => handleRemoveFile(index)}
+                        aria-label={`Remove file ${file.name}`}
                       >
-                        <Trash2 className="h-3 w-3 text-slate-400 hover:text-red-500" />
+                        <Trash2 className="h-3 w-3 text-slate-400 hover:text-red-500" aria-hidden="true" />
                       </Button>
                     </div>
                   ))}
