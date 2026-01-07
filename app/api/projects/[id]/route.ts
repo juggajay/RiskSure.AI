@@ -137,7 +137,15 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, address, state, startDate, endDate, estimatedValue, projectManagerId, status } = body
+    const { name, address, state, startDate, endDate, estimatedValue, projectManagerId, status, updatedAt } = body
+
+    // Optimistic concurrency check - if client provides updatedAt, verify it matches
+    if (updatedAt && project.updated_at && project.updated_at !== updatedAt) {
+      return NextResponse.json({
+        error: 'This project was modified by another user. Please refresh and try again.',
+        code: 'CONCURRENT_MODIFICATION'
+      }, { status: 409 })
+    }
 
     // Validate state if provided
     const validStates = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'NT', 'ACT']

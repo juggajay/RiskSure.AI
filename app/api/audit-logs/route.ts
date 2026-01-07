@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN users u ON al.user_id = u.id
       WHERE al.company_id = ?
     `
-    const params: (string | number)[] = [user.company_id]
+    const params: (string | number | null)[] = [user.company_id]
 
     if (entityType) {
       query += ' AND al.entity_type = ?'
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       FROM audit_logs al
       WHERE al.company_id = ?
     `
-    const countParams: string[] = [user.company_id]
+    const countParams: (string | null)[] = [user.company_id]
 
     if (entityType) {
       countQuery += ' AND al.entity_type = ?'

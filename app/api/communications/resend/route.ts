@@ -105,7 +105,7 @@ If you have already submitted an updated certificate, please disregard this mess
 Thank you for your prompt attention to this matter.
 
 Best regards,
-${user.company?.name || 'The Compliance Team'}`,
+${'The Compliance Team'}`,
       'sent', // Mark as sent (in production, this would queue for actual sending)
       now,
       now,

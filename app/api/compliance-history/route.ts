@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
     const startDateStr = startDate.toISOString().split('T')[0]
 
     // First, ensure we have today's snapshot
+    if (!user.company_id) {
+      return NextResponse.json({ error: 'User not associated with a company' }, { status: 400 })
+    }
     ensureTodaySnapshot(db, user.company_id)
 
     // Get historical snapshots

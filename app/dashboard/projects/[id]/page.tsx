@@ -50,6 +50,7 @@ interface Project {
   end_date: string | null
   estimated_value: number | null
   forwarding_email: string | null
+  updated_at: string | null
   project_manager: {
     id: string
     name: string
@@ -247,13 +248,25 @@ export default function ProjectDetailPage() {
           name: editingProject.name.trim(),
           address: editingProject.address.trim() || null,
           state: editingProject.state || null,
-          status: editingProject.status
+          status: editingProject.status,
+          updatedAt: project?.updated_at // Send for optimistic concurrency check
         })
       })
 
       const data = await response.json()
 
       if (!response.ok) {
+        // Handle concurrent modification error specifically
+        if (response.status === 409 && data.code === 'CONCURRENT_MODIFICATION') {
+          toast({
+            title: "Concurrent Modification",
+            description: "This project was modified by another user. The page will refresh with the latest data.",
+            variant: "destructive"
+          })
+          setShowEditModal(false)
+          fetchProject() // Refresh to get latest data
+          return
+        }
         throw new Error(data.error || 'Failed to update project')
       }
 
