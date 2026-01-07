@@ -13,6 +13,9 @@
     "test:coverage": "jest --coverage",
     "db:push": "supabase db push",
     "db:reset": "supabase db reset",
+    "db:status": "tsx lib/db/migrations/status.ts",
+    "db:migrate": "tsx lib/db/migrations/run.ts",
+    "db:rollback": "tsx lib/db/migrations/run.ts --rollback",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
     "typecheck": "tsc --noEmit",
@@ -95,6 +98,7 @@
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "ts-jest": "^29.4.6",
+    "tsx": "^4.7.1",
     "typescript": "^5.4.2"
   },
   "engines": {
