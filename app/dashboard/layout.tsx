@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
+import { ErrorBoundary } from "@/components/error-boundary"
 import {
   Shield,
   LogOut,
@@ -218,7 +219,9 @@ export default function DashboardLayout({
         />
       )}
       <main id="main-content" className="flex-1 lg:ml-64 pt-16 lg:pt-0" role="main">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
     </div>
   )
