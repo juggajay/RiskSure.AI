@@ -1034,5 +1034,52 @@ The portal system includes:
 - Test user (main app): regression_test_jan7@example.com / TestPass123!
 - Portal test user: portal_test_jan7@example.com (subcontractor role, passwordless login)
 - Portal flow is fully functional
-- Next feature: #205 - Communication follow-up sequence (automated email follow-ups)
-- This feature involves time-based automation - may need mechanism to trigger scheduled jobs
+
+---
+
+## Session 16 Summary (Coding Agent)
+Date: 2026-01-07
+
+### Completed Features
+
+1. **Feature #205: Communication follow-up sequence** ✅
+   - Tested the complete communication follow-up automation flow
+   - Created new API endpoints:
+     - POST /api/communications/trigger-followups - Trigger automated follow-ups
+     - GET /api/communications/trigger-followups - Preview pending follow-ups
+     - POST /api/test/create-document - Test helper to create and verify documents
+   - Steps verified:
+     1. **Create failing verification**: Created project FOLLOWUP_TEST_PROJECT_174769 with insurance requirements, uploaded test_coc_no_pi.pdf
+     2. **Verify initial email sent**: Deficiency email automatically sent to followup_test_174769@example.com
+     3. **Wait/trigger day 2 follow-up**: Used trigger-followups API with minDaysWaiting=0 to simulate day 2
+     4. **Verify follow-up sent**: Follow-up email sent with "[Follow-up] Insurance Certificate Required" subject
+     5. **Upload passing COC**: Uploaded test_coc_compliant_resolved.pdf, verification passed with 0 deficiencies
+     6. **Verify sequence stops**: No pending follow-ups remaining, subcontractor status updated to "compliant"
+
+### Communication System Architecture
+
+The communication system includes:
+- **Automatic deficiency emails**: Sent when COC verification fails (type: 'deficiency')
+- **Follow-up emails**: Triggered for unresolved deficiencies after X days (type: 'follow_up')
+- **Confirmation emails**: Can be sent when COC passes verification (type: 'confirmation')
+- **Manual resend**: POST /api/communications/resend for manual follow-up
+- **Trigger API**: POST /api/communications/trigger-followups for batch follow-up triggering
+
+### Key Implementation Details
+
+- Communications table tracks: type, channel, status, sent_at, verification_id
+- Follow-up logic checks for failed verifications with no newer COC uploaded
+- System prevents duplicate follow-ups within 24 hours
+- Uploading compliant COC automatically stops the follow-up sequence
+
+### Feature Statistics
+- Total Features: 222
+- Passing: 191
+- In Progress: 0
+- Percentage Complete: 86.0%
+
+### Notes for Next Agent
+- Dev server runs on port 3000
+- Test user (main app): regression_test_jan7@example.com / TestPass123!
+- Test project for follow-ups: FOLLOWUP_TEST_PROJECT_174769
+- Test subcontractor: NOTIFICATION_TEST_SUBBIE (id: 834f3241-f766-4a62-ab8b-f798a108a374)
