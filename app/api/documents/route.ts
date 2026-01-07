@@ -237,11 +237,14 @@ function verifyAgainstRequirements(
       actual_value: `Expired on ${extractedData.period_of_insurance_end}`
     })
   } else if (daysUntilExpiry <= 30) {
+    const expiryText = daysUntilExpiry === 0 ? 'Policy expires today' :
+                       daysUntilExpiry === 1 ? 'Policy expires in 1 day' :
+                       `Policy expires in ${daysUntilExpiry} days`
     checks.push({
       check_type: 'policy_validity',
       description: 'Policy validity period',
       status: 'warning',
-      details: `Policy expires in ${daysUntilExpiry} days`
+      details: expiryText
     })
   } else {
     checks.push({

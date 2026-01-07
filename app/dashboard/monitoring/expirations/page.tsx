@@ -448,7 +448,11 @@ export default function ExpirationsCalendarPage() {
                     <div className="text-right">
                       <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${statusColors.light} ${statusColors.text}`}>
                         {exp.status === 'expired' ? 'Expired' :
-                         exp.status === 'expiring_soon' ? `${exp.days_until_expiry} days left` :
+                         exp.status === 'expiring_soon' ? (
+                           exp.days_until_expiry === 0 ? 'Expires Today' :
+                           exp.days_until_expiry === 1 ? '1 day left' :
+                           `${exp.days_until_expiry} days left`
+                         ) :
                          'Valid'}
                       </span>
                     </div>
