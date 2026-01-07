@@ -1083,3 +1083,80 @@ The communication system includes:
 - Test user (main app): regression_test_jan7@example.com / TestPass123!
 - Test project for follow-ups: FOLLOWUP_TEST_PROJECT_174769
 - Test subcontractor: NOTIFICATION_TEST_SUBBIE (id: 834f3241-f766-4a62-ab8b-f798a108a374)
+
+---
+
+## Session 17 Summary (Coding Agent)
+Date: 2026-01-07
+
+### Completed Features
+
+1. **Feature #163: Clear filters resets all** ✅
+   - Added clear filters button to projects page
+   - Button only appears when filters are active (search, state, or sort)
+   - Clicking "Clear filters" resets:
+     - Search query to empty
+     - State filter to "All States"
+     - Sort to "Name (A-Z)"
+   - URL parameters are also cleared
+   - Verified with browser automation
+
+2. **Feature #164: Pagination resets on filter change** ✅
+   - Updated audit logs page to reset pagination when filters change
+   - When entity type filter changes → page resets to 1
+   - When action filter changes → page resets to 1
+   - Prevents showing empty results when on page 3+ and applying restrictive filter
+   - Verified with browser automation (was on page 3, applied filter, reset to page 1)
+
+3. **Feature #220: User profile editing** ✅
+   - Created new profile settings page at /dashboard/settings/profile
+   - Created /api/user/profile endpoint for users to update their own profile
+   - Added "My Profile" card to settings page
+   - Profile page features:
+     - Avatar upload with preview (click to select image, 2MB max)
+     - Initials fallback when no avatar
+     - Name field (required)
+     - Phone number field (optional)
+     - Email displayed as read-only
+   - Changes tracking with "You have unsaved changes" warning
+   - Save button disabled when no changes
+   - Changes persist after page refresh
+   - Sidebar updates to show new name immediately
+
+### Key Files Created/Modified
+
+```
+app/api/user/profile/route.ts - NEW: User profile GET/PUT API
+app/dashboard/settings/profile/page.tsx - NEW: Profile settings page
+app/dashboard/settings/page.tsx - Added "My Profile" card
+app/dashboard/projects/page.tsx - Added clear filters functionality
+app/dashboard/settings/audit-logs/page.tsx - Added pagination reset on filter change
+```
+
+### Feature Statistics
+- Total Features: 222
+- Passing: 210
+- In Progress: 0
+- Percentage Complete: 94.6%
+
+### Skipped Features (External Dependencies)
+The following features were skipped as they require external integrations:
+- #189: M365 OAuth email connection (requires Microsoft Azure app)
+- #190: Gmail OAuth email connection (requires Google Cloud project)
+- #191: SendGrid email delivery (requires SendGrid API key)
+- #192: Twilio SMS delivery (requires Twilio API key)
+- #195: Convex real-time subscriptions (requires Convex setup)
+- #196: Supabase file storage (requires Supabase project)
+- #217: Waiver of Subrogation detection (requires AI document processing)
+- #218: Principal naming vs Interested Party (requires AI document processing)
+- #221: Fraud detection (requires AI/ML capabilities)
+- #222: AI-Powered Data Migration (requires AI document processing)
+- #31: Upload contract for AI parsing (requires OpenAI integration)
+- #62: Critical SMS alert for expired on-site (requires Twilio)
+
+### Notes for Next Agent
+- Dev server runs on port 3001
+- Test user: regression_test_jan7@example.com / TestPass123!
+- Profile editing fully functional at /dashboard/settings/profile
+- Remaining features mostly require external API integrations
+- 12 features remaining, all requiring external dependencies
