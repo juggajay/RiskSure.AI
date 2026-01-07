@@ -9,7 +9,9 @@ import {
   Shield,
   UserCog,
   CreditCard,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  User as UserIcon
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -59,8 +61,16 @@ export default function SettingsPage() {
       </header>
 
       {/* Settings Content */}
-      <div className="p-6 space-y-6">
+      <div className="p-6 md:p-8 lg:p-12 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Profile Settings */}
+          <SettingsCard
+            icon={<UserIcon className="h-5 w-5 text-cyan-500" />}
+            title="My Profile"
+            description="Update your name, phone number, and profile photo"
+            href="/dashboard/settings/profile"
+          />
+
           {/* Company Settings */}
           <SettingsCard
             icon={<Building2 className="h-5 w-5 text-blue-500" />}
@@ -103,6 +113,15 @@ export default function SettingsPage() {
                 title="Billing & Subscription"
                 description="Manage your subscription, view invoices, and update payment"
                 href="/dashboard/settings/billing"
+                badge="Admin"
+              />
+
+              {/* Audit Logs */}
+              <SettingsCard
+                icon={<FileText className="h-5 w-5 text-slate-500" />}
+                title="Audit Logs"
+                description="View activity logs and track user actions across the system"
+                href="/dashboard/settings/audit-logs"
                 badge="Admin"
               />
             </>
