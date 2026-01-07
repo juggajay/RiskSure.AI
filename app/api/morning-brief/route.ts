@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       JOIN projects p ON ps.project_id = p.id
       JOIN subcontractors s ON ps.subcontractor_id = s.id
       WHERE p.company_id = ?
+        AND p.status != 'completed'
         AND ps.on_site_date IS NOT NULL
         AND ps.on_site_date <= ?
         AND ps.status IN ('non_compliant', 'pending')
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
       active_exceptions: number
     }>
 
-    // Get compliance statistics
+    // Get compliance statistics (excluding completed/archived projects)
     const complianceStats = db.prepare(`
       SELECT
         COUNT(*) as total,
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
       FROM project_subcontractors ps
       JOIN projects p ON ps.project_id = p.id
       WHERE p.company_id = ?
+        AND p.status != 'completed'
     `).get(user.company_id) as {
       total: number
       compliant: number
@@ -75,25 +77,27 @@ export async function GET(request: NextRequest) {
       ? Math.round(((complianceStats.compliant + complianceStats.exception) / complianceStats.total) * 100)
       : null
 
-    // Get active projects count (projects with at least one subcontractor)
+    // Get active projects count (projects with at least one subcontractor, excluding completed/archived)
     const activeProjectsResult = db.prepare(`
       SELECT COUNT(DISTINCT p.id) as count
       FROM projects p
       JOIN project_subcontractors ps ON p.id = ps.project_id
       WHERE p.company_id = ?
+        AND p.status != 'completed'
     `).get(user.company_id) as { count: number }
 
-    // Get pending reviews count (documents awaiting review)
+    // Get pending reviews count (documents awaiting review, excluding completed projects)
     const pendingReviewsResult = db.prepare(`
       SELECT COUNT(*) as count
       FROM coc_documents d
       JOIN subcontractors s ON d.subcontractor_id = s.id
       JOIN projects p ON d.project_id = p.id
       WHERE p.company_id = ?
+        AND p.status != 'completed'
         AND d.processing_status = 'pending'
     `).get(user.company_id) as { count: number }
 
-    // Get new COCs received in last 24 hours
+    // Get new COCs received in last 24 hours (excluding completed projects)
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const newCocs = db.prepare(`
       SELECT
@@ -109,6 +113,7 @@ export async function GET(request: NextRequest) {
       JOIN projects p ON d.project_id = p.id
       LEFT JOIN verifications v ON d.id = v.coc_document_id
       WHERE p.company_id = ?
+        AND p.status != 'completed'
         AND d.received_at >= ?
       ORDER BY d.received_at DESC
       LIMIT 10
@@ -122,7 +127,7 @@ export async function GET(request: NextRequest) {
       verification_status: string | null
     }>
 
-    // Calculate COC statistics for overnight arrivals
+    // Calculate COC statistics for overnight arrivals (excluding completed projects)
     const cocStats = db.prepare(`
       SELECT
         COUNT(*) as total,
@@ -132,6 +137,7 @@ export async function GET(request: NextRequest) {
       JOIN projects p ON d.project_id = p.id
       LEFT JOIN verifications v ON d.id = v.coc_document_id
       WHERE p.company_id = ?
+        AND p.status != 'completed'
         AND d.received_at >= ?
     `).get(user.company_id, yesterday) as {
       total: number
@@ -141,7 +147,7 @@ export async function GET(request: NextRequest) {
 
     // Get pending responses - failed verifications where we sent a communication but haven't received a new COC
     // This finds the most recent failed verification for each subcontractor/project combo
-    // and checks if there's been a follow-up COC since the last communication
+    // and checks if there's been a follow-up COC since the last communication (excluding completed projects)
     const pendingResponses = db.prepare(`
       SELECT
         v.id as verification_id,
@@ -164,6 +170,7 @@ export async function GET(request: NextRequest) {
       JOIN projects p ON d.project_id = p.id
       JOIN communications c ON c.verification_id = v.id
       WHERE p.company_id = ?
+        AND p.status != 'completed'
         AND v.status = 'fail'
         AND c.status IN ('sent', 'delivered', 'opened')
         AND NOT EXISTS (

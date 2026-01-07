@@ -24,9 +24,15 @@ export async function GET(request: NextRequest) {
     // - project_manager, project_administrator: Can only see assigned projects
     // - read_only: Can see all company projects (read-only)
 
+    // Check if archived/completed projects should be included
+    const { searchParams } = new URL(request.url)
+    const includeArchived = searchParams.get('includeArchived') === 'true'
+
     let projects
     if (['admin', 'risk_manager', 'read_only'].includes(user.role)) {
       // Full access to all company projects
+      // By default, exclude completed/archived projects
+      const statusFilter = includeArchived ? '' : "AND p.status != 'completed'"
       projects = db.prepare(`
         SELECT
           p.*,
@@ -35,11 +41,13 @@ export async function GET(request: NextRequest) {
           (SELECT COUNT(*) FROM project_subcontractors ps WHERE ps.project_id = p.id AND ps.status = 'compliant') as compliant_count
         FROM projects p
         LEFT JOIN users u ON p.project_manager_id = u.id
-        WHERE p.company_id = ?
+        WHERE p.company_id = ? ${statusFilter}
         ORDER BY p.created_at DESC
       `).all(user.company_id)
     } else {
       // Project manager and project administrator: only assigned projects
+      // By default, exclude completed/archived projects
+      const statusFilter = includeArchived ? '' : "AND p.status != 'completed'"
       projects = db.prepare(`
         SELECT
           p.*,
@@ -48,7 +56,7 @@ export async function GET(request: NextRequest) {
           (SELECT COUNT(*) FROM project_subcontractors ps WHERE ps.project_id = p.id AND ps.status = 'compliant') as compliant_count
         FROM projects p
         LEFT JOIN users u ON p.project_manager_id = u.id
-        WHERE p.company_id = ? AND p.project_manager_id = ?
+        WHERE p.company_id = ? AND p.project_manager_id = ? ${statusFilter}
         ORDER BY p.created_at DESC
       `).all(user.company_id, user.id)
     }
@@ -82,9 +90,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, address, state, startDate, endDate, estimatedValue, projectManagerId } = body
 
+    // Field length constraints
+    const NAME_MIN_LENGTH = 2
+    const NAME_MAX_LENGTH = 200
+    const ADDRESS_MAX_LENGTH = 500
+
     // Validate required fields
     if (!name) {
       return NextResponse.json({ error: 'Project name is required' }, { status: 400 })
+    }
+
+    // Validate name length
+    const trimmedName = name.trim()
+    if (trimmedName.length < NAME_MIN_LENGTH) {
+      return NextResponse.json({
+        error: `Project name must be at least ${NAME_MIN_LENGTH} characters`
+      }, { status: 400 })
+    }
+    if (name.length > NAME_MAX_LENGTH) {
+      return NextResponse.json({
+        error: `Project name must not exceed ${NAME_MAX_LENGTH} characters`
+      }, { status: 400 })
+    }
+
+    // Validate address length if provided
+    if (address && address.length > ADDRESS_MAX_LENGTH) {
+      return NextResponse.json({
+        error: `Address must not exceed ${ADDRESS_MAX_LENGTH} characters`
+      }, { status: 400 })
     }
 
     // Validate state if provided
