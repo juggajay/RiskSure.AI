@@ -929,3 +929,58 @@ Date: 2026-01-07
   - Tablet/Mobile (<1024px): Sidebar hidden, hamburger menu to open
 - Use feature_get_next to get the next feature to implement
 - All responsive features are passing
+
+---
+
+## Session 14 Summary (Coding Agent)
+Date: 2026-01-07
+
+### Completed Features
+
+1. **Feature #141: Icon buttons have ARIA labels** ✅
+   - Added aria-label to calendar navigation buttons (Previous/Next month) in expirations page
+   - Added aria-label to back buttons on project and subcontractor detail pages
+   - Added aria-label to password visibility toggle buttons (login, signup, reset-password pages)
+   - Added aria-label to copy email button on project detail page
+   - Added aria-label to dialog close buttons in dialog component
+   - Added aria-label to view communication/exception buttons on subcontractor detail page
+   - Added aria-hidden="true" to all decorative icons in these buttons
+   - Verified all buttons are properly announced by screen readers (tested with browser accessibility tree)
+   - Screenshots captured: aria_labels_verification.png
+
+### Key Files Modified
+
+- app/dashboard/monitoring/expirations/page.tsx - Added aria-labels to prev/next month buttons
+- app/dashboard/projects/[id]/page.tsx - Added aria-labels to back and copy buttons
+- app/dashboard/subcontractors/[id]/page.tsx - Added aria-labels to back and view buttons
+- app/login/page.tsx - Added aria-label to password toggle button
+- app/signup/page.tsx - Added aria-label to password toggle button
+- app/reset-password/page.tsx - Added aria-labels to both password toggle buttons
+- components/ui/dialog.tsx - Added aria-label to close dialog button
+
+### Buttons Updated with ARIA Labels
+
+| Button | aria-label |
+|--------|------------|
+| Previous month (calendar) | "Previous month" |
+| Next month (calendar) | "Next month" |
+| Back (project detail) | "Back to projects" |
+| Back (subcontractor detail) | "Go back" |
+| Copy email | "Copy email address" / "Email copied" |
+| Show/Hide password | "Show password" / "Hide password" |
+| View communication | "View communication details" |
+| View exception | "View exception details" |
+| Remove subcontractor | "Remove {name} from project" |
+| Close dialog | "Close dialog" |
+
+### Feature Statistics
+- Total Features: 221
+- Passing: 136
+- In Progress: 0
+- Percentage Complete: 61.5%
+
+### Notes for Next Agent
+- Dev server runs on port 3000
+- Test user: regression_test_jan7@example.com / TestPass123!
+- All icon-only buttons now have proper ARIA labels for accessibility
+- Use feature_get_next to get the next feature to implement
