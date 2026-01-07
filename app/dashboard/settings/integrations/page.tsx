@@ -13,7 +13,9 @@ import {
   RefreshCw,
   Settings2,
   AlertCircle,
-  Loader2
+  Loader2,
+  HardDrive,
+  Cloud
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +29,12 @@ interface IntegrationStatus {
   communication: {
     sendgrid: { configured: boolean; verified?: boolean }
     twilio: { configured: boolean; verified?: boolean }
+  }
+  storage?: {
+    provider: 'supabase' | 'local'
+    configured: boolean
+    bucket: string
+    description: string
   }
 }
 
@@ -90,9 +98,22 @@ export default function IntegrationsPage() {
 
   const fetchIntegrationStatus = async () => {
     try {
+      // Fetch integration status
       const response = await fetch("/api/integrations/status")
       if (response.ok) {
         const data = await response.json()
+
+        // Also fetch storage status
+        try {
+          const storageResponse = await fetch("/api/storage/status")
+          if (storageResponse.ok) {
+            const storageData = await storageResponse.json()
+            data.storage = storageData.storage
+          }
+        } catch (storageError) {
+          console.error("Failed to fetch storage status:", storageError)
+        }
+
         setStatus(data)
       }
     } catch (error) {
@@ -575,6 +596,107 @@ export default function IntegrationsPage() {
           </div>
         </section>
 
+        {/* File Storage */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <HardDrive className="h-5 w-5 text-purple-500" />
+            <h2 className="text-lg font-semibold text-slate-900">File Storage</h2>
+          </div>
+          <p className="text-sm text-slate-500 mb-4">
+            Configure where Certificate of Currency documents are stored.
+          </p>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    status.storage?.configured ? 'bg-[#3ECF8E]' : 'bg-slate-200'
+                  }`}>
+                    {status.storage?.configured ? (
+                      <Cloud className="h-5 w-5 text-white" />
+                    ) : (
+                      <HardDrive className="h-5 w-5 text-slate-500" />
+                    )}
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">
+                      {status.storage?.configured ? 'Supabase Storage' : 'Local File Storage'}
+                    </CardTitle>
+                    <CardDescription>
+                      {status.storage?.configured
+                        ? 'Cloud storage for COC documents'
+                        : 'Documents stored locally (development mode)'}
+                    </CardDescription>
+                  </div>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                  status.storage?.configured
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {status.storage?.configured ? (
+                    <>
+                      <CheckCircle2 className="h-3 w-3" />
+                      Cloud Storage
+                    </>
+                  ) : (
+                    <>
+                      <HardDrive className="h-3 w-3" />
+                      Local Storage
+                    </>
+                  )}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {status.storage?.configured ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Supabase Storage configured
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">Storage bucket:</span>
+                      <span className="font-medium font-mono text-xs bg-slate-100 px-2 py-1 rounded">
+                        {status.storage.bucket}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      {status.storage.description}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-amber-600">
+                      <AlertCircle className="h-4 w-4" />
+                      Using local file storage
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      Files are stored in <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs">public/uploads/</code> directory.
+                      For production, configure Supabase Storage.
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      Set <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs">NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
+                      <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs">SUPABASE_SERVICE_ROLE_KEY</code> in your environment variables.
+                    </p>
+                    <a
+                      href="https://supabase.com/docs/guides/storage"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-sm text-primary hover:underline"
+                    >
+                      View Supabase Storage documentation
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         {/* Help Section */}
         <Card className="bg-slate-50 border-slate-200">
           <CardContent className="pt-6">
@@ -590,7 +712,7 @@ export default function IntegrationsPage() {
                   or your hosting provider's environment variables.
                 </p>
                 <p className="text-sm text-slate-500">
-                  For development, emails are logged to the console instead of being sent via SendGrid.
+                  For development, emails are logged to the console and files are stored locally instead of using cloud services.
                 </p>
               </div>
             </div>

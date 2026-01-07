@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
-import { writeFile } from 'fs/promises'
-import path from 'path'
+import { uploadFile, getStorageInfo } from '@/lib/storage'
 
 interface InsuranceRequirement {
   id: string
@@ -330,15 +329,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authorized for this subcontractor' }, { status: 403 })
     }
 
-    // Save file to uploads directory
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-    const fileName = `${uuidv4()}_${file.name}`
-    const filePath = path.join(uploadsDir, fileName)
-    const fileUrl = `/uploads/${fileName}`
-
+    // Upload file using storage library (supports Supabase or local storage)
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
+
+    const uploadResult = await uploadFile(buffer, file.name, {
+      folder: 'portal',
+      contentType: file.type
+    })
+
+    if (!uploadResult.success) {
+      return NextResponse.json({
+        error: `Failed to upload file: ${uploadResult.error}`
+      }, { status: 500 })
+    }
+
+    const fileUrl = uploadResult.fileUrl
+    const storageInfo = getStorageInfo()
+    console.log(`[PORTAL] File uploaded via ${storageInfo.provider}: ${fileUrl}`)
 
     // Create COC document record
     const docId = uuidv4()

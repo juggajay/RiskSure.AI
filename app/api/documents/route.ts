@@ -4,8 +4,7 @@ import { getDb, type Project } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
 import { createNotificationForProjectTeam } from '@/lib/notifications'
 import { performSimulatedFraudAnalysis, type FraudAnalysisResult } from '@/lib/fraud-detection'
-import fs from 'fs'
-import path from 'path'
+import { uploadFile, getStorageInfo } from '@/lib/storage'
 
 interface InsuranceRequirement {
   id: string
@@ -756,22 +755,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Subcontractor is not assigned to this project' }, { status: 400 })
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'documents')
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true })
-    }
-
-    // Generate unique filename
-    const fileExt = path.extname(file.name)
-    const uniqueFilename = `${uuidv4()}${fileExt}`
-    const filePath = path.join(uploadDir, uniqueFilename)
-    const fileUrl = `/uploads/documents/${uniqueFilename}`
-
-    // Save file to disk
+    // Upload file using storage library (supports Supabase or local storage)
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    fs.writeFileSync(filePath, buffer)
+
+    const uploadResult = await uploadFile(buffer, file.name, {
+      folder: 'documents',
+      contentType: file.type
+    })
+
+    if (!uploadResult.success) {
+      return NextResponse.json({
+        error: `Failed to upload file: ${uploadResult.error}`
+      }, { status: 500 })
+    }
+
+    const fileUrl = uploadResult.fileUrl
+    const storageInfo = getStorageInfo()
+    console.log(`[DOCUMENTS] File uploaded via ${storageInfo.provider}: ${fileUrl}`)
 
     // Create document record
     const documentId = uuidv4()
@@ -917,6 +918,8 @@ export async function POST(request: NextRequest) {
         fileName: file.name,
         fileSize: file.size,
         processingStatus: 'completed',
+        storageProvider: uploadResult.provider,
+        storagePath: uploadResult.storagePath,
         verification: {
           status: verification.status,
           confidence_score: verification.confidence_score,
