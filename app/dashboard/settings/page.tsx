@@ -12,7 +12,8 @@ import {
   ChevronRight,
   FileText,
   User as UserIcon,
-  Plug
+  Plug,
+  FileArchive
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -48,6 +49,7 @@ export default function SettingsPage() {
   }
 
   const isAdmin = user?.role === 'admin'
+  const canMigrateData = user?.role === 'admin' || user?.role === 'risk_manager'
 
   return (
     <>
@@ -103,6 +105,17 @@ export default function SettingsPage() {
             description="Connect email, SendGrid, Twilio, and other services"
             href="/dashboard/settings/integrations"
           />
+
+          {/* Data Migration - Admin and Risk Manager */}
+          {canMigrateData && (
+            <SettingsCard
+              icon={<FileArchive className="h-5 w-5 text-teal-500" />}
+              title="Data Migration"
+              description="Bulk import vendor lists, COCs, and compliance data"
+              href="/dashboard/settings/data-migration"
+              badge={isAdmin ? "Admin" : "Risk Manager"}
+            />
+          )}
 
           {/* Admin-only sections */}
           {isAdmin && (

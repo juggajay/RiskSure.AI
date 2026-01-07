@@ -818,7 +818,55 @@ export async function POST(request: NextRequest) {
     const subcontractorAbn = (subcontractor as { abn: string }).abn
     const verification = verifyAgainstRequirements(extractedData, requirements, projectEndDate, projectState, subcontractorAbn)
 
-    // Update verification record with extracted data
+    // Perform fraud detection analysis
+    const fraudAnalysis = performSimulatedFraudAnalysis(
+      {
+        insured_party_abn: extractedData.insured_party_abn,
+        insurer_name: extractedData.insurer_name,
+        policy_number: extractedData.policy_number,
+        period_of_insurance_start: extractedData.period_of_insurance_start,
+        period_of_insurance_end: extractedData.period_of_insurance_end,
+        coverages: extractedData.coverages.map(c => ({
+          type: c.coverage_type,
+          limit: c.coverage_limit
+        }))
+      },
+      file.name
+    )
+
+    // If fraud is detected, override verification status
+    let finalStatus = verification.status
+    if (fraudAnalysis.is_blocked) {
+      finalStatus = 'fail'
+      // Add fraud-related deficiencies
+      verification.deficiencies.push({
+        type: 'fraud_detected',
+        severity: 'critical',
+        description: `Document flagged for potential fraud: ${fraudAnalysis.recommendation}`,
+        required_value: 'Authentic document',
+        actual_value: `Risk level: ${fraudAnalysis.risk_level} (score: ${fraudAnalysis.overall_risk_score})`
+      })
+      // Add fraud checks to verification checks
+      for (const check of fraudAnalysis.checks.filter(c => c.status === 'fail')) {
+        verification.checks.push({
+          check_type: check.check_type,
+          description: check.check_name,
+          status: 'fail',
+          details: check.details
+        })
+      }
+    } else if (fraudAnalysis.risk_level === 'high' && finalStatus === 'pass') {
+      finalStatus = 'review'
+      // Add warning for high-risk but not blocked
+      verification.checks.push({
+        check_type: 'fraud_risk_warning',
+        description: 'Fraud Risk Assessment',
+        status: 'warning',
+        details: `${fraudAnalysis.recommendation} (Risk score: ${fraudAnalysis.overall_risk_score})`
+      })
+    }
+
+    // Update verification record with extracted data and fraud analysis
     db.prepare(`
       UPDATE verifications
       SET
@@ -830,9 +878,19 @@ export async function POST(request: NextRequest) {
         updated_at = datetime('now')
       WHERE coc_document_id = ?
     `).run(
-      verification.status,
+      finalStatus,
       verification.confidence_score,
-      JSON.stringify(extractedData),
+      JSON.stringify({
+        ...extractedData,
+        fraud_analysis: {
+          risk_score: fraudAnalysis.overall_risk_score,
+          risk_level: fraudAnalysis.risk_level,
+          is_blocked: fraudAnalysis.is_blocked,
+          recommendation: fraudAnalysis.recommendation,
+          checks: fraudAnalysis.checks,
+          evidence_summary: fraudAnalysis.evidence_summary
+        }
+      }),
       JSON.stringify(verification.checks),
       JSON.stringify(verification.deficiencies),
       documentId
@@ -844,8 +902,12 @@ export async function POST(request: NextRequest) {
       WHERE id = ?
     `).run(documentId)
 
+    // Get names for notifications
+    const subcontractorName = (subcontractor as { name: string }).name
+    const projectName = project.name
+
     // Auto-approve: If verification passes, automatically update subcontractor compliance status to 'compliant'
-    if (verification.status === 'pass') {
+    if (finalStatus === 'pass') {
       db.prepare(`
         UPDATE project_subcontractors
         SET status = 'compliant', updated_at = datetime('now')
@@ -862,20 +924,30 @@ export async function POST(request: NextRequest) {
         autoApproved: true,
         message: 'Subcontractor automatically marked compliant after verification passed'
       }))
-    } else if (verification.status === 'fail') {
-      // If verification fails, mark subcontractor as non-compliant
+    } else if (finalStatus === 'fail') {
+      // If verification fails (including fraud detection), mark subcontractor as non-compliant
       db.prepare(`
         UPDATE project_subcontractors
         SET status = 'non_compliant', updated_at = datetime('now')
         WHERE project_id = ? AND subcontractor_id = ?
       `).run(projectId, subcontractorId)
+
+      // If fraud was detected, create a special notification
+      if (fraudAnalysis.is_blocked) {
+        createNotificationForProjectTeam(
+          projectId,
+          'stop_work_risk',
+          'FRAUD ALERT: Document Blocked',
+          `${subcontractorName}'s Certificate of Currency has been blocked due to potential fraud. Risk score: ${fraudAnalysis.overall_risk_score}. ${fraudAnalysis.recommendation}`,
+          `/dashboard/documents/${documentId}`,
+          'coc_document',
+          documentId
+        )
+      }
     }
 
-    // Create notifications for project team
-    const subcontractorName = (subcontractor as { name: string }).name
-    const projectName = project.name
-
-    if (verification.status === 'pass') {
+    // Create notifications for project team (skip if fraud notification already sent)
+    if (finalStatus === 'pass') {
       createNotificationForProjectTeam(
         projectId,
         'coc_verified',
@@ -885,7 +957,8 @@ export async function POST(request: NextRequest) {
         'coc_document',
         documentId
       )
-    } else if (verification.status === 'fail') {
+    } else if (finalStatus === 'fail' && !fraudAnalysis.is_blocked) {
+      // Only send regular failure notification if not already sent as fraud alert
       const deficiencyCount = verification.deficiencies.length
       createNotificationForProjectTeam(
         projectId,
@@ -896,7 +969,7 @@ export async function POST(request: NextRequest) {
         'coc_document',
         documentId
       )
-    } else {
+    } else if (finalStatus === 'review') {
       // Review required
       createNotificationForProjectTeam(
         projectId,
@@ -911,7 +984,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Document uploaded successfully',
+      message: fraudAnalysis.is_blocked
+        ? 'Document uploaded but BLOCKED due to potential fraud'
+        : 'Document uploaded successfully',
       document: {
         id: documentId,
         fileUrl,
@@ -921,9 +996,16 @@ export async function POST(request: NextRequest) {
         storageProvider: uploadResult.provider,
         storagePath: uploadResult.storagePath,
         verification: {
-          status: verification.status,
+          status: finalStatus,
           confidence_score: verification.confidence_score,
           extracted_data: extractedData
+        },
+        fraud_analysis: {
+          risk_score: fraudAnalysis.overall_risk_score,
+          risk_level: fraudAnalysis.risk_level,
+          is_blocked: fraudAnalysis.is_blocked,
+          recommendation: fraudAnalysis.recommendation,
+          evidence_summary: fraudAnalysis.evidence_summary
         }
       }
     }, { status: 201 })

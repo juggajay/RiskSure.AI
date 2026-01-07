@@ -11,9 +11,12 @@ import {
   Calendar,
   DollarSign,
   Shield,
+  ShieldAlert,
+  ShieldCheck,
   CheckCircle,
   XCircle,
   AlertTriangle,
+  AlertOctagon,
   Clock,
   Download,
   RefreshCw,
@@ -71,6 +74,7 @@ interface ExtractedData {
   extraction_model: string
   extraction_confidence: number
   field_confidences?: FieldConfidences
+  fraud_analysis?: FraudAnalysis
 }
 
 interface Check {
@@ -86,6 +90,24 @@ interface Deficiency {
   description: string
   required_value: string | null
   actual_value: string | null
+}
+
+interface FraudCheck {
+  check_type: string
+  check_name: string
+  status: 'pass' | 'fail' | 'warning' | 'info'
+  risk_score: number
+  details: string
+  evidence?: string[]
+}
+
+interface FraudAnalysis {
+  risk_score: number
+  risk_level: 'low' | 'medium' | 'high' | 'critical'
+  is_blocked: boolean
+  recommendation: string
+  checks: FraudCheck[]
+  evidence_summary: string[]
 }
 
 interface DocumentData {
@@ -704,6 +726,145 @@ export default function DocumentDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Fraud Analysis Section */}
+          {extractedData?.fraud_analysis && (
+            <div className={`rounded-xl shadow-sm border p-6 ${
+              extractedData.fraud_analysis.is_blocked
+                ? 'bg-red-50 border-red-300'
+                : extractedData.fraud_analysis.risk_level === 'high'
+                  ? 'bg-orange-50 border-orange-300'
+                  : extractedData.fraud_analysis.risk_level === 'medium'
+                    ? 'bg-amber-50 border-amber-300'
+                    : 'bg-green-50 border-green-300'
+            }`}>
+              <div className="flex items-center gap-3 mb-4">
+                {extractedData.fraud_analysis.is_blocked ? (
+                  <AlertOctagon className="w-6 h-6 text-red-600" />
+                ) : extractedData.fraud_analysis.risk_level === 'low' ? (
+                  <ShieldCheck className="w-6 h-6 text-green-600" />
+                ) : (
+                  <ShieldAlert className="w-6 h-6 text-orange-600" />
+                )}
+                <h2 className={`text-lg font-semibold ${
+                  extractedData.fraud_analysis.is_blocked ? 'text-red-900' : 'text-gray-900'
+                }`}>
+                  Fraud Detection Analysis
+                </h2>
+              </div>
+
+              {/* Risk Score and Level */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Risk Score</span>
+                  <span className={`text-lg font-bold ${
+                    extractedData.fraud_analysis.risk_score >= 80 ? 'text-red-600' :
+                    extractedData.fraud_analysis.risk_score >= 60 ? 'text-orange-600' :
+                    extractedData.fraud_analysis.risk_score >= 40 ? 'text-amber-600' :
+                    'text-green-600'
+                  }`}>
+                    {extractedData.fraud_analysis.risk_score}/100
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className={`h-3 rounded-full transition-all ${
+                      extractedData.fraud_analysis.risk_score >= 80 ? 'bg-red-500' :
+                      extractedData.fraud_analysis.risk_score >= 60 ? 'bg-orange-500' :
+                      extractedData.fraud_analysis.risk_score >= 40 ? 'bg-amber-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${extractedData.fraud_analysis.risk_score}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    extractedData.fraud_analysis.risk_level === 'critical' ? 'bg-red-100 text-red-800' :
+                    extractedData.fraud_analysis.risk_level === 'high' ? 'bg-orange-100 text-orange-800' :
+                    extractedData.fraud_analysis.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {extractedData.fraud_analysis.risk_level.toUpperCase()} RISK
+                  </span>
+                  {extractedData.fraud_analysis.is_blocked && (
+                    <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                      BLOCKED
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Recommendation */}
+              <div className={`p-3 rounded-lg mb-4 ${
+                extractedData.fraud_analysis.is_blocked ? 'bg-red-100' : 'bg-gray-100'
+              }`}>
+                <p className={`text-sm font-medium ${
+                  extractedData.fraud_analysis.is_blocked ? 'text-red-800' : 'text-gray-800'
+                }`}>
+                  {extractedData.fraud_analysis.recommendation}
+                </p>
+              </div>
+
+              {/* Fraud Checks */}
+              {extractedData.fraud_analysis.checks.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Fraud Checks</h3>
+                  {extractedData.fraud_analysis.checks.map((check, index) => (
+                    <div key={index} className={`flex items-start gap-2 p-2 rounded ${
+                      check.status === 'fail' ? 'bg-red-100' :
+                      check.status === 'warning' ? 'bg-amber-100' :
+                      'bg-white'
+                    }`}>
+                      {check.status === 'pass' ? (
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      ) : check.status === 'fail' ? (
+                        <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${
+                          check.status === 'fail' ? 'text-red-800' : 'text-gray-800'
+                        }`}>
+                          {check.check_name}
+                        </p>
+                        <p className="text-xs text-gray-600">{check.details}</p>
+                        {check.evidence && check.evidence.length > 0 && (
+                          <ul className="mt-1 text-xs text-gray-500">
+                            {check.evidence.map((e, i) => (
+                              <li key={i} className="italic">• {e}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <span className={`text-xs font-medium ${
+                        check.risk_score >= 70 ? 'text-red-600' :
+                        check.risk_score >= 40 ? 'text-amber-600' :
+                        'text-green-600'
+                      }`}>
+                        {check.risk_score}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Evidence Summary */}
+              {extractedData.fraud_analysis.evidence_summary.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-red-700 mb-2">Evidence Summary</h3>
+                  <ul className="space-y-1">
+                    {extractedData.fraud_analysis.evidence_summary.map((evidence, index) => (
+                      <li key={index} className="text-sm text-red-600 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        {evidence}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Verification Checks */}
           {checks.length > 0 && (
