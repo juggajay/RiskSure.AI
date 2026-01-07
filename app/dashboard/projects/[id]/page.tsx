@@ -255,6 +255,18 @@ export default function ProjectDetailPage() {
 
       const data = await response.json()
 
+      // Handle the case where the record was deleted by another user
+      if (response.status === 404) {
+        toast({
+          title: "Project Not Found",
+          description: "This project has been deleted by another user. Redirecting to the list...",
+          variant: "destructive"
+        })
+        setShowEditModal(false)
+        router.push('/dashboard/projects')
+        return
+      }
+
       if (!response.ok) {
         // Handle concurrent modification error specifically
         if (response.status === 409 && data.code === 'CONCURRENT_MODIFICATION') {
@@ -378,6 +390,17 @@ export default function ProjectDetailPage() {
 
       const data = await response.json()
 
+      // Handle the case where the project was deleted by another user
+      if (response.status === 404) {
+        toast({
+          title: "Project Not Found",
+          description: "This project has been deleted. Redirecting to the list...",
+          variant: "destructive"
+        })
+        router.push('/dashboard/projects')
+        return
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to add subcontractor')
       }
@@ -419,6 +442,17 @@ export default function ProjectDetailPage() {
       })
 
       const data = await response.json()
+
+      // Handle the case where the project was deleted by another user
+      if (response.status === 404) {
+        toast({
+          title: "Project Not Found",
+          description: "This project has been deleted. Redirecting to the list...",
+          variant: "destructive"
+        })
+        router.push('/dashboard/projects')
+        return
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to remove subcontractor')
@@ -584,6 +618,17 @@ export default function ProjectDetailPage() {
 
       const data = await response.json()
 
+      // Handle the case where the project was deleted by another user
+      if (response.status === 404) {
+        toast({
+          title: "Project Not Found",
+          description: "This project has been deleted. Redirecting to the list...",
+          variant: "destructive"
+        })
+        router.push('/dashboard/projects')
+        return
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save requirements')
       }
@@ -614,6 +659,18 @@ export default function ProjectDetailPage() {
       })
 
       const data = await response.json()
+
+      // Handle the case where the record was already deleted by another user
+      if (response.status === 404) {
+        toast({
+          title: "Project Not Found",
+          description: "This project has already been deleted. Redirecting to the list...",
+          variant: "destructive"
+        })
+        setShowDeleteModal(false)
+        router.push('/dashboard/projects')
+        return
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to delete project')

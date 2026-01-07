@@ -310,6 +310,18 @@ export default function SubcontractorDetailPage() {
 
       const data = await response.json()
 
+      // Handle the case where the record was already deleted by another user
+      if (response.status === 404) {
+        toast({
+          title: "Subcontractor Not Found",
+          description: "This subcontractor has already been deleted. Redirecting to the list...",
+          variant: "destructive"
+        })
+        setShowDeleteModal(false)
+        router.push('/dashboard/subcontractors')
+        return
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to delete subcontractor')
       }
