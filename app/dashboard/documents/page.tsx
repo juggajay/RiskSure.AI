@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useDocuments, useProjects, useUser } from "@/lib/hooks/use-api"
 import {
   FileText,
   Upload,
@@ -82,10 +83,14 @@ const PROCESSING_STYLES: Record<string, { bg: string; text: string }> = {
 export default function DocumentsPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+
+  // React Query hooks - handles caching, background refresh, and deduplication
+  const { data: documents = [], isLoading, refetch: refetchDocuments } = useDocuments()
+  const { data: projects = [] } = useProjects()
+  const { data: user } = useUser()
+  const userRole = user?.role || null
+
   const [searchQuery, setSearchQuery] = useState('')
-  const [userRole, setUserRole] = useState<string | null>(null)
 
   // Upload modal state
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -97,17 +102,11 @@ export default function DocumentsPage() {
   const [totalToUpload, setTotalToUpload] = useState(0)
 
   // Project/Subcontractor selection for upload
-  const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [projectSubcontractors, setProjectSubcontractors] = useState<ProjectSubcontractor[]>([])
   const [selectedSubcontractorId, setSelectedSubcontractorId] = useState('')
 
-  useEffect(() => {
-    fetchUserRole()
-    fetchDocuments()
-    fetchProjects()
-  }, [])
-
+  // Fetch project subcontractors when project is selected (dependent query)
   useEffect(() => {
     if (selectedProjectId) {
       fetchProjectSubcontractors(selectedProjectId)
@@ -116,44 +115,6 @@ export default function DocumentsPage() {
       setSelectedSubcontractorId('')
     }
   }, [selectedProjectId])
-
-  const fetchUserRole = async () => {
-    try {
-      const response = await fetch('/api/auth/me')
-      if (response.ok) {
-        const data = await response.json()
-        setUserRole(data.user.role)
-      }
-    } catch (error) {
-      console.error('Failed to fetch user role:', error)
-    }
-  }
-
-  const fetchDocuments = async () => {
-    try {
-      const response = await fetch('/api/documents')
-      if (response.ok) {
-        const data = await response.json()
-        setDocuments(data.documents || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch documents:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch('/api/projects')
-      if (response.ok) {
-        const data = await response.json()
-        setProjects(data.projects || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch projects:', error)
-    }
-  }
 
   const fetchProjectSubcontractors = async (projectId: string) => {
     try {
@@ -330,7 +291,7 @@ export default function DocumentsPage() {
     }
 
     setShowUploadModal(false)
-    fetchDocuments() // Refresh the list
+    refetchDocuments() // Refresh the list
     setIsUploading(false)
     setUploadProgress(0)
   }

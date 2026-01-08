@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useProjects, useUser } from "@/lib/hooks/use-api"
 import {
   FolderKanban,
   Plus,
@@ -58,12 +59,13 @@ export default function ProjectsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [projects, setProjects] = useState<Project[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  // React Query hooks - handles caching, background refresh, and deduplication
+  const { data: projects = [], isLoading: isProjectsLoading } = useProjects()
+  const { data: user } = useUser()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [stateFilter, setStateFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<SortOption>('name')
-  const [user, setUser] = useState<User | null>(null)
 
   // Read URL params on initial load
   useEffect(() => {
@@ -120,32 +122,7 @@ export default function ProjectsPage() {
     router.push('/dashboard/projects', { scroll: false })
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
-    try {
-      const [projectsRes, userRes] = await Promise.all([
-        fetch('/api/projects'),
-        fetch('/api/auth/me')
-      ])
-
-      if (projectsRes.ok) {
-        const data = await projectsRes.json()
-        setProjects(data.projects)
-      }
-
-      if (userRes.ok) {
-        const data = await userRes.json()
-        setUser(data.user)
-      }
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const isLoading = isProjectsLoading
 
   const canCreateProject = user && ['admin', 'risk_manager'].includes(user.role)
 

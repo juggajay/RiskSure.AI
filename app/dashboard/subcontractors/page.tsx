@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
+import { useSubcontractors, useUser } from "@/lib/hooks/use-api"
 import {
   Building2,
   Plus,
@@ -56,10 +57,13 @@ interface Subcontractor {
 
 export default function SubcontractorsPage() {
   const { toast } = useToast()
-  const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+
+  // React Query hooks - handles caching, background refresh, and deduplication
+  const { data: subcontractors = [], isLoading, refetch: refetchSubcontractors } = useSubcontractors()
+  const { data: user } = useUser()
+  const userRole = user?.role || null
+
   const [searchQuery, setSearchQuery] = useState('')
-  const [userRole, setUserRole] = useState<string | null>(null)
 
   // Add subcontractor modal state
   const [showAddModal, setShowAddModal] = useState(false)
@@ -125,38 +129,7 @@ export default function SubcontractorsPage() {
     { value: 'brokerPhone', label: 'Broker Phone' },
   ]
 
-  useEffect(() => {
-    fetchUserRole()
-    fetchSubcontractors()
-  }, [])
-
-  const fetchUserRole = async () => {
-    try {
-      const response = await fetch('/api/auth/me')
-      if (response.ok) {
-        const data = await response.json()
-        setUserRole(data.user.role)
-      }
-    } catch (error) {
-      console.error('Failed to fetch user role:', error)
-    }
-  }
-
   const canAddSubcontractors = userRole && ['admin', 'risk_manager', 'project_manager'].includes(userRole)
-
-  const fetchSubcontractors = async () => {
-    try {
-      const response = await fetch('/api/subcontractors')
-      if (response.ok) {
-        const data = await response.json()
-        setSubcontractors(data.subcontractors || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch subcontractors:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleOpenAddModal = () => {
     setFormData({
@@ -567,7 +540,7 @@ export default function SubcontractorsPage() {
         setImportErrors(data.errors)
       } else {
         setShowImportModal(false)
-        fetchSubcontractors()
+        refetchSubcontractors()
       }
     } catch (error) {
       toast({
@@ -603,7 +576,7 @@ export default function SubcontractorsPage() {
     // If successful and no more duplicates, close modal
     if (importStep !== 'duplicates') {
       setShowImportModal(false)
-      fetchSubcontractors()
+      refetchSubcontractors()
     }
   }
 
@@ -678,7 +651,7 @@ export default function SubcontractorsPage() {
       })
 
       setShowAddModal(false)
-      fetchSubcontractors()
+      refetchSubcontractors()
     } catch (error) {
       toast({
         title: "Error",
@@ -1443,7 +1416,7 @@ export default function SubcontractorsPage() {
               <>
                 <Button variant="outline" onClick={() => {
                   setShowImportModal(false)
-                  fetchSubcontractors()
+                  refetchSubcontractors()
                 }}>
                   Done (Skip Remaining)
                 </Button>

@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useCallback } from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
+import { useUser, useMorningBrief, useComplianceHistory } from "@/lib/hooks/use-api"
 import {
   FileCheck,
   AlertTriangle,
@@ -23,17 +25,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart
-} from 'recharts'
+
+// Dynamic import for recharts - reduces initial bundle by ~300KB
+const ComplianceChart = dynamic(
+  () => import('@/components/dashboard/compliance-chart'),
+  {
+    loading: () => (
+      <div className="h-[300px] flex items-center justify-center">
+        <div className="text-center">
+          <TrendingUp className="h-12 w-12 mx-auto mb-3 text-slate-300 animate-pulse" />
+          <p className="text-slate-500">Loading chart...</p>
+        </div>
+      </div>
+    ),
+    ssr: false
+  }
+)
 
 interface User {
   id: string
@@ -128,104 +135,25 @@ interface ComplianceHistoryData {
 }
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [morningBrief, setMorningBrief] = useState<MorningBriefData | null>(null)
-  const [complianceHistory, setComplianceHistory] = useState<ComplianceHistoryData | null>(null)
   const [historyDays, setHistoryDays] = useState(30)
-  const [isLoading, setIsLoading] = useState(true)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchData()
-  }, [])
+  // React Query hooks - handles caching, background refresh, and deduplication
+  const { data: user, isLoading: isUserLoading, dataUpdatedAt: userUpdatedAt } = useUser()
+  const { data: morningBrief, isLoading: isBriefLoading, refetch: refetchBrief, dataUpdatedAt: briefUpdatedAt } = useMorningBrief()
+  const { data: complianceHistory, refetch: refetchHistory } = useComplianceHistory(historyDays)
 
-  // Real-time polling - refresh dashboard data every 30 seconds
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      fetchDataSilently()
-    }, 30000) // 30 seconds
-
-    return () => clearInterval(pollInterval)
-  }, [])
-
-  useEffect(() => {
-    fetchComplianceHistory()
-  }, [historyDays])
-
-  const fetchData = async () => {
-    try {
-      const [userRes, briefRes] = await Promise.all([
-        fetch("/api/auth/me"),
-        fetch("/api/morning-brief")
-      ])
-
-      if (userRes.ok) {
-        const userData = await userRes.json()
-        setUser(userData.user)
-      }
-
-      if (briefRes.ok) {
-        const briefData = await briefRes.json()
-        setMorningBrief(briefData)
-      }
-    } catch (error) {
-      console.error("Failed to fetch data:", error)
-    } finally {
-      setIsLoading(false)
-      setLastUpdated(new Date())
-    }
-  }
+  // Derive last updated time from the most recent query update
+  const lastUpdated = briefUpdatedAt ? new Date(briefUpdatedAt) : null
 
   // Manual refresh with loading indicator
-  const handleManualRefresh = async () => {
+  const handleManualRefresh = useCallback(async () => {
     setIsRefreshing(true)
-    await fetchDataSilently()
+    await Promise.all([refetchBrief(), refetchHistory()])
     setIsRefreshing(false)
-  }
+  }, [refetchBrief, refetchHistory])
 
-  // Silent fetch for real-time updates (no loading state)
-  const fetchDataSilently = async () => {
-    try {
-      const [userRes, briefRes, historyRes] = await Promise.all([
-        fetch("/api/auth/me"),
-        fetch("/api/morning-brief"),
-        fetch(`/api/compliance-history?days=${historyDays}`)
-      ])
-
-      if (userRes.ok) {
-        const userData = await userRes.json()
-        setUser(userData.user)
-      }
-
-      if (briefRes.ok) {
-        const briefData = await briefRes.json()
-        setMorningBrief(briefData)
-      }
-
-      if (historyRes.ok) {
-        const historyData = await historyRes.json()
-        setComplianceHistory(historyData)
-      }
-
-      setLastUpdated(new Date())
-    } catch (error) {
-      console.error("Failed to fetch data silently:", error)
-    }
-  }
-
-  const fetchComplianceHistory = async () => {
-    try {
-      const res = await fetch(`/api/compliance-history?days=${historyDays}`)
-      if (res.ok) {
-        const data = await res.json()
-        setComplianceHistory(data)
-      }
-    } catch (error) {
-      console.error("Failed to fetch compliance history:", error)
-    }
-  }
+  const isLoading = isUserLoading || isBriefLoading
 
   if (isLoading || !user) {
     return <DashboardSkeleton />
@@ -346,60 +274,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {complianceHistory && complianceHistory.history.length > 0 ? (
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={complianceHistory.history}>
-                      <defs>
-                        <linearGradient id="colorCompliance" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={(value) => {
-                          const date = new Date(value)
-                          return `${date.getMonth() + 1}/${date.getDate()}`
-                        }}
-                        className="text-xs"
-                      />
-                      <YAxis
-                        domain={[0, 100]}
-                        tickFormatter={(value) => `${value}%`}
-                        className="text-xs"
-                      />
-                      <Tooltip
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload as ComplianceHistoryPoint
-                            return (
-                              <div className="bg-white p-3 rounded-lg shadow-lg border">
-                                <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
-                                <p className="text-green-600">Compliance: {data.complianceRate}%</p>
-                                <div className="text-xs text-slate-500 mt-1 space-y-0.5">
-                                  <p>Compliant: {data.compliant}</p>
-                                  <p>With Exception: {data.exception}</p>
-                                  <p>Non-Compliant: {data.nonCompliant}</p>
-                                  <p>Pending: {data.pending}</p>
-                                </div>
-                              </div>
-                            )
-                          }
-                          return null
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="complianceRate"
-                        stroke="#22c55e"
-                        strokeWidth={2}
-                        fill="url(#colorCompliance)"
-                        name="Compliance Rate"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                <ComplianceChart data={complianceHistory.history} />
               ) : (
                 <div className="h-[300px] flex items-center justify-center text-slate-500">
                   <div className="text-center">
