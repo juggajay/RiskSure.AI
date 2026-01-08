@@ -4,6 +4,11 @@ import { getUserByToken, hashPassword } from '@/lib/auth'
 
 // POST /api/test/set-password - Set password for current user (for testing only)
 export async function POST(request: NextRequest) {
+  // Security: Block test endpoints in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Test endpoints are disabled in production' }, { status: 403 })
+  }
+
   try {
     const token = request.cookies.get('auth_token')?.value
 

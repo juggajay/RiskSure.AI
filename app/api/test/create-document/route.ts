@@ -263,6 +263,11 @@ function verifyAgainstRequirements(
 // POST /api/test/create-document - Create and process a test document
 // This is for testing purposes only
 export async function POST(request: NextRequest) {
+  // Security: Block test endpoints in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Test endpoints are disabled in production' }, { status: 403 })
+  }
+
   try {
     const token = request.cookies.get('auth_token')?.value
 

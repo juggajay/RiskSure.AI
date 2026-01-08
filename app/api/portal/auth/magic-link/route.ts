@@ -1,7 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createMagicLinkToken } from '@/lib/auth'
+import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Security: Rate limiting to prevent email flooding and enumeration
+  const rateLimitResult = authLimiter.check(request, 'portal-magic-link')
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult)
+  }
+
   try {
     const { email } = await request.json()
 
@@ -28,13 +35,16 @@ export async function POST(request: Request) {
     // In development, log the magic link to the console
     const magicLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/portal/verify?token=${token}`
 
-    console.log('\n========================================')
-    console.log('MAGIC LINK (Development Mode)')
-    console.log('========================================')
-    console.log(`Email: ${normalizedEmail}`)
-    console.log(`Magic Link URL: ${magicLinkUrl}`)
-    console.log(`Expires: ${expiresAt}`)
-    console.log('========================================\n')
+    // Security: Only log sensitive info in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n========================================')
+      console.log('MAGIC LINK (Development Mode)')
+      console.log('========================================')
+      console.log(`Email: ${normalizedEmail}`)
+      console.log(`Magic Link URL: ${magicLinkUrl}`)
+      console.log(`Expires: ${expiresAt}`)
+      console.log('========================================\n')
+    }
 
     // In production, this would send an email via SendGrid
     // await sendMagicLinkEmail(normalizedEmail, magicLinkUrl)

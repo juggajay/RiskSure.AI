@@ -4,6 +4,72 @@ import { getDb } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
 import { uploadFile, getStorageInfo } from '@/lib/storage'
 
+// Security: Allowed file types for COC uploads
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+  'application/vnd.ms-excel', // xls
+]
+
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.xlsx', '.xls']
+
+// Magic bytes signatures for file type validation
+const MAGIC_BYTES: Record<string, number[]> = {
+  'application/pdf': [0x25, 0x50, 0x44, 0x46], // %PDF
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/png': [0x89, 0x50, 0x4E, 0x47], // .PNG
+  'image/gif': [0x47, 0x49, 0x46], // GIF
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [0x50, 0x4B, 0x03, 0x04], // PK.. (ZIP)
+  'application/vnd.ms-excel': [0xD0, 0xCF, 0x11, 0xE0], // OLE compound
+}
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
+
+// Security: Dangerous extensions that should never be allowed even as double extensions
+const DANGEROUS_EXTENSIONS = ['.exe', '.bat', '.cmd', '.sh', '.ps1', '.vbs', '.js', '.jar', '.msi', '.dll', '.scr', '.com', '.hta', '.pif']
+
+function validateFileType(buffer: Buffer, fileName: string, mimeType: string): { valid: boolean; error?: string } {
+  const lowerFileName = fileName.toLowerCase()
+
+  // Security: Check for double extension attacks (e.g., document.exe.pdf)
+  const parts = lowerFileName.split('.')
+  if (parts.length > 2) {
+    // Check if any intermediate extension is dangerous
+    for (let i = 1; i < parts.length - 1; i++) {
+      const intermediateExt = '.' + parts[i]
+      if (DANGEROUS_EXTENSIONS.includes(intermediateExt)) {
+        return { valid: false, error: `Suspicious filename pattern detected: contains dangerous extension ${intermediateExt}` }
+      }
+    }
+  }
+
+  // Check extension
+  const ext = '.' + parts.pop()
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return { valid: false, error: `File extension ${ext} is not allowed. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}` }
+  }
+
+  // Check MIME type
+  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+    return { valid: false, error: `File type ${mimeType} is not allowed` }
+  }
+
+  // Validate magic bytes for known types
+  const expectedMagic = MAGIC_BYTES[mimeType]
+  if (expectedMagic) {
+    const fileMagic = Array.from(buffer.slice(0, expectedMagic.length))
+    const matches = expectedMagic.every((byte, i) => fileMagic[i] === byte)
+    if (!matches) {
+      return { valid: false, error: 'File content does not match declared type' }
+    }
+  }
+
+  return { valid: true }
+}
+
 interface InsuranceRequirement {
   id: string
   coverage_type: string
@@ -318,6 +384,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project and subcontractor required' }, { status: 400 })
     }
 
+    // Security: Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({
+        error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB`
+      }, { status: 400 })
+    }
+
+    // Security: Read buffer early for validation
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
+    // Security: Validate file type and magic bytes
+    const fileValidation = validateFileType(buffer, file.name, file.type)
+    if (!fileValidation.valid) {
+      return NextResponse.json({ error: fileValidation.error }, { status: 400 })
+    }
+
     // Verify the user has access to this subcontractor
     // Either: 1) User is the subcontractor (contact_email matches)
     //     or: 2) User is the broker (broker_email matches)
@@ -330,9 +413,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload file using storage library (supports Supabase or local storage)
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-
+    // Note: buffer already created above during validation
     const uploadResult = await uploadFile(buffer, file.name, {
       folder: 'portal',
       contentType: file.type

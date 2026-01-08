@@ -347,6 +347,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
+    // Security: Prevent read_only users from modifying subcontractors
+    if (user.role === 'read_only') {
+      return NextResponse.json({ error: 'Read-only users cannot modify subcontractors' }, { status: 403 })
+    }
+
     const { id } = await params
     const db = getDb()
 

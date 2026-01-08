@@ -26,15 +26,29 @@ function getRateLimiter(name: string, options: RateLimitOptions): LRUCache<strin
   return rateLimiters.get(name)!
 }
 
+// Security: Only trust proxy headers when behind a known reverse proxy
+// Set TRUST_PROXY=true in environment when behind a trusted proxy (e.g., Vercel, CloudFlare)
+const TRUST_PROXY = process.env.TRUST_PROXY === 'true'
+
 export function rateLimit(options: RateLimitOptions) {
   const { interval, limit } = options
 
   return {
     check: (request: NextRequest, name: string): RateLimitResult => {
       const limiter = getRateLimiter(name, options)
-      const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
-                 request.headers.get('x-real-ip') ||
-                 'anonymous'
+      // Security: Only use proxy headers when explicitly configured to trust them
+      // This prevents IP spoofing attacks via X-Forwarded-For manipulation
+      let ip: string
+      if (TRUST_PROXY) {
+        // Trust only the first IP from X-Forwarded-For (set by trusted proxy)
+        ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+             request.headers.get('x-real-ip') ||
+             'anonymous'
+      } else {
+        // In non-proxy environments, fall back to anonymous (all requests share limit)
+        // This is safe because without proxy headers, we can't reliably identify clients
+        ip = 'anonymous'
+      }
 
       const now = Date.now()
       const windowStart = now - interval

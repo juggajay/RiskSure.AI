@@ -84,16 +84,21 @@ export async function POST(request: NextRequest) {
 
     // Get company_id from user
     const targetUserId = userId || currentUser.id
-    const user = db.prepare("SELECT company_id FROM users WHERE id = ?").get(targetUserId) as { company_id: string } | undefined
-    if (!user) {
+    const targetUser = db.prepare("SELECT company_id FROM users WHERE id = ?").get(targetUserId) as { company_id: string } | undefined
+    if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // Security: Prevent IDOR - users can only create notifications for users in their own company
+    if (targetUser.company_id !== currentUser.company_id) {
+      return NextResponse.json({ error: "Cannot create notifications for users outside your company" }, { status: 403 })
     }
 
     const id = uuidv4()
     db.prepare(`
       INSERT INTO notifications (id, user_id, company_id, type, title, message, link, entity_type, entity_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, targetUserId, user.company_id, type, title, message, link || null, entityType || null, entityId || null)
+    `).run(id, targetUserId, targetUser.company_id, type, title, message, link || null, entityType || null, entityId || null)
 
     return NextResponse.json({ id, success: true })
   } catch (error) {

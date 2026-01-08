@@ -46,6 +46,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * - At least one uppercase letter
  * - At least one lowercase letter
  * - At least one number
+ * - At least one special character
  */
 export function validatePassword(password: string): { valid: boolean; errors: string[] } {
   const errors: string[] = []
@@ -62,6 +63,10 @@ export function validatePassword(password: string): { valid: boolean; errors: st
   if (!/\d/.test(password)) {
     errors.push('Password must contain at least one number')
   }
+  // Security: Require special characters to increase password strength
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('Password must contain at least one special character (!@#$%^&*()_+-=[]{};\':"|,.<>/?)')
+  }
 
   return { valid: errors.length === 0, errors }
 }
@@ -72,7 +77,8 @@ export function validatePassword(password: string): { valid: boolean; errors: st
 export function createSession(userId: string): { session: Session; token: string } {
   const db = getDb()
   const sessionId = uuidv4()
-  const token = jwt.sign({ sessionId, userId }, getJwtSecret(), { expiresIn: '8h' })
+  // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
+  const token = jwt.sign({ sessionId, userId }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '8h' })
   const expiresAt = new Date(Date.now() + SESSION_DURATION).toISOString()
 
   const stmt = db.prepare(`
@@ -97,7 +103,8 @@ export function createSession(userId: string): { session: Session; token: string
  */
 export async function createSessionAsync(userId: string): Promise<{ session: Session; token: string }> {
   const sessionId = uuidv4()
-  const token = jwt.sign({ sessionId, userId }, getJwtSecret(), { expiresIn: '8h' })
+  // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
+  const token = jwt.sign({ sessionId, userId }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '8h' })
   const expiresAt = new Date(Date.now() + SESSION_DURATION).toISOString()
 
   const supabase = getSupabase()
@@ -125,7 +132,8 @@ export async function createSessionAsync(userId: string): Promise<{ session: Ses
  */
 export async function validateSessionAsync(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as { sessionId: string; userId: string }
+    // Security: Explicitly specify allowed algorithms
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string; userId: string }
     const supabase = getSupabase()
 
     const { data: session, error } = await supabase
@@ -176,7 +184,8 @@ export async function getUserByTokenAsync(token: string): Promise<User | null> {
  */
 export function validateSession(token: string): { valid: boolean; userId?: string; error?: string } {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as { sessionId: string; userId: string }
+    // Security: Explicitly specify allowed algorithms
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string; userId: string }
     const db = getDb()
 
     const session = db.prepare(`
@@ -218,7 +227,8 @@ export function getUserByToken(token: string): User | null {
  */
 export function deleteSession(token: string): void {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as { sessionId: string }
+    // Security: Explicitly specify allowed algorithms
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string }
     const db = getDb()
     db.prepare('DELETE FROM sessions WHERE id = ?').run(decoded.sessionId)
   } catch {
@@ -231,7 +241,8 @@ export function deleteSession(token: string): void {
  */
 export async function deleteSessionAsync(token: string): Promise<void> {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as { sessionId: string }
+    // Security: Explicitly specify allowed algorithms
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string }
     const supabase = getSupabase()
     await supabase.from('sessions').delete().eq('id', decoded.sessionId)
   } catch {
@@ -426,7 +437,8 @@ export function getOrCreatePortalUser(email: string, role: 'subcontractor' | 'br
 export function createPortalSession(userId: string): { session: Session; token: string } {
   const db = getDb()
   const sessionId = uuidv4()
-  const token = jwt.sign({ sessionId, userId, isPortal: true }, getJwtSecret(), { expiresIn: '24h' })
+  // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
+  const token = jwt.sign({ sessionId, userId, isPortal: true }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '24h' })
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours for portal
 
   const stmt = db.prepare(`

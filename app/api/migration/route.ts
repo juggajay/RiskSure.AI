@@ -15,6 +15,19 @@ import {
 import { uploadFile } from '@/lib/storage'
 import JSZip from 'jszip'
 import { migrationSessions } from '@/lib/migration-sessions'
+import path from 'path'
+
+// Security: Validate ZIP entry paths to prevent ZIP Slip attacks
+function isPathTraversalAttempt(filePath: string): boolean {
+  // Normalize the path and check for traversal attempts
+  const normalized = path.normalize(filePath)
+  // Reject if path tries to go up directories or starts with absolute path
+  return normalized.startsWith('..') ||
+         path.isAbsolute(normalized) ||
+         filePath.includes('..') ||
+         filePath.startsWith('/') ||
+         filePath.startsWith('\\')
+}
 
 // GET /api/migration - Get all migration sessions for the user
 export async function GET(request: NextRequest) {
@@ -143,6 +156,12 @@ export async function POST(request: NextRequest) {
       for (const zipFile of files) {
         // Skip hidden files and system files
         if (zipFile.name.startsWith('.') || zipFile.name.startsWith('__')) continue
+
+        // Security: Prevent ZIP Slip path traversal attacks
+        if (isPathTraversalAttempt(zipFile.name)) {
+          console.warn(`[MIGRATION] Skipping suspicious path: ${zipFile.name}`)
+          continue
+        }
 
         const fileData = await zipFile.async('nodebuffer')
         const ext = zipFile.name.split('.').pop()?.toLowerCase() || ''

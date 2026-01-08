@@ -144,7 +144,7 @@ describe('Password Hashing', () => {
 describe('Password Requirements Validation', () => {
   describe('validatePassword', () => {
     it('should pass for valid password meeting all requirements', () => {
-      const result = validatePassword('SecurePass123')
+      const result = validatePassword('SecurePass123!')
       expect(result.valid).toBe(true)
       expect(result.errors).toHaveLength(0)
     })
@@ -185,7 +185,7 @@ describe('Password Requirements Validation', () => {
     })
 
     it('should pass for very long password meeting requirements', () => {
-      const result = validatePassword('A' + 'a'.repeat(98) + '1')
+      const result = validatePassword('A' + 'a'.repeat(97) + '1!')
       expect(result.valid).toBe(true)
     })
 
@@ -196,11 +196,13 @@ describe('Password Requirements Validation', () => {
       expect(result.errors).toContain('Password must contain at least one uppercase letter')
       expect(result.errors).toContain('Password must contain at least one lowercase letter')
       expect(result.errors).toContain('Password must contain at least one number')
+      expect(result.errors).toContain('Password must contain at least one special character (!@#$%^&*()_+-=[]{};\':"|,.<>/?)')
     })
 
-    it('should not require special characters', () => {
+    it('should require special characters', () => {
       const result = validatePassword('SecurePass123')
-      expect(result.valid).toBe(true)
+      expect(result.valid).toBe(false)
+      expect(result.errors).toContain('Password must contain at least one special character (!@#$%^&*()_+-=[]{};\':"|,.<>/?)')
     })
   })
 })

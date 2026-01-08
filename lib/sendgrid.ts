@@ -1,5 +1,19 @@
 import sgMail from '@sendgrid/mail'
 
+/**
+ * HTML-escape a string to prevent XSS attacks in email templates
+ * Escapes: & < > " ' to their HTML entity equivalents
+ */
+export function escapeHtml(unsafe: string | undefined | null): string {
+  if (unsafe === undefined || unsafe === null) return ''
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 // Types for SendGrid integration
 export interface EmailOptions {
   to: string
@@ -75,13 +89,15 @@ export function isSendGridConfigured(): boolean {
  * Render an email template by replacing placeholders with actual values
  * Placeholders are in the format {{placeholder_name}}
  */
-export function renderTemplate(template: string, data: TemplateData): string {
+export function renderTemplate(template: string, data: TemplateData, escapeValues = true): string {
   let rendered = template
 
   for (const [key, value] of Object.entries(data)) {
     if (value !== undefined && value !== null) {
       const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g')
-      rendered = rendered.replace(placeholder, String(value))
+      // Security: Escape HTML by default to prevent XSS
+      const safeValue = escapeValues ? escapeHtml(String(value)) : String(value)
+      rendered = rendered.replace(placeholder, safeValue)
     }
   }
 
@@ -671,16 +687,16 @@ RiskShield AI Compliance Team`
       <h1>Certificate of Currency Required</h1>
     </div>
 
-    <p>Dear ${recipientName || 'Subcontractor'},</p>
+    <p>Dear ${escapeHtml(recipientName) || 'Subcontractor'},</p>
 
-    <p><strong>${builderName}</strong> has added <strong>${subcontractorName}</strong> to their project and requires your Certificate of Currency before work can commence.</p>
+    <p><strong>${escapeHtml(builderName)}</strong> has added <strong>${escapeHtml(subcontractorName)}</strong> to their project and requires your Certificate of Currency before work can commence.</p>
 
     <div class="section">
       <div class="section-title">Project Details</div>
       <div class="section-content">
-        <strong>Project:</strong> ${projectName}<br>
-        <strong>Builder:</strong> ${builderName}<br>
-        <strong>On-Site Date:</strong> ${onSiteDate || 'To be confirmed'}
+        <strong>Project:</strong> ${escapeHtml(projectName)}<br>
+        <strong>Builder:</strong> ${escapeHtml(builderName)}<br>
+        <strong>On-Site Date:</strong> ${escapeHtml(onSiteDate) || 'To be confirmed'}
       </div>
     </div>
 
@@ -688,7 +704,7 @@ RiskShield AI Compliance Team`
       <div class="section-title">What's Needed</div>
       <ul class="requirements">
         ${requirements && requirements.length > 0
-          ? requirements.map(r => `<li>${r}</li>`).join('')
+          ? requirements.map(r => `<li>${escapeHtml(r)}</li>`).join('')
           : '<li>Current Certificate of Currency</li><li>Valid Public Liability coverage</li><li>Workers Compensation coverage</li>'
         }
       </ul>
@@ -702,7 +718,7 @@ RiskShield AI Compliance Team`
 
     <div class="footer">
       <p>RiskShield AI - Automated Insurance Compliance Verification</p>
-      <p>Questions? Contact ${builderName} directly for assistance.</p>
+      <p>Questions? Contact ${escapeHtml(builderName)} directly for assistance.</p>
     </div>
   </div>
 </body>

@@ -1,7 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { validatePasswordResetToken, usePasswordResetToken, updateUserPassword, validatePassword } from '@/lib/auth'
+import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Security: Rate limiting to prevent brute force attacks
+  const rateLimitResult = authLimiter.check(request, 'reset-password')
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult)
+  }
+
   try {
     const { token, password } = await request.json()
 
@@ -37,18 +44,21 @@ export async function POST(request: Request) {
       )
     }
 
+    // Security: Mark the token as used BEFORE updating password to prevent race condition
+    usePasswordResetToken(token)
+
     // Update the password
     await updateUserPassword(tokenValidation.userId, password)
 
-    // Mark the token as used
-    usePasswordResetToken(token)
-
-    console.log('\n========================================')
-    console.log('PASSWORD RESET SUCCESSFUL')
-    console.log('========================================')
-    console.log(`User ID: ${tokenValidation.userId}`)
-    console.log('Password has been updated and all sessions invalidated.')
-    console.log('========================================\n')
+    // Security: Only log sensitive operations in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n========================================')
+      console.log('PASSWORD RESET SUCCESSFUL')
+      console.log('========================================')
+      console.log(`User ID: ${tokenValidation.userId}`)
+      console.log('Password has been updated and all sessions invalidated.')
+      console.log('========================================\n')
+    }
 
     return NextResponse.json({
       success: true,

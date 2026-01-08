@@ -36,13 +36,16 @@ export async function POST(request: NextRequest) {
 
       // In development or if SendGrid not configured, log the reset link to the console
       if (process.env.NODE_ENV === 'development' || !isSendGridConfigured()) {
-        console.log('\n========================================')
-        console.log('PASSWORD RESET LINK (Development Mode)')
-        console.log('========================================')
-        console.log(`Email: ${normalizedEmail}`)
-        console.log(`Reset URL: ${resetUrl}`)
-        console.log(`Expires: ${expiresAt}`)
-        console.log('========================================\n')
+        // Security: Only log sensitive info in development
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('\n========================================')
+          console.log('PASSWORD RESET LINK (Development Mode)')
+          console.log('========================================')
+          console.log(`Email: ${normalizedEmail}`)
+          console.log(`Reset URL: ${resetUrl}`)
+          console.log(`Expires: ${expiresAt}`)
+          console.log('========================================\n')
+        }
       }
 
       // Send email via SendGrid if configured

@@ -382,6 +382,26 @@ export async function updateSubcontractor(id: string, updates: Partial<Subcontra
 // Generic Query Helper (for complex queries)
 // ============================================
 
+// Security: Whitelist of allowed column names for ORDER BY to prevent injection
+const ALLOWED_ORDER_COLUMNS: Record<string, string[]> = {
+  projects: ['id', 'name', 'status', 'created_at', 'updated_at', 'start_date', 'end_date', 'state'],
+  subcontractors: ['id', 'name', 'abn', 'trade', 'created_at', 'updated_at', 'contact_name'],
+  users: ['id', 'name', 'email', 'role', 'created_at', 'updated_at', 'last_login_at'],
+  companies: ['id', 'name', 'created_at', 'updated_at'],
+  coc_documents: ['id', 'created_at', 'updated_at', 'received_at', 'processed_at'],
+  notifications: ['id', 'created_at', 'read_at', 'type'],
+  audit_logs: ['id', 'created_at', 'action', 'entity_type'],
+}
+
+function isValidOrderColumn(table: string, column: string): boolean {
+  const allowedColumns = ALLOWED_ORDER_COLUMNS[table]
+  if (!allowedColumns) {
+    // If table not in whitelist, only allow common safe columns
+    return ['id', 'created_at', 'updated_at', 'name'].includes(column)
+  }
+  return allowedColumns.includes(column)
+}
+
 export async function query<T>(
   table: string,
   options?: {
@@ -401,6 +421,10 @@ export async function query<T>(
   }
 
   if (options?.order) {
+    // Security: Validate ORDER BY column against whitelist
+    if (!isValidOrderColumn(table, options.order.column)) {
+      throw new Error(`Invalid order column: ${options.order.column}`)
+    }
     q = q.order(options.order.column, { ascending: options.order.ascending ?? true })
   }
 

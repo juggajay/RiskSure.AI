@@ -94,9 +94,15 @@ export async function verifyTokenFromRequest(request: NextRequest): Promise<{ va
   }
 
   try {
-    // Use the same secret as lib/auth.ts
+    // Security: Require JWT_SECRET in production - never use fallback
+    const jwtSecret = process.env.JWT_SECRET
+    if (!jwtSecret && process.env.NODE_ENV === 'production') {
+      console.error('[AUTH] CRITICAL: JWT_SECRET environment variable is not set in production!')
+      return { valid: false, error: 'Server configuration error' }
+    }
+
     const secret = new TextEncoder().encode(
-      process.env.JWT_SECRET || 'riskshield-development-secret-key-DO-NOT-USE-IN-PRODUCTION'
+      jwtSecret || 'riskshield-development-secret-key-DO-NOT-USE-IN-PRODUCTION'
     )
 
     const { payload } = await jose.jwtVerify(token, secret)
