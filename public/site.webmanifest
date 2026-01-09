@@ -1,0 +1,9 @@
+{
+  "name": "RiskSure AI",
+  "short_name": "RiskSure",
+  "description": "AI-powered Certificate of Currency verification for Australian builders. Automate subcontractor insurance compliance.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a"
+}
