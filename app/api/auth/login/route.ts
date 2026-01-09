@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { getDb, type User } from '@/lib/db'
+import type { User } from '@/lib/db'
 import { useSupabase, getSupabase } from '@/lib/db/supabase-db'
 import { verifyPassword, createSession, createSessionAsync } from '@/lib/auth'
 import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
       })
 
     } else {
-      // Development: Use SQLite
+      // Development: Use SQLite - dynamic import to avoid loading native module in production
+      const { getDb } = await import('@/lib/db')
       const db = getDb()
 
       // Find user by email

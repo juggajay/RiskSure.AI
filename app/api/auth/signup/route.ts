@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { getDb } from '@/lib/db'
 import { useSupabase, getSupabase } from '@/lib/db/supabase-db'
 import { hashPassword, validatePassword, createSession } from '@/lib/auth'
 import { isValidABN } from '@/lib/utils'
@@ -169,7 +168,8 @@ export async function POST(request: NextRequest) {
           }
         ])
     } else {
-      // Use SQLite for development
+      // Use SQLite for development - dynamic import to avoid loading native module in production
+      const { getDb } = await import('@/lib/db')
       const db = getDb()
 
       // Check if email already exists
