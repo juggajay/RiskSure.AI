@@ -201,7 +201,8 @@ export async function GET(request: NextRequest) {
       // Store tokens with pending_company_selection flag
       if (isProduction) {
         const supabase = getSupabase()
-        await supabase.from('oauth_connections').upsert({
+        console.log(`[Procore] Storing connection with pending company selection...`)
+        const { error: upsertError } = await supabase.from('oauth_connections').upsert({
           id: connectionId,
           company_id: stateRecord.company_id,
           provider: 'procore',
@@ -212,6 +213,12 @@ export async function GET(request: NextRequest) {
           created_at: now,
           updated_at: now
         }, { onConflict: 'company_id,provider' })
+        if (upsertError) {
+          console.error('[Procore] Failed to store connection:', upsertError)
+          return NextResponse.redirect(
+            new URL(`/dashboard/settings/integrations?error=db_error&details=${encodeURIComponent(upsertError.message)}`, request.url)
+          )
+        }
       } else {
         const db = getDb()
         db.prepare(`
@@ -244,10 +251,12 @@ export async function GET(request: NextRequest) {
     } else {
       // Single company - complete connection
       const procoreCompany = companies[0]
+      console.log(`[Procore] Single company found: ${procoreCompany.name} (ID: ${procoreCompany.id})`)
 
       if (isProduction) {
         const supabase = getSupabase()
-        await supabase.from('oauth_connections').upsert({
+        console.log(`[Procore] Storing connection for company ${procoreCompany.name}...`)
+        const { error: upsertError } = await supabase.from('oauth_connections').upsert({
           id: connectionId,
           company_id: stateRecord.company_id,
           provider: 'procore',
@@ -260,6 +269,12 @@ export async function GET(request: NextRequest) {
           created_at: now,
           updated_at: now
         }, { onConflict: 'company_id,provider' })
+        if (upsertError) {
+          console.error('[Procore] Failed to store connection:', upsertError)
+          return NextResponse.redirect(
+            new URL(`/dashboard/settings/integrations?error=db_error&details=${encodeURIComponent(upsertError.message)}`, request.url)
+          )
+        }
       } else {
         const db = getDb()
         db.prepare(`
