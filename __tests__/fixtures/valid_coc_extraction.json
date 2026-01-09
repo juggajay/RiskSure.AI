@@ -1,0 +1,64 @@
+{
+  "description": "Expected extraction result for a valid Certificate of Currency",
+  "input": {
+    "filename": "test_coc_TEST_SKIP_FRAUD_.pdf",
+    "mimeType": "application/pdf"
+  },
+  "expectedOutput": {
+    "success": true,
+    "data": {
+      "insuredName": "ABC Constructions Pty Ltd",
+      "insuredABN": "12345678901",
+      "insuredAddress": "123 Builder Street, Sydney NSW 2000",
+      "insurerName": "QBE Insurance (Australia) Limited",
+      "insurerABN": "28008770864",
+      "policyNumber": "POL123456789",
+      "startDate": "2025-01-01",
+      "endDate": "2026-01-01",
+      "coverages": {
+        "publicLiability": {
+          "limit": 20000000,
+          "excess": 1000,
+          "currency": "AUD"
+        },
+        "productsLiability": {
+          "limit": 20000000,
+          "excess": 1000,
+          "currency": "AUD"
+        },
+        "workersCompensation": {
+          "limit": 5000000,
+          "excess": 0,
+          "currency": "AUD",
+          "state": "NSW"
+        },
+        "professionalIndemnity": {
+          "limit": 5000000,
+          "excess": 5000,
+          "currency": "AUD"
+        }
+      },
+      "endorsements": {
+        "principalIndemnity": true,
+        "crossLiability": true,
+        "waiverOfSubrogation": true
+      },
+      "brokerName": "Insurance Brokers Pty Ltd",
+      "brokerContact": "John Smith",
+      "fieldConfidence": {
+        "insuredName": 0.95,
+        "insuredABN": 0.98,
+        "insurerName": 0.97,
+        "policyNumber": 0.94,
+        "startDate": 0.96,
+        "endDate": 0.96,
+        "publicLiability": 0.92,
+        "productsLiability": 0.92,
+        "workersCompensation": 0.90,
+        "professionalIndemnity": 0.88
+      }
+    },
+    "confidence": 0.93,
+    "extractionModel": "gemini-2.0-flash-exp"
+  }
+}

@@ -490,6 +490,7 @@ export interface Company {
   settings: string
   subscription_tier: string
   subscription_status: string
+  stripe_customer_id: string | null
   created_at: string
   updated_at: string
 }

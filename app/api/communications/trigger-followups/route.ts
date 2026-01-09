@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
-import { sendFollowUpEmail, isSendGridConfigured } from '@/lib/sendgrid'
+import { sendFollowUpEmail, isEmailConfigured } from '@/lib/resend'
 
 // POST /api/communications/trigger-followups - Trigger follow-up emails for pending responses
 // In production this would run as a scheduled job, this endpoint is for manual triggering/testing
@@ -146,7 +146,7 @@ The Compliance Team`
       let emailStatus = 'sent'
       let emailError: string | undefined
 
-      if (isSendGridConfigured()) {
+      if (isEmailConfigured()) {
         const emailResult = await sendFollowUpEmail({
           recipientEmail,
           subcontractorName: pending.subcontractor_name,

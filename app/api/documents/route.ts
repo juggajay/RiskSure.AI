@@ -5,6 +5,7 @@ import { getUserByToken } from '@/lib/auth'
 import { createNotificationForProjectTeam } from '@/lib/notifications'
 import { performSimulatedFraudAnalysis, type FraudAnalysisResult } from '@/lib/fraud-detection'
 import { uploadFile, getStorageInfo } from '@/lib/storage'
+import { extractDocumentData, convertToLegacyFormat, shouldSkipFraudDetection } from '@/lib/gemini'
 
 interface InsuranceRequirement {
   id: string
@@ -48,162 +49,6 @@ const UNLICENSED_INSURERS = [
   'Non-APRA Insurance Company'
 ]
 
-// Simulated AI extraction of policy details from COC document
-// fileName parameter allows for test scenarios (e.g., "expiring_early" triggers early expiry)
-function performAIExtraction(subcontractor: { id: string; name: string; abn: string }, fileName?: string) {
-  // Check for test scenarios based on filename
-  const isEarlyExpiry = fileName?.toLowerCase().includes('expiring_early') ||
-                        fileName?.toLowerCase().includes('early_expiry')
-  const isNoPrincipalIndemnity = fileName?.toLowerCase().includes('no_pi') ||
-                                  fileName?.toLowerCase().includes('no_principal')
-  const isNoCrossLiability = fileName?.toLowerCase().includes('no_cl') ||
-                             fileName?.toLowerCase().includes('no_cross')
-  const isVicWC = fileName?.toLowerCase().includes('vic_wc') ||
-                  fileName?.toLowerCase().includes('wc_vic')
-  const isWrongAbn = fileName?.toLowerCase().includes('wrong_abn') ||
-                     fileName?.toLowerCase().includes('abn_mismatch')
-  const isHighExcess = fileName?.toLowerCase().includes('high_excess') ||
-                       fileName?.toLowerCase().includes('excess_high')
-  const isUnlicensedInsurer = fileName?.toLowerCase().includes('unlicensed') ||
-                              fileName?.toLowerCase().includes('offshore') ||
-                              fileName?.toLowerCase().includes('unregistered')
-  // Test scenario for full compliance - all limits at maximum, all requirements met
-  const isFullCompliance = fileName?.toLowerCase().includes('full_compliance') ||
-                           fileName?.toLowerCase().includes('all_pass') ||
-                           fileName?.toLowerCase().includes('compliant_test')
-  // Test scenario for low confidence - poor quality scan triggering manual review
-  const isLowConfidence = fileName?.toLowerCase().includes('poor_quality') ||
-                          fileName?.toLowerCase().includes('low_confidence') ||
-                          fileName?.toLowerCase().includes('blurry')
-  // Test scenario for waiver of subrogation
-  const hasWaiverOfSubrogation = fileName?.toLowerCase().includes('waiver_subrogation') ||
-                                  fileName?.toLowerCase().includes('waiver') ||
-                                  isFullCompliance
-  const noWaiverOfSubrogation = fileName?.toLowerCase().includes('no_waiver') ||
-                                 fileName?.toLowerCase().includes('no_subrogation')
-  // Test scenario for principal naming types (interested party is less protection than principal naming)
-  const hasPrincipalNaming = fileName?.toLowerCase().includes('principal_named') ||
-                              fileName?.toLowerCase().includes('principal_naming') ||
-                              isFullCompliance
-  const hasInterestedPartyOnly = fileName?.toLowerCase().includes('interested_party') ||
-                                  fileName?.toLowerCase().includes('noted_party')
-
-  const insurers = APRA_LICENSED_INSURERS.slice(0, 8) // Use first 8 APRA-licensed insurers for normal extraction
-
-  // Select insurer - use unlicensed insurer for testing APRA validation
-  const randomInsurer = isUnlicensedInsurer
-    ? UNLICENSED_INSURERS[Math.floor(Math.random() * UNLICENSED_INSURERS.length)]
-    : insurers[Math.floor(Math.random() * insurers.length)]
-  const policyNumber = `POL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`
-
-  const now = new Date()
-  const startDate = new Date(now)
-  startDate.setMonth(startDate.getMonth() - Math.floor(Math.random() * 6))
-
-  let endDate: Date
-  if (isEarlyExpiry) {
-    // For testing: policy expires in Oct 2025 (before typical project end dates)
-    endDate = new Date('2025-10-31')
-  } else {
-    endDate = new Date(startDate)
-    endDate.setFullYear(endDate.getFullYear() + 1)
-  }
-
-  // Use maximum limits for full compliance test scenario
-  const publicLiabilityLimit = isFullCompliance ? 20000000 : [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
-  const productsLiabilityLimit = isFullCompliance ? 20000000 : [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
-  const workersCompLimit = isFullCompliance ? 5000000 : [1000000, 2000000, 5000000][Math.floor(Math.random() * 3)]
-  const professionalIndemnityLimit = isFullCompliance ? 5000000 : [1000000, 2000000, 5000000][Math.floor(Math.random() * 3)]
-
-  // Use a different ABN for testing ABN mismatch scenarios
-  const extractedAbn = isWrongAbn ? '99999999999' : subcontractor.abn
-
-  // Use high excess values for testing excess limit scenarios
-  const publicLiabilityExcess = isHighExcess ? 15000 : 1000
-  const productsLiabilityExcess = isHighExcess ? 15000 : 1000
-  const professionalIndemnityExcess = isHighExcess ? 25000 : 5000
-
-  return {
-    insured_party_name: subcontractor.name,
-    insured_party_abn: extractedAbn,
-    insured_party_address: '123 Construction Way, Sydney NSW 2000',
-    insurer_name: randomInsurer,
-    insurer_abn: '28008770864',
-    policy_number: policyNumber,
-    period_of_insurance_start: startDate.toISOString().split('T')[0],
-    period_of_insurance_end: endDate.toISOString().split('T')[0],
-    coverages: [
-      {
-        type: 'public_liability',
-        limit: publicLiabilityLimit,
-        limit_type: 'per_occurrence',
-        excess: publicLiabilityExcess,
-        principal_indemnity: !isNoPrincipalIndemnity,
-        cross_liability: !isNoCrossLiability,
-        waiver_of_subrogation: hasWaiverOfSubrogation && !noWaiverOfSubrogation,
-        // Principal naming type: 'principal_named' (stronger) vs 'interested_party' (weaker) vs null
-        principal_naming_type: hasPrincipalNaming ? 'principal_named' : (hasInterestedPartyOnly ? 'interested_party' : null)
-      },
-      {
-        type: 'products_liability',
-        limit: productsLiabilityLimit,
-        limit_type: 'aggregate',
-        excess: productsLiabilityExcess,
-        principal_indemnity: !isNoPrincipalIndemnity,
-        cross_liability: !isNoCrossLiability,
-        waiver_of_subrogation: hasWaiverOfSubrogation && !noWaiverOfSubrogation,
-        principal_naming_type: hasPrincipalNaming ? 'principal_named' : (hasInterestedPartyOnly ? 'interested_party' : null)
-      },
-      {
-        type: 'workers_comp',
-        limit: workersCompLimit,
-        limit_type: 'statutory',
-        excess: 0,
-        state: isVicWC ? 'VIC' : 'NSW',
-        employer_indemnity: true,
-        waiver_of_subrogation: hasWaiverOfSubrogation && !noWaiverOfSubrogation
-      },
-      {
-        type: 'professional_indemnity',
-        limit: professionalIndemnityLimit,
-        limit_type: 'per_claim',
-        excess: professionalIndemnityExcess,
-        retroactive_date: '2020-01-01',
-        waiver_of_subrogation: hasWaiverOfSubrogation && !noWaiverOfSubrogation
-      }
-    ],
-    broker_name: 'ABC Insurance Brokers Pty Ltd',
-    broker_contact: 'John Smith',
-    broker_phone: '02 9999 8888',
-    broker_email: 'john@abcbrokers.com.au',
-    currency: 'AUD',
-    territory: 'Australia and New Zealand',
-    extraction_timestamp: new Date().toISOString(),
-    extraction_model: 'gpt-4-vision-preview',
-    // Low confidence for poor quality scans, normal confidence otherwise
-    extraction_confidence: isLowConfidence ? 0.45 + Math.random() * 0.15 : 0.85 + Math.random() * 0.14,
-    // Per-field confidence scores for granular confidence display
-    field_confidences: {
-      insured_party_name: isLowConfidence ? 0.50 + Math.random() * 0.20 : 0.90 + Math.random() * 0.09,
-      insured_party_abn: isLowConfidence ? 0.40 + Math.random() * 0.25 : 0.92 + Math.random() * 0.07,
-      insured_party_address: isLowConfidence ? 0.35 + Math.random() * 0.30 : 0.85 + Math.random() * 0.10,
-      insurer_name: isLowConfidence ? 0.55 + Math.random() * 0.20 : 0.95 + Math.random() * 0.04,
-      insurer_abn: isLowConfidence ? 0.45 + Math.random() * 0.20 : 0.93 + Math.random() * 0.06,
-      policy_number: isLowConfidence ? 0.35 + Math.random() * 0.30 : 0.88 + Math.random() * 0.10,
-      period_of_insurance_start: isLowConfidence ? 0.50 + Math.random() * 0.25 : 0.90 + Math.random() * 0.09,
-      period_of_insurance_end: isLowConfidence ? 0.50 + Math.random() * 0.25 : 0.90 + Math.random() * 0.09,
-      public_liability_limit: isLowConfidence ? 0.45 + Math.random() * 0.25 : 0.88 + Math.random() * 0.11,
-      products_liability_limit: isLowConfidence ? 0.45 + Math.random() * 0.25 : 0.88 + Math.random() * 0.11,
-      workers_comp_limit: isLowConfidence ? 0.40 + Math.random() * 0.30 : 0.85 + Math.random() * 0.12,
-      professional_indemnity_limit: isLowConfidence ? 0.40 + Math.random() * 0.30 : 0.85 + Math.random() * 0.12,
-      broker_name: isLowConfidence ? 0.30 + Math.random() * 0.35 : 0.80 + Math.random() * 0.15,
-      broker_contact: isLowConfidence ? 0.25 + Math.random() * 0.35 : 0.75 + Math.random() * 0.18,
-      broker_phone: isLowConfidence ? 0.30 + Math.random() * 0.35 : 0.78 + Math.random() * 0.17,
-      broker_email: isLowConfidence ? 0.35 + Math.random() * 0.35 : 0.82 + Math.random() * 0.15
-    }
-  }
-}
-
 function formatCoverageType(type: string): string {
   const names: Record<string, string> = {
     public_liability: 'Public Liability',
@@ -216,8 +61,43 @@ function formatCoverageType(type: string): string {
   return names[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
+// Type for extracted data from Gemini (legacy format)
+interface ExtractedData {
+  insured_party_name: string
+  insured_party_abn: string
+  insured_party_address: string
+  insurer_name: string
+  insurer_abn: string
+  policy_number: string
+  period_of_insurance_start: string
+  period_of_insurance_end: string
+  coverages: Array<{
+    type: string
+    limit: number
+    limit_type: string
+    excess: number
+    principal_indemnity?: boolean
+    cross_liability?: boolean
+    waiver_of_subrogation?: boolean
+    principal_naming_type?: string | null
+    state?: string
+    employer_indemnity?: boolean
+    retroactive_date?: string
+  }>
+  broker_name: string
+  broker_contact: string
+  broker_phone: string
+  broker_email: string
+  currency: string
+  territory: string
+  extraction_timestamp: string
+  extraction_model: string
+  extraction_confidence: number
+  field_confidences: Record<string, number>
+}
+
 function verifyAgainstRequirements(
-  extractedData: ReturnType<typeof performAIExtraction>,
+  extractedData: ExtractedData,
   requirements: InsuranceRequirement[],
   projectEndDate?: string | null,
   projectState?: string | null,
@@ -805,8 +685,64 @@ export async function POST(request: NextRequest) {
       WHERE id = ?
     `).run(documentId)
 
-    // Perform AI extraction immediately (pass fileName for test scenarios)
-    const extractedData = performAIExtraction(subcontractor as { id: string; name: string; abn: string }, file.name)
+    // Get URL search params for test toggles
+    const { searchParams } = new URL(request.url)
+
+    // Perform AI extraction using Gemini 3 Flash
+    const extractionResult = await extractDocumentData(buffer, file.type, file.name)
+
+    // Handle extraction failure
+    if (!extractionResult.success || !extractionResult.data) {
+      // Update document status to extraction_failed
+      db.prepare(`
+        UPDATE coc_documents SET processing_status = 'extraction_failed', updated_at = datetime('now')
+        WHERE id = ?
+      `).run(documentId)
+
+      // Update verification record with failure
+      db.prepare(`
+        UPDATE verifications
+        SET status = 'fail', extracted_data = ?, updated_at = datetime('now')
+        WHERE coc_document_id = ?
+      `).run(
+        JSON.stringify({ extraction_error: extractionResult.error }),
+        documentId
+      )
+
+      // Log the extraction failure
+      db.prepare(`
+        INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
+        VALUES (?, ?, ?, 'coc_document', ?, 'extraction_failed', ?)
+      `).run(uuidv4(), user.company_id, user.id, documentId, JSON.stringify({
+        error: extractionResult.error,
+        fileName: file.name
+      }))
+
+      // Return error response with retry options for subcontractor
+      return NextResponse.json({
+        success: false,
+        status: 'extraction_failed',
+        document: {
+          id: documentId,
+          fileUrl,
+          fileName: file.name,
+          processingStatus: 'extraction_failed'
+        },
+        error: {
+          code: extractionResult.error?.code || 'UNREADABLE',
+          message: extractionResult.error?.message || "We couldn't read your document. Please ensure it's a clear PDF or image of your Certificate of Currency.",
+          actions: extractionResult.error?.retryable ? ['retry', 'upload_new'] : ['upload_new']
+        }
+      }, { status: 422 })
+    }
+
+    // Convert Gemini extraction to legacy format for verification
+    const extractedData = convertToLegacyFormat(
+      extractionResult.data,
+      subcontractor as { name: string; abn: string }
+    )
+    extractedData.extraction_confidence = extractionResult.confidence
+
     const requirements = db.prepare(`
       SELECT * FROM insurance_requirements WHERE project_id = ?
     `).all(projectId) as InsuranceRequirement[]
@@ -816,23 +752,35 @@ export async function POST(request: NextRequest) {
     const projectState = project.state
 
     const subcontractorAbn = (subcontractor as { abn: string }).abn
-    const verification = verifyAgainstRequirements(extractedData, requirements, projectEndDate, projectState, subcontractorAbn)
+    const verification = verifyAgainstRequirements(extractedData as unknown as ExtractedData, requirements, projectEndDate, projectState, subcontractorAbn)
 
-    // Perform fraud detection analysis
-    const fraudAnalysis = performSimulatedFraudAnalysis(
-      {
-        insured_party_abn: extractedData.insured_party_abn,
-        insurer_name: extractedData.insurer_name,
-        policy_number: extractedData.policy_number,
-        period_of_insurance_start: extractedData.period_of_insurance_start,
-        period_of_insurance_end: extractedData.period_of_insurance_end,
-        coverages: extractedData.coverages.map(c => ({
-          type: c.type,
-          limit: c.limit
-        }))
-      },
-      file.name
-    )
+    // Check if fraud detection should be skipped (for testing)
+    const skipFraud = shouldSkipFraudDetection(file.name, searchParams)
+
+    // Perform fraud detection analysis (unless skipped for testing)
+    const fraudAnalysis: FraudAnalysisResult = skipFraud
+      ? {
+          overall_risk_score: 0,
+          risk_level: 'low' as const,
+          is_blocked: false,
+          recommendation: 'Fraud detection skipped for testing',
+          checks: [],
+          evidence_summary: ['Fraud detection was bypassed via test toggle']
+        }
+      : performSimulatedFraudAnalysis(
+          {
+            insured_party_abn: extractedData.insured_party_abn as string,
+            insurer_name: extractedData.insurer_name as string,
+            policy_number: extractedData.policy_number as string,
+            period_of_insurance_start: extractedData.period_of_insurance_start as string,
+            period_of_insurance_end: extractedData.period_of_insurance_end as string,
+            coverages: (extractedData.coverages as Array<{type: string; limit: number}>).map(c => ({
+              type: c.type,
+              limit: c.limit
+            }))
+          },
+          file.name
+        )
 
     // If fraud is detected, override verification status
     let finalStatus = verification.status

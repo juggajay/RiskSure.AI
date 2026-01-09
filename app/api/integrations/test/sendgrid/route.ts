@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { getUserByToken } from "@/lib/auth"
-import { sendEmail, isSendGridConfigured, textToHtml } from "@/lib/sendgrid"
+import { sendEmail, isEmailConfigured, textToHtml } from "@/lib/resend"
+
+// Note: This endpoint is kept at /sendgrid for backwards compatibility
+// but now uses Resend as the email provider
 
 export async function POST() {
   try {
@@ -17,34 +20,34 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    if (!isSendGridConfigured()) {
+    if (!isEmailConfigured()) {
       return NextResponse.json(
-        { error: "SendGrid API key not configured. Set SENDGRID_API_KEY in environment variables." },
+        { error: "Resend API key not configured. Set RESEND_API_KEY in environment variables." },
         { status: 400 }
       )
     }
 
-    const apiKey = process.env.SENDGRID_API_KEY
+    const apiKey = process.env.RESEND_API_KEY
 
     // In development mode with test key, simulate success
     if (process.env.NODE_ENV === "development" && (apiKey === "test" || apiKey === "dev")) {
-      console.log("[DEV MODE] SendGrid test email simulated")
+      console.log("[DEV MODE] Resend test email simulated")
       return NextResponse.json({
         success: true,
         message: "Test email simulated (development mode)"
       })
     }
 
-    // Send actual test email via SendGrid SDK
-    const testBody = `SendGrid Integration Test
+    // Send actual test email via Resend
+    const testBody = `Email Integration Test
 
-This is a test email from RiskShield AI to verify your SendGrid integration is working correctly.
+This is a test email from RiskShield AI to verify your Resend email integration is working correctly.
 
 Sent at: ${new Date().toISOString()}`
 
     const result = await sendEmail({
       to: user.email,
-      subject: "RiskShield AI - SendGrid Integration Test",
+      subject: "RiskShield AI - Email Integration Test",
       html: textToHtml(testBody),
       text: testBody
     })
@@ -52,20 +55,20 @@ Sent at: ${new Date().toISOString()}`
     if (result.success) {
       return NextResponse.json({
         success: true,
-        message: "Test email sent successfully",
+        message: "Test email sent successfully via Resend",
         messageId: result.messageId
       })
     } else {
-      console.error("SendGrid API error:", result.error)
+      console.error("Resend API error:", result.error)
       return NextResponse.json(
-        { error: result.error || "SendGrid API returned an error. Please verify your API key." },
+        { error: result.error || "Resend API returned an error. Please verify your API key." },
         { status: 400 }
       )
     }
   } catch (error) {
-    console.error("SendGrid test failed:", error)
+    console.error("Email test failed:", error)
     return NextResponse.json(
-      { error: "Failed to test SendGrid connection" },
+      { error: "Failed to test email connection" },
       { status: 500 }
     )
   }

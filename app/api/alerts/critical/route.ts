@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { getDb } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
 import { sendCriticalAlert, sendStopWorkRiskSms } from '@/lib/twilio'
-import { sendEmail, textToHtml } from '@/lib/sendgrid'
+import { sendEmail, textToHtml } from '@/lib/resend'
 
 // POST /api/alerts/critical - Send critical SMS alert for stop work risks
 export async function POST(request: NextRequest) {

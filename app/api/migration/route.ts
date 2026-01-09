@@ -5,13 +5,13 @@ import { getUserByToken } from '@/lib/auth'
 import {
   classifyDocument,
   extractVendorsFromList,
-  extractCOCData,
   matchVendorToSubcontractor,
   type MigrationSession,
   type MigrationDocument,
   type ExtractedVendor,
   type ExtractedCOCData
 } from '@/lib/document-classifier'
+import { extractDocumentData, convertToLegacyFormat } from '@/lib/gemini'
 import { uploadFile } from '@/lib/storage'
 import JSZip from 'jszip'
 import { migrationSessions } from '@/lib/migration-sessions'
@@ -230,25 +230,90 @@ export async function POST(request: NextRequest) {
           allVendors.push(...vendors)
           migrationDoc.status = 'processed'
           console.log(`[MIGRATION] Extracted ${vendors.length} vendors from ${fileToProcess.name}`)
-        } else if (classification.classification === 'coc') {
-          // Extract COC data
-          const cocData = extractCOCData(fileToProcess.name)
-          allCOCData.push({ documentId: docId, data: cocData })
-          migrationDoc.status = 'processed'
+        } else if (classification.classification === 'coc' || classification.classification === 'policy_schedule') {
+          // Use Gemini to extract COC data (same as regular upload, but no fraud detection)
+          console.log(`[MIGRATION] Extracting COC with Gemini: ${fileToProcess.name}`)
 
-          // Also extract vendor from COC
-          if (cocData.vendorName) {
-            allVendors.push({
-              name: cocData.vendorName,
-              abn: cocData.vendorAbn
-            })
+          const extractionResult = await extractDocumentData(
+            fileToProcess.data,
+            fileToProcess.type,
+            fileToProcess.name
+          )
+
+          if (extractionResult.success && extractionResult.data) {
+            // Convert Gemini extraction to migration format
+            const cocData: ExtractedCOCData = {
+              vendorName: extractionResult.data.insuredName,
+              vendorAbn: extractionResult.data.insuredABN,
+              insurerName: extractionResult.data.insurerName,
+              policyNumber: extractionResult.data.policyNumber,
+              policyStartDate: extractionResult.data.startDate,
+              policyEndDate: extractionResult.data.endDate,
+              coverages: []
+            }
+
+            // Convert coverages
+            const coverages = extractionResult.data.coverages
+            if (coverages.publicLiability) {
+              cocData.coverages.push({
+                type: 'public_liability',
+                limit: coverages.publicLiability.limit,
+                excess: coverages.publicLiability.excess
+              })
+            }
+            if (coverages.productsLiability) {
+              cocData.coverages.push({
+                type: 'products_liability',
+                limit: coverages.productsLiability.limit,
+                excess: coverages.productsLiability.excess
+              })
+            }
+            if (coverages.workersCompensation) {
+              cocData.coverages.push({
+                type: 'workers_comp',
+                limit: coverages.workersCompensation.limit,
+                excess: coverages.workersCompensation.excess
+              })
+            }
+            if (coverages.professionalIndemnity) {
+              cocData.coverages.push({
+                type: 'professional_indemnity',
+                limit: coverages.professionalIndemnity.limit,
+                excess: coverages.professionalIndemnity.excess
+              })
+            }
+            if (coverages.contractWorks) {
+              cocData.coverages.push({
+                type: 'contract_works',
+                limit: coverages.contractWorks.limit,
+                excess: coverages.contractWorks.excess
+              })
+            }
+            if (coverages.motorVehicle) {
+              cocData.coverages.push({
+                type: 'motor_vehicle',
+                limit: coverages.motorVehicle.limit,
+                excess: coverages.motorVehicle.excess
+              })
+            }
+
+            allCOCData.push({ documentId: docId, data: cocData })
+            migrationDoc.status = 'processed'
+
+            // Also extract vendor from COC
+            if (cocData.vendorName) {
+              allVendors.push({
+                name: cocData.vendorName,
+                abn: cocData.vendorAbn
+              })
+            }
+            console.log(`[MIGRATION] Gemini extracted COC for ${cocData.vendorName} (${fileToProcess.name})`)
+          } else {
+            // Extraction failed
+            migrationDoc.status = 'error'
+            migrationDoc.errorMessage = extractionResult.error?.message || 'Gemini extraction failed'
+            console.error(`[MIGRATION] Gemini extraction failed for ${fileToProcess.name}: ${extractionResult.error?.message}`)
           }
-          console.log(`[MIGRATION] Extracted COC data for ${cocData.vendorName} from ${fileToProcess.name}`)
-        } else if (classification.classification === 'policy_schedule') {
-          // For now, treat as COC
-          const cocData = extractCOCData(fileToProcess.name)
-          allCOCData.push({ documentId: docId, data: cocData })
-          migrationDoc.status = 'processed'
         } else {
           // Other/unknown - mark as processed but no extraction
           migrationDoc.status = 'processed'

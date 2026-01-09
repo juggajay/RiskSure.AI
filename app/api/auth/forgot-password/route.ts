@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { useSupabase } from '@/lib/db/supabase-db'
 import { createPasswordResetToken, createPasswordResetTokenAsync, getUserByEmail, getUserByEmailAsync } from '@/lib/auth'
-import { sendPasswordResetEmail, isSendGridConfigured } from '@/lib/sendgrid'
+import { sendPasswordResetEmail, isEmailConfigured } from '@/lib/resend'
 import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
       // Build reset URL
       const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3005'}/reset-password?token=${token}`
 
-      // In development or if SendGrid not configured, log the reset link to the console
-      if (process.env.NODE_ENV === 'development' || !isSendGridConfigured()) {
+      // In development or if email not configured, log the reset link to the console
+      if (process.env.NODE_ENV === 'development' || !isEmailConfigured()) {
         // Security: Only log sensitive info in development
         if (process.env.NODE_ENV !== 'production') {
           console.log('\n========================================')
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Send email via SendGrid if configured
-      if (isSendGridConfigured()) {
+      // Send email via Resend if configured
+      if (isEmailConfigured()) {
         const result = await sendPasswordResetEmail({
           recipientEmail: normalizedEmail,
           recipientName: user.name,

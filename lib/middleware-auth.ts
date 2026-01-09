@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   '/reset-password',
   '/portal/login',
   '/portal/verify',
+  '/preview-landing',
 ]
 
 /**

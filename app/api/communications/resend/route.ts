@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
-import { sendFollowUpEmail, isSendGridConfigured } from '@/lib/sendgrid'
+import { sendFollowUpEmail, isEmailConfigured } from '@/lib/resend'
 
 // POST /api/communications/resend - Resend a follow-up communication for a failed verification
 export async function POST(request: NextRequest) {
@@ -106,7 +106,7 @@ The Compliance Team`
     let emailStatus = 'sent'
     let emailError: string | undefined
 
-    if (isSendGridConfigured() && subcontractor.contact_email) {
+    if (isEmailConfigured() && subcontractor.contact_email) {
       const emailResult = await sendFollowUpEmail({
         recipientEmail: subcontractor.contact_email,
         subcontractorName: subcontractor.name,

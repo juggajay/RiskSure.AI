@@ -1,4 +1,4 @@
-import sgMail from '@sendgrid/mail'
+import { Resend } from 'resend'
 
 /**
  * HTML-escape a string to prevent XSS attacks in email templates
@@ -14,7 +14,7 @@ export function escapeHtml(unsafe: string | undefined | null): string {
     .replace(/'/g, '&#039;')
 }
 
-// Types for SendGrid integration
+// Types for email integration
 export interface EmailOptions {
   to: string
   subject: string
@@ -22,10 +22,6 @@ export interface EmailOptions {
   text?: string
   cc?: string[]
   replyTo?: string
-  trackingSettings?: {
-    clickTracking?: boolean
-    openTracking?: boolean
-  }
 }
 
 export interface EmailResult {
@@ -47,43 +43,45 @@ export interface TemplateData {
   [key: string]: string | number | undefined
 }
 
-// Initialize SendGrid with API key
-let initialized = false
+// Initialize Resend client
+let resendClient: Resend | null = null
 
-function initializeSendGrid(): boolean {
-  if (initialized) return true
+function getResendClient(): Resend | null {
+  if (resendClient) return resendClient
 
-  const apiKey = process.env.SENDGRID_API_KEY
+  const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
-    console.warn('[SendGrid] API key not configured')
-    return false
+    console.warn('[Resend] API key not configured')
+    return null
   }
 
-  sgMail.setApiKey(apiKey)
-  initialized = true
-  return true
+  resendClient = new Resend(apiKey)
+  return resendClient
 }
 
 /**
  * Get the configured from email address
  */
 export function getFromEmail(): string {
-  return process.env.SENDGRID_FROM_EMAIL || 'noreply@riskshield.ai'
+  return process.env.RESEND_FROM_EMAIL || 'noreply@riskshield.ai'
 }
 
 /**
  * Get the from name for emails
  */
 export function getFromName(): string {
-  return process.env.SENDGRID_FROM_NAME || 'RiskShield AI'
+  return process.env.RESEND_FROM_NAME || 'RiskShield AI'
 }
 
 /**
- * Check if SendGrid is configured and ready
+ * Check if Resend is configured and ready
  */
-export function isSendGridConfigured(): boolean {
-  return !!process.env.SENDGRID_API_KEY
+export function isEmailConfigured(): boolean {
+  return !!process.env.RESEND_API_KEY
 }
+
+// Backwards compatibility alias
+export const isSendGridConfigured = isEmailConfigured
 
 /**
  * Render an email template by replacing placeholders with actual values
@@ -159,13 +157,14 @@ export function textToHtml(text: string): string {
 }
 
 /**
- * Send an email via SendGrid
+ * Send an email via Resend
  */
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
+  const apiKey = process.env.RESEND_API_KEY
+
   // Check for dev mode simulation
-  const apiKey = process.env.SENDGRID_API_KEY
   if (process.env.NODE_ENV === 'development' && (!apiKey || apiKey === 'test' || apiKey === 'dev')) {
-    console.log('[SendGrid DEV] Would send email:', {
+    console.log('[Resend DEV] Would send email:', {
       to: options.to,
       subject: options.subject,
       cc: options.cc
@@ -176,71 +175,48 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     }
   }
 
-  // Initialize SendGrid
-  if (!initializeSendGrid()) {
+  const client = getResendClient()
+  if (!client) {
     return {
       success: false,
-      error: 'SendGrid API key not configured'
+      error: 'Resend API key not configured'
     }
   }
 
   try {
-    const msg: sgMail.MailDataRequired = {
+    const fromAddress = `${getFromName()} <${getFromEmail()}>`
+
+    const { data, error } = await client.emails.send({
+      from: fromAddress,
       to: options.to,
-      from: {
-        email: getFromEmail(),
-        name: getFromName()
-      },
       subject: options.subject,
       html: options.html,
-      text: options.text || options.html.replace(/<[^>]*>/g, ''), // Strip HTML for plain text version
-    }
+      text: options.text || options.html.replace(/<[^>]*>/g, ''),
+      cc: options.cc,
+      replyTo: options.replyTo,
+    })
 
-    // Add CC recipients if provided
-    if (options.cc && options.cc.length > 0) {
-      msg.cc = options.cc
-    }
-
-    // Add reply-to if provided
-    if (options.replyTo) {
-      msg.replyTo = options.replyTo
-    }
-
-    // Configure tracking settings
-    msg.trackingSettings = {
-      clickTracking: {
-        enable: options.trackingSettings?.clickTracking !== false
-      },
-      openTracking: {
-        enable: options.trackingSettings?.openTracking !== false
+    if (error) {
+      console.error('[Resend] Failed to send email:', error)
+      return {
+        success: false,
+        error: error.message
       }
     }
 
-    const [response] = await sgMail.send(msg)
-
-    // Extract message ID from headers
-    const messageId = response.headers['x-message-id'] as string | undefined
-
-    console.log('[SendGrid] Email sent successfully:', {
+    console.log('[Resend] Email sent successfully:', {
       to: options.to,
       subject: options.subject,
-      messageId,
-      statusCode: response.statusCode
+      messageId: data?.id
     })
 
     return {
       success: true,
-      messageId
+      messageId: data?.id
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[SendGrid] Failed to send email:', errorMessage)
-
-    // Log more details if it's a SendGrid error
-    if (error && typeof error === 'object' && 'response' in error) {
-      const sgError = error as { response?: { body?: unknown } }
-      console.error('[SendGrid] Error details:', sgError.response?.body)
-    }
+    console.error('[Resend] Failed to send email:', errorMessage)
 
     return {
       success: false,
@@ -551,26 +527,22 @@ export async function sendInvitationEmail(params: {
 
   // Format requirements list
   const requirementsList = requirements && requirements.length > 0
-    ? requirements.map(r => `  • ${r}`).join('\n')
-    : '  • Current Certificate of Currency\n  • Valid Public Liability coverage\n  • Workers Compensation coverage'
+    ? requirements.map(r => `  - ${r}`).join('\n')
+    : '  - Current Certificate of Currency\n  - Valid Public Liability coverage\n  - Workers Compensation coverage'
 
   const body = `Dear ${recipientName || 'Subcontractor'},
 
 ${builderName} has added ${subcontractorName} (ABN: ${subcontractorAbn}) to their project and requires your Certificate of Currency before work can commence on site.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 PROJECT DETAILS
-───────────────
+---------------
 Project: ${projectName}
 Builder: ${builderName}
 ${onSiteDate ? `On-Site Date: ${onSiteDate}` : 'On-Site Date: To be confirmed'}
 
 WHAT'S NEEDED
-─────────────
+-------------
 ${requirementsList}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Click the link below to securely upload your certificate:
 
@@ -661,7 +633,7 @@ RiskShield AI Compliance Team`
       border-bottom: none;
     }
     .requirements li:before {
-      content: "✓ ";
+      content: "\\2713 ";
       color: #0066cc;
       font-weight: bold;
     }
@@ -727,14 +699,14 @@ RiskShield AI Compliance Team`
   // In dev mode, log the invitation link to console
   if (process.env.NODE_ENV === 'development') {
     console.log('\n════════════════════════════════════════════════════════════')
-    console.log('📧 INVITATION EMAIL (Dev Mode - Not Actually Sent)')
+    console.log('INVITATION EMAIL (Dev Mode - Not Actually Sent)')
     console.log('════════════════════════════════════════════════════════════')
     console.log(`To: ${recipientEmail}`)
     console.log(`Subject: ${subject}`)
     console.log(`Project: ${projectName}`)
     console.log(`Builder: ${builderName}`)
     console.log('')
-    console.log('🔗 INVITATION LINK:')
+    console.log('INVITATION LINK:')
     console.log(invitationLink)
     console.log('════════════════════════════════════════════════════════════\n')
   }

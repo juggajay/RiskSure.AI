@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
 import { getUserByToken } from '@/lib/auth'
+import { downloadFile } from '@/lib/storage'
+import { extractDocumentData, convertToLegacyFormat, shouldSkipFraudDetection } from '@/lib/gemini'
+import { performSimulatedFraudAnalysis, type FraudAnalysisResult } from '@/lib/fraud-detection'
 
 interface CocDocument {
   id: string
@@ -45,170 +48,42 @@ interface InsuranceRequirement {
   cross_liability_required: number
 }
 
-// Simulated AI extraction of policy details from COC document
-// In production, this would call GPT-4V or similar vision model
-function extractPolicyDetails(document: CocDocument, subcontractor: Subcontractor) {
-  // Generate realistic mock data based on document and subcontractor
-  const insurers = [
-    'QBE Insurance (Australia) Limited',
-    'Allianz Australia Insurance Limited',
-    'Suncorp Group Limited',
-    'CGU Insurance Limited',
-    'Zurich Australian Insurance Limited',
-    'AIG Australia Limited',
-    'Vero Insurance',
-    'GIO General Limited'
-  ]
-
-  const randomInsurer = insurers[Math.floor(Math.random() * insurers.length)]
-  const policyNumber = `POL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`
-
-  // Check for test scenarios based on filename
-  const fileName = document.file_name || ''
-  const isEarlyExpiry = fileName.toLowerCase().includes('expiring_early') ||
-                        fileName.toLowerCase().includes('early_expiry')
-  const isNoPrincipalIndemnity = fileName.toLowerCase().includes('no_pi') ||
-                                  fileName.toLowerCase().includes('no_principal')
-  const isNoCrossLiability = fileName.toLowerCase().includes('no_cl') ||
-                             fileName.toLowerCase().includes('no_cross')
-  const isVicWC = fileName.toLowerCase().includes('vic_wc') ||
-                  fileName.toLowerCase().includes('wc_vic')
-  const isLowConfidence = fileName.toLowerCase().includes('poor_quality') ||
-                           fileName.toLowerCase().includes('low_confidence') ||
-                           fileName.toLowerCase().includes('blurry')
-  const isFullCompliance = fileName.toLowerCase().includes('compliant') ||
-                           fileName.toLowerCase().includes('full_compliance') ||
-                           fileName.toLowerCase().includes('pass')
-
-  // Generate dates - policy typically valid for 1 year
-  const now = new Date()
-  const startDate = new Date(now)
-  startDate.setMonth(startDate.getMonth() - Math.floor(Math.random() * 6)) // Started 0-6 months ago
-
-  let endDate: Date
-  if (isEarlyExpiry) {
-    // For testing: policy expires in Oct 2025 (before typical project end dates)
-    endDate = new Date('2025-10-31')
-  } else {
-    endDate = new Date(startDate)
-    endDate.setFullYear(endDate.getFullYear() + 1) // 1 year policy
-  }
-
-  // Generate coverage limits - force high values for full compliance scenarios
-  const publicLiabilityLimit = isFullCompliance ? 20000000 : [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
-  const productsLiabilityLimit = isFullCompliance ? 20000000 : [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
-  const workersCompLimit = isFullCompliance ? 2000000 : [1000000, 2000000, 5000000][Math.floor(Math.random() * 3)]
-  const professionalIndemnityLimit = isFullCompliance ? 5000000 : [1000000, 2000000, 5000000][Math.floor(Math.random() * 3)]
-  const motorVehicleLimit = isFullCompliance ? 20000000 : [5000000, 10000000, 20000000][Math.floor(Math.random() * 3)]
-  const contractWorksLimit = isFullCompliance ? 10000000 : [2000000, 5000000, 10000000][Math.floor(Math.random() * 3)]
-
-  const extractedData = {
-    // Insured party details
-    insured_party_name: subcontractor.name,
-    insured_party_abn: subcontractor.abn,
-    insured_party_address: '123 Construction Way, Sydney NSW 2000',
-
-    // Insurer details
-    insurer_name: randomInsurer,
-    insurer_abn: '28008770864',
-
-    // Policy details
-    policy_number: policyNumber,
-    period_of_insurance_start: startDate.toISOString().split('T')[0],
-    period_of_insurance_end: endDate.toISOString().split('T')[0],
-
-    // Coverage details
-    coverages: [
-      {
-        type: 'public_liability',
-        limit: publicLiabilityLimit,
-        limit_type: 'per_occurrence',
-        excess: 1000,
-        principal_indemnity: !isNoPrincipalIndemnity,
-        cross_liability: !isNoCrossLiability
-      },
-      {
-        type: 'products_liability',
-        limit: productsLiabilityLimit,
-        limit_type: 'aggregate',
-        excess: 1000,
-        principal_indemnity: !isNoPrincipalIndemnity,
-        cross_liability: !isNoCrossLiability
-      },
-      {
-        type: 'workers_comp',
-        limit: workersCompLimit,
-        limit_type: 'statutory',
-        excess: 0,
-        state: isVicWC ? 'VIC' : 'NSW',
-        employer_indemnity: true
-      },
-      {
-        type: 'professional_indemnity',
-        limit: professionalIndemnityLimit,
-        limit_type: 'per_claim',
-        excess: 5000,
-        retroactive_date: '2020-01-01'
-      },
-      {
-        type: 'motor_vehicle',
-        limit: motorVehicleLimit,
-        limit_type: 'per_occurrence',
-        excess: 500
-      },
-      {
-        type: 'contract_works',
-        limit: contractWorksLimit,
-        limit_type: 'per_project',
-        excess: 2500
-      }
-    ],
-
-    // Broker details (if present)
-    broker_name: 'ABC Insurance Brokers Pty Ltd',
-    broker_contact: 'John Smith',
-    broker_phone: '02 9999 8888',
-    broker_email: 'john@abcbrokers.com.au',
-
-    // Additional details
-    currency: 'AUD',
-    territory: 'Australia and New Zealand',
-
-    // Extraction metadata
-    extraction_timestamp: new Date().toISOString(),
-    extraction_model: 'gpt-4-vision-preview',
-    extraction_confidence: isLowConfidence ? 0.45 + Math.random() * 0.15 : 0.85 + Math.random() * 0.14,
-
-    // Per-field confidence scores for granular confidence display
-    // Low confidence scenarios (poor quality documents) have lower per-field scores
-    field_confidences: {
-      insured_party_name: isLowConfidence ? 0.50 + Math.random() * 0.20 : 0.90 + Math.random() * 0.09,
-      insured_party_abn: isLowConfidence ? 0.40 + Math.random() * 0.25 : 0.92 + Math.random() * 0.07,
-      insured_party_address: isLowConfidence ? 0.35 + Math.random() * 0.30 : 0.85 + Math.random() * 0.10,
-      insurer_name: isLowConfidence ? 0.55 + Math.random() * 0.20 : 0.95 + Math.random() * 0.04,
-      insurer_abn: isLowConfidence ? 0.45 + Math.random() * 0.20 : 0.93 + Math.random() * 0.06,
-      policy_number: isLowConfidence ? 0.35 + Math.random() * 0.30 : 0.88 + Math.random() * 0.10,
-      period_of_insurance_start: isLowConfidence ? 0.50 + Math.random() * 0.25 : 0.90 + Math.random() * 0.09,
-      period_of_insurance_end: isLowConfidence ? 0.50 + Math.random() * 0.25 : 0.90 + Math.random() * 0.09,
-      public_liability_limit: isLowConfidence ? 0.45 + Math.random() * 0.25 : 0.88 + Math.random() * 0.11,
-      products_liability_limit: isLowConfidence ? 0.45 + Math.random() * 0.25 : 0.88 + Math.random() * 0.11,
-      workers_comp_limit: isLowConfidence ? 0.40 + Math.random() * 0.30 : 0.85 + Math.random() * 0.12,
-      professional_indemnity_limit: isLowConfidence ? 0.40 + Math.random() * 0.30 : 0.85 + Math.random() * 0.12,
-      motor_vehicle_limit: isLowConfidence ? 0.45 + Math.random() * 0.25 : 0.88 + Math.random() * 0.11,
-      contract_works_limit: isLowConfidence ? 0.45 + Math.random() * 0.25 : 0.86 + Math.random() * 0.12,
-      broker_name: isLowConfidence ? 0.30 + Math.random() * 0.35 : 0.80 + Math.random() * 0.15,
-      broker_contact: isLowConfidence ? 0.25 + Math.random() * 0.35 : 0.75 + Math.random() * 0.18,
-      broker_phone: isLowConfidence ? 0.30 + Math.random() * 0.35 : 0.78 + Math.random() * 0.17,
-      broker_email: isLowConfidence ? 0.35 + Math.random() * 0.35 : 0.82 + Math.random() * 0.15
-    }
-  }
-
-  return extractedData
+// Type for extracted data from Gemini (legacy format)
+interface ExtractedData {
+  insured_party_name: string
+  insured_party_abn: string
+  insured_party_address: string
+  insurer_name: string
+  insurer_abn: string
+  policy_number: string
+  period_of_insurance_start: string
+  period_of_insurance_end: string
+  coverages: Array<{
+    type: string
+    limit: number
+    limit_type: string
+    excess: number
+    principal_indemnity?: boolean
+    cross_liability?: boolean
+    state?: string
+    employer_indemnity?: boolean
+    retroactive_date?: string
+  }>
+  broker_name: string
+  broker_contact: string
+  broker_phone: string
+  broker_email: string
+  currency: string
+  territory: string
+  extraction_timestamp: string
+  extraction_model: string
+  extraction_confidence: number
+  field_confidences: Record<string, number>
 }
 
 // Verify extracted data against project requirements
 function verifyAgainstRequirements(
-  extractedData: ReturnType<typeof extractPolicyDetails>,
+  extractedData: ExtractedData,
   requirements: InsuranceRequirement[],
   projectEndDate?: string | null,
   projectState?: string | null
@@ -555,11 +430,81 @@ export async function POST(
       WHERE id = ?
     `).run(params.id)
 
-    // Extract policy details using AI (simulated)
-    const extractedData = extractPolicyDetails(document, subcontractor)
+    // Get URL search params for test toggles
+    const { searchParams } = new URL(request.url)
+
+    // Download the document file from storage
+    const storagePath = document.file_url.includes('/uploads/')
+      ? document.file_url.split('/uploads/')[1]
+      : document.file_url
+    const downloadResult = await downloadFile(storagePath)
+
+    if (!downloadResult.success || !downloadResult.buffer) {
+      // Update document status to extraction_failed
+      db.prepare(`
+        UPDATE coc_documents SET processing_status = 'extraction_failed', updated_at = datetime('now')
+        WHERE id = ?
+      `).run(params.id)
+
+      return NextResponse.json({
+        success: false,
+        status: 'extraction_failed',
+        error: {
+          code: 'UNREADABLE',
+          message: 'Could not download the document file. Please upload again.',
+          actions: ['upload_new']
+        }
+      }, { status: 422 })
+    }
+
+    // Detect content type
+    const contentType = downloadResult.contentType ||
+      (document.file_name?.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg')
+
+    // Extract policy details using Gemini 3 Flash
+    const extractionResult = await extractDocumentData(
+      downloadResult.buffer,
+      contentType,
+      document.file_name || 'document'
+    )
+
+    // Handle extraction failure
+    if (!extractionResult.success || !extractionResult.data) {
+      // Update document status to extraction_failed
+      db.prepare(`
+        UPDATE coc_documents SET processing_status = 'extraction_failed', updated_at = datetime('now')
+        WHERE id = ?
+      `).run(params.id)
+
+      // Update verification record with failure
+      if (document.verification_id) {
+        db.prepare(`
+          UPDATE verifications
+          SET status = 'fail', extracted_data = ?, updated_at = datetime('now')
+          WHERE id = ?
+        `).run(
+          JSON.stringify({ extraction_error: extractionResult.error }),
+          document.verification_id
+        )
+      }
+
+      return NextResponse.json({
+        success: false,
+        status: 'extraction_failed',
+        error: {
+          code: extractionResult.error?.code || 'UNREADABLE',
+          message: extractionResult.error?.message || "We couldn't read your document. Please ensure it's a clear PDF or image of your Certificate of Currency.",
+          actions: extractionResult.error?.retryable ? ['retry', 'upload_new'] : ['upload_new']
+        }
+      }, { status: 422 })
+    }
+
+    // Convert Gemini extraction to legacy format for verification
+    const extractedData = convertToLegacyFormat(extractionResult.data, subcontractor)
+    extractedData.extraction_confidence = extractionResult.confidence
 
     // Verify against requirements (including project end date and state checks)
-    const verification = verifyAgainstRequirements(extractedData, requirements, projectEndDate, projectState)
+    const verification = verifyAgainstRequirements(extractedData as unknown as ExtractedData, requirements, projectEndDate, projectState)
 
     // Update or create verification record
     if (document.verification_id) {

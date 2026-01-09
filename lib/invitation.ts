@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
-import { sendInvitationEmail } from '@/lib/sendgrid'
+import { sendInvitationEmail } from '@/lib/resend'
 
 // Invitation token expiry: 7 days
 const INVITATION_EXPIRY_DAYS = 7

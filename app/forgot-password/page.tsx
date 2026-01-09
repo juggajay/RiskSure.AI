@@ -81,10 +81,9 @@ export default function ForgotPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md text-sm">
-              <p className="font-medium mb-1">Development Mode</p>
-              <p>Check the terminal/console for the reset link. In production, this would be sent via email.</p>
-            </div>
+            <p className="text-sm text-slate-600 text-center">
+              The email should arrive within a few minutes. If you don&apos;t see it, please check your spam or junk folder.
+            </p>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <p className="text-sm text-slate-500 text-center">
