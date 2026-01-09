@@ -63,8 +63,12 @@ export async function GET(request: NextRequest) {
     // Verify state token
     let stateRecord: OAuthStateRecord | undefined
 
+    console.log(`[Procore] Callback received - state: ${state?.substring(0, 8)}..., isProduction: ${isProduction}`)
+
     if (isProduction) {
       const supabase = getSupabase()
+      console.log(`[Procore] Looking up state in Supabase...`)
+
       const { data, error: queryError } = await supabase
         .from('oauth_states')
         .select('*')
@@ -75,9 +79,21 @@ export async function GET(request: NextRequest) {
 
       if (queryError) {
         console.error('[Procore] State lookup error:', queryError)
+        // Also try without expiry check to see if state exists but expired
+        const { data: expiredCheck } = await supabase
+          .from('oauth_states')
+          .select('*')
+          .eq('state', state)
+          .single()
+        if (expiredCheck) {
+          console.log('[Procore] State found but may be expired:', expiredCheck)
+        } else {
+          console.log('[Procore] State not found in database at all')
+        }
       }
 
       if (data) {
+        console.log(`[Procore] State found! company_id: ${data.company_id}`)
         stateRecord = data as OAuthStateRecord
       }
 

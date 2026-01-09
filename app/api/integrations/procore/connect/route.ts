@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
     // Store state in database for verification
     if (isProduction) {
       const supabase = getSupabase()
-      await supabase.from('oauth_states').insert({
+      console.log(`[Procore] Storing OAuth state in Supabase: ${state.substring(0, 8)}...`)
+      const { error: insertError } = await supabase.from('oauth_states').insert({
         id: stateId,
         user_id: user.id,
         company_id: user.company_id,
@@ -56,6 +57,14 @@ export async function GET(request: NextRequest) {
         created_at: new Date().toISOString(),
         expires_at: expiresAt
       })
+      if (insertError) {
+        console.error('[Procore] Failed to store OAuth state:', insertError)
+        return NextResponse.json(
+          { error: 'Failed to initiate OAuth flow', details: insertError.message },
+          { status: 500 }
+        )
+      }
+      console.log(`[Procore] OAuth state stored successfully`)
     } else {
       const db = getDb()
       db.prepare(`
