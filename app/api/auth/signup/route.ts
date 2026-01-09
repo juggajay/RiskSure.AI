@@ -55,11 +55,6 @@ export async function POST(request: NextRequest) {
     // Determine which database to use
     const isSupabase = useSupabase()
 
-    // Debug logging for production issues
-    console.log('Signup - useSupabase:', isSupabase)
-    console.log('Signup - SUPABASE_URL exists:', !!process.env.NEXT_PUBLIC_SUPABASE_URL)
-    console.log('Signup - SERVICE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-
     // Variables for user/company IDs
     const companyId = uuidv4()
     const userId = uuidv4()
@@ -266,18 +261,8 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     console.error('Signup error:', error)
-    // Include error details for debugging (safe because we control error messages)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: errorMessage,
-        debug: {
-          useSupabase: useSupabase(),
-          hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-          hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-        }
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
