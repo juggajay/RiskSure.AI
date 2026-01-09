@@ -1,7 +1,24 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
-import { getDb, getSupabase, isProduction, type User, type Session } from './db'
+// Import types only (doesn't load the module at runtime)
+import type { User, Session } from './db'
+// Import Supabase client from its dedicated file (doesn't load SQLite)
+import { getSupabase, useSupabase } from './db/supabase-db'
+
+/**
+ * Helper to get SQLite database - throws in production
+ * SQLite functions should only be used in development
+ */
+function getSqliteDb() {
+  if (useSupabase()) {
+    throw new Error('SQLite functions should not be called in production. Use Async versions with Supabase.')
+  }
+  // Dynamic require to avoid bundling in production
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getDb } = require('./db')
+  return getDb()
+}
 
 const JWT_SECRET = process.env.JWT_SECRET
 
@@ -72,10 +89,16 @@ export function validatePassword(password: string): { valid: boolean; errors: st
 }
 
 /**
- * Create a session for a user
+ * Create a session for a user (SQLite - development only)
+ *
+ * WARNING: This function uses synchronous SQLite operations.
+ * In production, use createSessionAsync with Supabase instead.
+ *
+ * @deprecated Use createSessionAsync for production code
  */
 export function createSession(userId: string): { session: Session; token: string } {
-  const db = getDb()
+  // Dynamic import to avoid loading better-sqlite3 in production serverless
+  const db = getSqliteDb()
   const sessionId = uuidv4()
   // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
   const token = jwt.sign({ sessionId, userId }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '8h' })
@@ -180,13 +203,14 @@ export async function getUserByTokenAsync(token: string): Promise<User | null> {
 }
 
 /**
- * Validate a session token
+ * Validate a session token (SQLite - development only)
+ * @deprecated Use validateSessionAsync for production
  */
 export function validateSession(token: string): { valid: boolean; userId?: string; error?: string } {
   try {
     // Security: Explicitly specify allowed algorithms
     const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string; userId: string }
-    const db = getDb()
+    const db = getSqliteDb()
 
     const session = db.prepare(`
       SELECT * FROM sessions WHERE id = ? AND token = ?
@@ -209,7 +233,8 @@ export function validateSession(token: string): { valid: boolean; userId?: strin
 }
 
 /**
- * Get user by session token
+ * Get user by session token (SQLite - development only)
+ * @deprecated Use getUserByTokenAsync for production
  */
 export function getUserByToken(token: string): User | null {
   const validation = validateSession(token)
@@ -217,19 +242,20 @@ export function getUserByToken(token: string): User | null {
     return null
   }
 
-  const db = getDb()
+  const db = getSqliteDb()
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(validation.userId) as User | undefined
   return user || null
 }
 
 /**
- * Delete a session (logout)
+ * Delete a session (logout) (SQLite - development only)
+ * @deprecated Use deleteSessionAsync for production
  */
 export function deleteSession(token: string): void {
   try {
     // Security: Explicitly specify allowed algorithms
     const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string }
-    const db = getDb()
+    const db = getSqliteDb()
     db.prepare('DELETE FROM sessions WHERE id = ?').run(decoded.sessionId)
   } catch {
     // Token invalid, nothing to delete
@@ -251,10 +277,10 @@ export async function deleteSessionAsync(token: string): Promise<void> {
 }
 
 /**
- * Clean up expired sessions
+ * Clean up expired sessions (SQLite - development only)
  */
 export function cleanupExpiredSessions(): number {
-  const db = getDb()
+  const db = getSqliteDb()
   const result = db.prepare(`
     DELETE FROM sessions WHERE expires_at < datetime('now')
   `).run()
@@ -262,10 +288,10 @@ export function cleanupExpiredSessions(): number {
 }
 
 /**
- * Get user with company info
+ * Get user with company info (SQLite - development only)
  */
 export function getUserWithCompany(userId: string): (User & { company_name?: string }) | null {
-  const db = getDb()
+  const db = getSqliteDb()
   const user = db.prepare(`
     SELECT u.*, c.name as company_name
     FROM users u
@@ -276,10 +302,11 @@ export function getUserWithCompany(userId: string): (User & { company_name?: str
 }
 
 /**
- * Create a password reset token
+ * Create a password reset token (SQLite - development only)
+ * @deprecated Use createPasswordResetTokenAsync for production
  */
 export function createPasswordResetToken(userId: string): { token: string; expiresAt: string } {
-  const db = getDb()
+  const db = getSqliteDb()
   const tokenId = uuidv4()
   const token = uuidv4() // Use a simple UUID as the reset token
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour expiry
@@ -321,10 +348,11 @@ export async function createPasswordResetTokenAsync(userId: string): Promise<{ t
 }
 
 /**
- * Validate a password reset token
+ * Validate a password reset token (SQLite - development only)
+ * @deprecated Use validatePasswordResetTokenAsync for production
  */
 export function validatePasswordResetToken(token: string): { valid: boolean; userId?: string; error?: string } {
-  const db = getDb()
+  const db = getSqliteDb()
 
   const resetToken = db.prepare(`
     SELECT * FROM password_reset_tokens WHERE token = ?
@@ -373,10 +401,11 @@ export async function validatePasswordResetTokenAsync(token: string): Promise<{ 
 }
 
 /**
- * Use a password reset token (mark as used)
+ * Use a password reset token (mark as used) (SQLite - development only)
+ * @deprecated Use usePasswordResetTokenAsync for production
  */
 export function usePasswordResetToken(token: string): void {
-  const db = getDb()
+  const db = getSqliteDb()
   db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(token)
 }
 
@@ -389,10 +418,11 @@ export async function usePasswordResetTokenAsync(token: string): Promise<void> {
 }
 
 /**
- * Get user by email
+ * Get user by email (SQLite - development only)
+ * @deprecated Use getUserByEmailAsync for production
  */
 export function getUserByEmail(email: string): User | null {
-  const db = getDb()
+  const db = getSqliteDb()
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase()) as User | undefined
   return user || null
 }
@@ -413,10 +443,11 @@ export async function getUserByEmailAsync(email: string): Promise<User | null> {
 }
 
 /**
- * Update user password
+ * Update user password (SQLite - development only)
+ * @deprecated Use updateUserPasswordAsync for production
  */
 export async function updateUserPassword(userId: string, newPassword: string): Promise<void> {
-  const db = getDb()
+  const db = getSqliteDb()
   const passwordHash = await hashPassword(newPassword)
   db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(passwordHash, userId)
 
@@ -441,10 +472,10 @@ export async function updateUserPasswordAsync(userId: string, newPassword: strin
 }
 
 /**
- * Create a magic link token for portal users
+ * Create a magic link token for portal users (SQLite - development only)
  */
 export function createMagicLinkToken(email: string): { token: string; expiresAt: string } {
-  const db = getDb()
+  const db = getSqliteDb()
   const tokenId = uuidv4()
   const token = uuidv4() // Use a simple UUID as the magic link token
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minute expiry
@@ -462,10 +493,10 @@ export function createMagicLinkToken(email: string): { token: string; expiresAt:
 }
 
 /**
- * Validate a magic link token
+ * Validate a magic link token (SQLite - development only)
  */
 export function validateMagicLinkToken(token: string): { valid: boolean; email?: string; error?: string } {
-  const db = getDb()
+  const db = getSqliteDb()
 
   const magicToken = db.prepare(`
     SELECT * FROM magic_link_tokens WHERE token = ?
@@ -487,19 +518,19 @@ export function validateMagicLinkToken(token: string): { valid: boolean; email?:
 }
 
 /**
- * Use a magic link token (mark as used)
+ * Use a magic link token (mark as used) (SQLite - development only)
  */
 export function useMagicLinkToken(token: string): void {
-  const db = getDb()
+  const db = getSqliteDb()
   db.prepare('UPDATE magic_link_tokens SET used = 1 WHERE token = ?').run(token)
 }
 
 /**
- * Get or create a portal user by email
+ * Get or create a portal user by email (SQLite - development only)
  * Portal users are subcontractors or brokers with limited access
  */
 export function getOrCreatePortalUser(email: string, role: 'subcontractor' | 'broker' = 'subcontractor'): User {
-  const db = getDb()
+  const db = getSqliteDb()
   const normalizedEmail = email.toLowerCase()
 
   // Check if user already exists
@@ -522,10 +553,10 @@ export function getOrCreatePortalUser(email: string, role: 'subcontractor' | 'br
 }
 
 /**
- * Create a portal session for a user
+ * Create a portal session for a user (SQLite - development only)
  */
 export function createPortalSession(userId: string): { session: Session; token: string } {
-  const db = getDb()
+  const db = getSqliteDb()
   const sessionId = uuidv4()
   // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
   const token = jwt.sign({ sessionId, userId, isPortal: true }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '24h' })

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
+import jwt from 'jsonwebtoken'
 import { useSupabase, getSupabase } from '@/lib/db/supabase-db'
-import { hashPassword, validatePassword, createSession } from '@/lib/auth'
+import { hashPassword, validatePassword, getJwtSecret } from '@/lib/auth'
 import { isValidABN } from '@/lib/utils'
 import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
@@ -131,16 +132,20 @@ export async function POST(request: NextRequest) {
 
       if (userError) throw userError
 
-      // Create session
-      const { token } = createSession(userId)
-      sessionToken = token
+      // Create session - generate JWT token directly
+      const sessionId = uuidv4()
+      sessionToken = jwt.sign(
+        { sessionId, userId },
+        getJwtSecret(),
+        { algorithm: 'HS256', expiresIn: '8h' }
+      )
 
       // Store session in Supabase
       const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() // 8 hours
       await supabase
         .from('sessions')
         .insert({
-          id: uuidv4(),
+          id: sessionId,
           user_id: userId,
           token: sessionToken,
           expires_at: expiresAt,
@@ -207,9 +212,18 @@ export async function POST(request: NextRequest) {
         VALUES (?, ?, ?, ?, ?, 'admin')
       `).run(userId, companyId, email.toLowerCase(), passwordHash, name.trim())
 
-      // Create session
-      const { token } = createSession(userId)
-      sessionToken = token
+      // Create session - generate JWT token directly
+      const sessionId = uuidv4()
+      sessionToken = jwt.sign(
+        { sessionId, userId },
+        getJwtSecret(),
+        { algorithm: 'HS256', expiresIn: '8h' }
+      )
+      const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString()
+      db.prepare(`
+        INSERT INTO sessions (id, user_id, token, expires_at)
+        VALUES (?, ?, ?, ?)
+      `).run(sessionId, userId, sessionToken, expiresAt)
 
       // Log the action
       db.prepare(`
