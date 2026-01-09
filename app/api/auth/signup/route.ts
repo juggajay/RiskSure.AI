@@ -255,7 +255,15 @@ export async function POST(request: NextRequest) {
     // Include error details for debugging (safe because we control error messages)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Internal server error', details: errorMessage },
+      {
+        error: 'Internal server error',
+        details: errorMessage,
+        debug: {
+          useSupabase: useSupabase(),
+          hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+        }
+      },
       { status: 500 }
     )
   }
