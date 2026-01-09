@@ -26,11 +26,10 @@ export interface ProcoreConfig {
 
 /**
  * Procore OAuth scopes required for Shield-AI integration
+ * Note: Procore doesn't use traditional OAuth scopes - permissions are configured
+ * at the app level in the Developer Portal. We send an empty scope array.
  */
-export const PROCORE_SCOPES = [
-  'read',   // Read access to company resources
-  'write',  // Write access for compliance status push
-] as const
+export const PROCORE_SCOPES: string[] = []
 
 /**
  * Procore API base URLs
@@ -134,9 +133,13 @@ export function buildProcoreAuthUrl(state: string): string {
     response_type: 'code',
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
-    scope: config.scopes.join(' '),
     state,
   })
+
+  // Only add scope if there are scopes defined
+  if (config.scopes.length > 0) {
+    params.set('scope', config.scopes.join(' '))
+  }
 
   return `${config.authorizationUrl}?${params.toString()}`
 }
