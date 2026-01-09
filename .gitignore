@@ -64,3 +64,4 @@ prompts/.spec_status.json
 # Claude assistant settings
 .claude_settings.json
 .claude_assistant_settings.json
+.env.production
