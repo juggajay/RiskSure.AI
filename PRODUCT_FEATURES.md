@@ -9,7 +9,7 @@ Autonomous Certificate of Currency (COC) compliance platform for Australian cons
 
 ### Document Management
 - Upload COC documents (PDF support)
-- AI-powered document reading using Google Gemini 2.0 Flash
+- AI-powered document reading using Google Gemini 3.0 Flash
 - OCR fallback with Tesseract.js for handwritten documents
 - Automatic data extraction (coverage amounts, policy numbers, expiry dates)
 - Secure document storage with encryption
@@ -110,7 +110,7 @@ Autonomous Certificate of Currency (COC) compliance platform for Australian cons
 - Microsoft OAuth integration
 - Resend email service
 - Twilio SMS service
-- Google Gemini AI (gemini-2.0-flash-exp)
+- Google Gemini AI (gemini-3.0-flash)
 - Stripe payments
 
 ### Security
@@ -147,7 +147,7 @@ Autonomous Certificate of Currency (COC) compliance platform for Australian cons
 - **Frontend:** Next.js 14, React 18, Tailwind CSS, shadcn/ui
 - **Backend:** Next.js API routes, Convex functions
 - **Database:** Convex (real-time backend with automatic caching)
-- **AI:** Google Gemini 2.0 Flash (gemini-2.0-flash-exp), Tesseract.js OCR
+- **AI:** Google Gemini 3.0 Flash, Tesseract.js OCR
 - **Email:** Resend
 - **SMS:** Twilio
 - **Payments:** Stripe
