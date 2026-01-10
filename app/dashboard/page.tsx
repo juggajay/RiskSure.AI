@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, memo } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { useUser, useMorningBrief, useComplianceHistory } from "@/lib/hooks/use-api"
@@ -747,7 +747,7 @@ function ComplianceGauge({
   )
 }
 
-function StatCard({
+const StatCard = memo(function StatCard({
   title,
   value,
   description,
@@ -781,7 +781,7 @@ function StatCard({
       </CardContent>
     </Card>
   )
-}
+})
 
 function QuickStartItem({
   step,

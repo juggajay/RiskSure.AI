@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, memo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -2048,7 +2048,7 @@ export default function ProjectDetailPage() {
   )
 }
 
-function StatCard({
+const StatCard = memo(function StatCard({
   title,
   value,
   icon,
@@ -2074,4 +2074,4 @@ function StatCard({
       </CardContent>
     </Card>
   )
-}
+})

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useSubcontractors, useUser } from "@/lib/hooks/use-api"
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 import {
   Building2,
   Plus,
@@ -64,6 +65,8 @@ export default function SubcontractorsPage() {
   const userRole = user?.role || null
 
   const [searchQuery, setSearchQuery] = useState('')
+  // Debounce search input to avoid filtering on every keystroke
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
 
   // Add subcontractor modal state
   const [showAddModal, setShowAddModal] = useState(false)
@@ -663,10 +666,11 @@ export default function SubcontractorsPage() {
     }
   }
 
-  // Trim search query - whitespace-only should be treated as empty search
-  const trimmedSearchQuery = searchQuery.trim()
+  // Trim debounced search query - whitespace-only should be treated as empty search
+  const trimmedSearchQuery = debouncedSearchQuery.trim()
 
   // Memoize filtered subcontractors to avoid recalculation on every render
+  // Uses debounced query to avoid filtering on every keystroke
   const filteredSubcontractors = useMemo(() => {
     return subcontractors.filter(sub => {
       // If search query is empty (or whitespace-only), show all results

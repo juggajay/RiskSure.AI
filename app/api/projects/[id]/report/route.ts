@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
 import { getUserByToken } from "@/lib/auth"
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 
 interface ProjectData {
   id: string
@@ -92,6 +91,9 @@ export async function GET(
       WHERE ps.project_id = ?
       ORDER BY s.name
     `).all(projectId, projectId, projectId) as SubcontractorCompliance[]
+
+    // Dynamic import pdf-lib to reduce bundle size (~200KB)
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
 
     // Generate PDF
     const pdfDoc = await PDFDocument.create()

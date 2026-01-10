@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
 import { getUserByToken } from "@/lib/auth"
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 
 interface ExceptionData {
   id: string
@@ -96,6 +95,9 @@ export async function GET(
       WHERE al.entity_type = 'exception' AND al.entity_id = ?
       ORDER BY al.created_at ASC
     `).all(exceptionId) as AuditLogEntry[]
+
+    // Dynamic import pdf-lib to reduce bundle size (~200KB)
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
 
     // Generate PDF
     const pdfDoc = await PDFDocument.create()
