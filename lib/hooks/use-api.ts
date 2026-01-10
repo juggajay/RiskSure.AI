@@ -167,6 +167,24 @@ export function useComplianceHistory(days: number) {
   })
 }
 
+// Combined Dashboard Data hook (OPTIMIZED - single HTTP request instead of 3)
+interface DashboardData {
+  user: User
+  morningBrief: MorningBriefData
+  complianceHistory: ComplianceHistoryData
+}
+
+export function useDashboardData(historyDays: number = 30) {
+  return useQuery({
+    queryKey: ['dashboard-data', historyDays],
+    queryFn: () => fetchApi<DashboardData>(`/api/dashboard-data?historyDays=${historyDays}`),
+    staleTime: 60 * 1000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 60 * 1000, // Auto-refresh every 60 seconds
+    refetchIntervalInBackground: false, // Only poll when tab is focused
+  })
+}
+
 // Projects hooks
 export function useProjects() {
   return useQuery({

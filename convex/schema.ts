@@ -340,7 +340,8 @@ export default defineSchema({
     .index("by_subcontractor", ["subcontractorId"])
     .index("by_project", ["projectId"])
     .index("by_processing_status", ["processingStatus"])
-    .index("by_subcontractor_project", ["subcontractorId", "projectId"]),
+    .index("by_subcontractor_project", ["subcontractorId", "projectId"])
+    .index("by_project_received", ["projectId", "receivedAt"]),
 
   // Verifications - AI verification results
   verifications: defineTable({

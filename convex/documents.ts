@@ -251,7 +251,7 @@ export const getFileUrl = query({
   },
 })
 
-// List documents by company with filtering and details
+// List documents by company with filtering and details - OPTIMIZED
 export const listByCompany = query({
   args: {
     companyId: v.id("companies"),
@@ -259,16 +259,32 @@ export const listByCompany = query({
     subcontractorId: v.optional(v.id("subcontractors")),
   },
   handler: async (ctx, args) => {
-    // Get all projects for this company
+    // BATCH QUERY 1: Get all projects for this company
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
       .collect()
 
     const projectIds = new Set(projects.map((p) => p._id))
+    const projectMap = new Map(projects.map((p) => [p._id.toString(), p]))
 
     // Get documents filtered appropriately
-    let documents
+    let documents: Array<{
+      _id: Id<"cocDocuments">
+      _creationTime: number
+      subcontractorId: Id<"subcontractors">
+      projectId: Id<"projects">
+      fileUrl: string
+      fileName?: string
+      fileSize?: number
+      storageId?: Id<"_storage">
+      source: "email" | "upload" | "portal" | "api"
+      sourceEmail?: string
+      receivedAt?: number
+      processedAt?: number
+      processingStatus: "pending" | "processing" | "completed" | "failed"
+      updatedAt: number
+    }> = []
 
     if (args.projectId) {
       // Filter by specific project
@@ -301,42 +317,63 @@ export const listByCompany = query({
 
       documents = allSubDocs.filter((d) => projectIds.has(d.projectId))
     } else {
-      // Get all documents for company's projects
-      const allDocs = []
-      for (const projectId of Array.from(projectIds)) {
-        const projectDocs = await ctx.db
+      // BATCH QUERY 2: Get all documents for company's projects in parallel
+      const docsPromises = Array.from(projectIds).map((projectId) =>
+        ctx.db
           .query("cocDocuments")
           .withIndex("by_project", (q) => q.eq("projectId", projectId))
           .collect()
-        allDocs.push(...projectDocs)
-      }
+      )
+      const docsArrays = await Promise.all(docsPromises)
+      const allDocs = docsArrays.flat()
       // Sort by creation time descending
-      allDocs.sort((a: any, b: any) => (b._creationTime || 0) - (a._creationTime || 0))
+      allDocs.sort((a, b) => (b._creationTime || 0) - (a._creationTime || 0))
       documents = allDocs
     }
 
-    // Enrich with subcontractor, project, and verification data
-    const results = await Promise.all(
-      (documents || []).map(async (doc) => {
-        const [subcontractor, project, verification] = await Promise.all([
-          ctx.db.get(doc.subcontractorId),
-          ctx.db.get(doc.projectId),
-          ctx.db
-            .query("verifications")
-            .withIndex("by_document", (q) => q.eq("cocDocumentId", doc._id))
-            .first(),
-        ])
+    if (!documents || documents.length === 0) {
+      return { documents: [], total: 0 }
+    }
 
-        return {
-          ...doc,
-          subcontractor_name: subcontractor?.name,
-          subcontractor_abn: subcontractor?.abn,
-          project_name: project?.name,
-          verification_status: verification?.status,
-          confidence_score: verification?.confidenceScore,
-        }
-      })
+    // BATCH QUERY 3: Get all unique subcontractors in parallel
+    const subIds = Array.from(new Set(documents.map((d) => d.subcontractorId)))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
     )
+
+    // BATCH QUERY 4: Get all verifications in parallel
+    const verPromises = documents.map((doc) =>
+      ctx.db
+        .query("verifications")
+        .withIndex("by_document", (q) => q.eq("cocDocumentId", doc._id))
+        .first()
+    )
+    const verificationsArray = await Promise.all(verPromises)
+    const verMap = new Map(
+      verificationsArray
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        .map((v) => [v.cocDocumentId.toString(), v])
+    )
+
+    // Process all documents in memory
+    const results = documents.map((doc) => {
+      const subcontractor = subMap.get(doc.subcontractorId.toString())
+      const project = projectMap.get(doc.projectId.toString())
+      const verification = verMap.get(doc._id.toString())
+
+      return {
+        ...doc,
+        subcontractor_name: subcontractor?.name,
+        subcontractor_abn: subcontractor?.abn,
+        project_name: project?.name,
+        verification_status: verification?.status,
+        confidence_score: verification?.confidenceScore,
+      }
+    })
 
     return {
       documents: results,

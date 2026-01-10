@@ -218,43 +218,71 @@ export const resolveActiveByProjectAndSubcontractor = mutation({
   },
 })
 
-// Get exceptions by subcontractor (joins through projectSubcontractors)
+// Get exceptions by subcontractor (joins through projectSubcontractors) - OPTIMIZED
 export const getBySubcontractor = query({
   args: { subcontractorId: v.id("subcontractors") },
   handler: async (ctx, args) => {
-    // Get all project_subcontractor records for this subcontractor
+    // BATCH QUERY 1: Get all project_subcontractor records for this subcontractor
     const projectSubcontractors = await ctx.db
       .query("projectSubcontractors")
       .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.subcontractorId))
       .collect()
 
-    // Get exceptions for all those records
-    const exceptions = []
-    for (const ps of projectSubcontractors) {
-      const psExceptions = await ctx.db
+    if (projectSubcontractors.length === 0) return []
+
+    // BATCH QUERY 2: Get exceptions for all project_subcontractors in parallel
+    const exceptionsPromises = projectSubcontractors.map((ps) =>
+      ctx.db
         .query("exceptions")
         .withIndex("by_project_subcontractor", (q) => q.eq("projectSubcontractorId", ps._id))
         .collect()
+    )
+    const exceptionsArrays = await Promise.all(exceptionsPromises)
+    const allExceptions = exceptionsArrays.flat()
 
-      // Get project details for each exception
-      const project = await ctx.db.get(ps.projectId)
-      for (const exc of psExceptions) {
-        // Get created by user
-        const createdBy = await ctx.db.get(exc.createdByUserId)
-        // Get approved by user if exists
-        const approvedBy = exc.approvedByUserId
-          ? await ctx.db.get(exc.approvedByUserId)
-          : null
+    if (allExceptions.length === 0) return []
 
-        exceptions.push({
-          ...exc,
-          projectId: project?._id || null,
-          projectName: project?.name || null,
-          createdByName: createdBy?.name || null,
-          approvedByName: approvedBy?.name || null,
-        })
+    // Build a map of projectSubcontractor ID to projectId for quick lookup
+    const psToProjectMap = new Map(projectSubcontractors.map((ps) => [ps._id.toString(), ps.projectId]))
+
+    // BATCH QUERY 3: Get all projects in parallel
+    const projectIds = Array.from(new Set(projectSubcontractors.map((ps) => ps.projectId)))
+    const projectPromises = projectIds.map((id) => ctx.db.get(id))
+    const projectsArray = await Promise.all(projectPromises)
+    const projectMap = new Map(
+      projectsArray
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id.toString(), p])
+    )
+
+    // BATCH QUERY 4: Get all users (created by and approved by) in parallel
+    const userIds = Array.from(new Set([
+      ...allExceptions.map((e) => e.createdByUserId),
+      ...allExceptions.filter((e) => e.approvedByUserId).map((e) => e.approvedByUserId!),
+    ]))
+    const userPromises = userIds.map((id) => ctx.db.get(id))
+    const usersArray = await Promise.all(userPromises)
+    const userMap = new Map(
+      usersArray
+        .filter((u): u is NonNullable<typeof u> => u !== null)
+        .map((u) => [u._id.toString(), u])
+    )
+
+    // Process all exceptions in memory
+    const exceptions = allExceptions.map((exc) => {
+      const projectId = psToProjectMap.get(exc.projectSubcontractorId.toString())
+      const project = projectId ? projectMap.get(projectId.toString()) : null
+      const createdBy = userMap.get(exc.createdByUserId.toString())
+      const approvedBy = exc.approvedByUserId ? userMap.get(exc.approvedByUserId.toString()) : null
+
+      return {
+        ...exc,
+        projectId: project?._id || null,
+        projectName: project?.name || null,
+        createdByName: createdBy?.name || null,
+        approvedByName: approvedBy?.name || null,
       }
-    }
+    })
 
     // Sort by created date descending
     exceptions.sort((a, b) => (b._creationTime || 0) - (a._creationTime || 0))
@@ -263,7 +291,7 @@ export const getBySubcontractor = query({
   },
 })
 
-// List all exceptions by company with full details
+// List all exceptions by company with full details - OPTIMIZED
 export const listByCompany = query({
   args: {
     companyId: v.id("companies"),
@@ -271,7 +299,7 @@ export const listByCompany = query({
     filterByProjectManagerOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get all projects for this company
+    // BATCH QUERY 1: Get all projects for this company
     let projects = await ctx.db
       .query("projects")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -282,70 +310,96 @@ export const listByCompany = query({
       projects = projects.filter((p) => p.projectManagerId === args.filterByUserId)
     }
 
-    const projectIds = new Set(projects.map((p) => p._id))
-    const projectMap = new Map(projects.map((p) => [p._id, p]))
+    if (projects.length === 0) return { exceptions: [], total: 0 }
 
-    // Get all project_subcontractors for these projects
-    const allProjectSubcontractors = []
-    for (const project of projects) {
-      const ps = await ctx.db
+    const projectMap = new Map(projects.map((p) => [p._id.toString(), p]))
+
+    // BATCH QUERY 2: Get all project_subcontractors for these projects in parallel
+    const psPromises = projects.map((project) =>
+      ctx.db
         .query("projectSubcontractors")
         .withIndex("by_project", (q) => q.eq("projectId", project._id))
         .collect()
-      allProjectSubcontractors.push(...ps)
-    }
+    )
+    const psArrays = await Promise.all(psPromises)
+    const allProjectSubcontractors = psArrays.flat()
 
-    const psMap = new Map(allProjectSubcontractors.map((ps) => [ps._id, ps]))
+    if (allProjectSubcontractors.length === 0) return { exceptions: [], total: 0 }
 
-    // Get all exceptions for these project_subcontractors
-    const allExceptions = []
-    for (const ps of allProjectSubcontractors) {
-      const exceptions = await ctx.db
+    const psMap = new Map(allProjectSubcontractors.map((ps) => [ps._id.toString(), ps]))
+
+    // BATCH QUERY 3: Get all exceptions for these project_subcontractors in parallel
+    const exceptionsPromises = allProjectSubcontractors.map((ps) =>
+      ctx.db
         .query("exceptions")
         .withIndex("by_project_subcontractor", (q) => q.eq("projectSubcontractorId", ps._id))
         .collect()
-      allExceptions.push(...exceptions)
-    }
+    )
+    const exceptionsArrays = await Promise.all(exceptionsPromises)
+    const allExceptions = exceptionsArrays.flat()
+
+    if (allExceptions.length === 0) return { exceptions: [], total: 0 }
 
     // Sort by creation time descending
-    allExceptions.sort((a: any, b: any) => (b._creationTime || 0) - (a._creationTime || 0))
+    allExceptions.sort((a, b) => (b._creationTime || 0) - (a._creationTime || 0))
 
-    // Enrich with details
-    const results = await Promise.all(
-      allExceptions.map(async (exc) => {
-        const ps = psMap.get(exc.projectSubcontractorId)
-        const project = ps ? projectMap.get(ps.projectId) : null
-        const subcontractor = ps ? await ctx.db.get(ps.subcontractorId) : null
-        const createdBy = await ctx.db.get(exc.createdByUserId)
-        const approvedBy = exc.approvedByUserId ? await ctx.db.get(exc.approvedByUserId) : null
-
-        return {
-          id: exc._id,
-          project_subcontractor_id: exc.projectSubcontractorId,
-          verification_id: exc.verificationId || null,
-          issue_summary: exc.issueSummary,
-          reason: exc.reason,
-          risk_level: exc.riskLevel,
-          created_by_user_id: exc.createdByUserId,
-          approved_by_user_id: exc.approvedByUserId || null,
-          approved_at: exc.approvedAt ? new Date(exc.approvedAt).toISOString() : null,
-          expires_at: exc.expiresAt ? new Date(exc.expiresAt).toISOString() : null,
-          expiration_type: exc.expirationType,
-          status: exc.status,
-          resolved_at: exc.resolvedAt ? new Date(exc.resolvedAt).toISOString() : null,
-          resolution_type: exc.resolutionType || null,
-          resolution_notes: exc.resolutionNotes || null,
-          created_at: new Date(exc._creationTime).toISOString(),
-          updated_at: exc.updatedAt ? new Date(exc.updatedAt).toISOString() : null,
-          subcontractor_id: ps?.subcontractorId || null,
-          project_id: ps?.projectId || null,
-          subcontractor_name: subcontractor?.name || null,
-          project_name: project?.name || null,
-          created_by_name: createdBy?.name || null,
-          approved_by_name: approvedBy?.name || null,
-        }
-      })
+    // BATCH QUERY 4: Get all unique subcontractors in parallel
+    const subcontractorIds = Array.from(new Set(allProjectSubcontractors.map((ps) => ps.subcontractorId)))
+    const subPromises = subcontractorIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subcontractorMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
     )
+
+    // BATCH QUERY 5: Get all unique users (created by and approved by) in parallel
+    const userIds = Array.from(new Set([
+      ...allExceptions.map((e) => e.createdByUserId),
+      ...allExceptions.filter((e) => e.approvedByUserId).map((e) => e.approvedByUserId!),
+    ]))
+    const userPromises = userIds.map((id) => ctx.db.get(id))
+    const usersArray = await Promise.all(userPromises)
+    const userMap = new Map(
+      usersArray
+        .filter((u): u is NonNullable<typeof u> => u !== null)
+        .map((u) => [u._id.toString(), u])
+    )
+
+    // Process all exceptions in memory using Maps
+    const results = allExceptions.map((exc) => {
+      const ps = psMap.get(exc.projectSubcontractorId.toString())
+      const project = ps ? projectMap.get(ps.projectId.toString()) : null
+      const subcontractor = ps ? subcontractorMap.get(ps.subcontractorId.toString()) : null
+      const createdBy = userMap.get(exc.createdByUserId.toString())
+      const approvedBy = exc.approvedByUserId ? userMap.get(exc.approvedByUserId.toString()) : null
+
+      return {
+        id: exc._id,
+        project_subcontractor_id: exc.projectSubcontractorId,
+        verification_id: exc.verificationId || null,
+        issue_summary: exc.issueSummary,
+        reason: exc.reason,
+        risk_level: exc.riskLevel,
+        created_by_user_id: exc.createdByUserId,
+        approved_by_user_id: exc.approvedByUserId || null,
+        approved_at: exc.approvedAt ? new Date(exc.approvedAt).toISOString() : null,
+        expires_at: exc.expiresAt ? new Date(exc.expiresAt).toISOString() : null,
+        expiration_type: exc.expirationType,
+        status: exc.status,
+        resolved_at: exc.resolvedAt ? new Date(exc.resolvedAt).toISOString() : null,
+        resolution_type: exc.resolutionType || null,
+        resolution_notes: exc.resolutionNotes || null,
+        created_at: new Date(exc._creationTime).toISOString(),
+        updated_at: exc.updatedAt ? new Date(exc.updatedAt).toISOString() : null,
+        subcontractor_id: ps?.subcontractorId || null,
+        project_id: ps?.projectId || null,
+        subcontractor_name: subcontractor?.name || null,
+        project_name: project?.name || null,
+        created_by_name: createdBy?.name || null,
+        approved_by_name: approvedBy?.name || null,
+      }
+    })
 
     return {
       exceptions: results,

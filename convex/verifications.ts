@@ -216,33 +216,54 @@ export const getProjectStats = query({
   },
 })
 
-// Get recent verifications for dashboard
+// Get recent verifications for dashboard - OPTIMIZED
 export const getRecent = query({
   args: {
     projectId: v.id("projects"),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // BATCH QUERY 1: Get verifications
     const verifications = await ctx.db
       .query("verifications")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .order("desc")
       .take(args.limit || 10)
 
-    // Get document and subcontractor details
-    const results = await Promise.all(
-      verifications.map(async (v) => {
-        const doc = await ctx.db.get(v.cocDocumentId)
-        const subcontractor = doc ? await ctx.db.get(doc.subcontractorId) : null
-        return {
-          ...v,
-          document: doc,
-          subcontractor,
-        }
-      })
+    if (verifications.length === 0) return []
+
+    // BATCH QUERY 2: Get all documents in parallel
+    const docIds = verifications.map((v) => v.cocDocumentId)
+    const docPromises = docIds.map((id) => ctx.db.get(id))
+    const docsArray = await Promise.all(docPromises)
+    const docMap = new Map(
+      docsArray
+        .filter((d): d is NonNullable<typeof d> => d !== null)
+        .map((d) => [d._id.toString(), d])
     )
 
-    return results
+    // BATCH QUERY 3: Get all subcontractors in parallel
+    const subIds = Array.from(new Set(
+      docsArray.filter((d): d is NonNullable<typeof d> => d !== null).map((d) => d.subcontractorId)
+    ))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
+    )
+
+    // Process in memory
+    return verifications.map((v) => {
+      const doc = docMap.get(v.cocDocumentId.toString()) || null
+      const subcontractor = doc ? subMap.get(doc.subcontractorId.toString()) || null : null
+      return {
+        ...v,
+        document: doc,
+        subcontractor,
+      }
+    })
   },
 })
 
@@ -368,7 +389,7 @@ export const upsert = mutation({
   },
 })
 
-// Get expirations for a date range
+// Get expirations for a date range - OPTIMIZED
 export const getExpirations = query({
   args: {
     companyId: v.id("companies"),
@@ -384,7 +405,7 @@ export const getExpirations = query({
     const startDate = args.startDate || defaultStart
     const endDate = args.endDate || defaultEnd
 
-    // Get all projects for company (or specific project)
+    // BATCH QUERY 1: Get all projects for company (or specific project)
     let projects
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId)
@@ -396,6 +417,78 @@ export const getExpirations = query({
         .collect()
     }
 
+    if (projects.length === 0) {
+      return { expirations: [], byDate: {}, summary: { total: 0, expired: 0, expiringSoon: 0, valid: 0 } }
+    }
+
+    const projectMap = new Map(projects.map((p) => [p._id.toString(), p]))
+
+    // BATCH QUERY 2: Get all verifications for all projects in parallel
+    const verPromises = projects.map((project) =>
+      ctx.db
+        .query("verifications")
+        .withIndex("by_project", (q) => q.eq("projectId", project._id))
+        .collect()
+    )
+    const verArrays = await Promise.all(verPromises)
+    const allVerifications = verArrays.flat()
+
+    // Filter to pass/review status with expiry dates in range
+    const relevantVerifications: Array<{
+      verification: (typeof allVerifications)[number]
+      expiryDateStr: string
+      expiryDate: number
+      daysUntilExpiry: number
+      status: "expired" | "expiring_soon" | "valid"
+    }> = []
+
+    for (const v of allVerifications) {
+      if (v.status !== "pass" && v.status !== "review") continue
+
+      const extractedData = v.extractedData as Record<string, unknown> | null
+      if (!extractedData) continue
+
+      const expiryDateStr = extractedData.period_of_insurance_end as string
+      if (!expiryDateStr) continue
+
+      const expiryDate = new Date(expiryDateStr).getTime()
+      if (expiryDate < startDate || expiryDate > endDate) continue
+
+      const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
+      let status: "expired" | "expiring_soon" | "valid" = "valid"
+      if (daysUntilExpiry < 0) status = "expired"
+      else if (daysUntilExpiry <= 30) status = "expiring_soon"
+
+      relevantVerifications.push({ verification: v, expiryDateStr, expiryDate, daysUntilExpiry, status })
+    }
+
+    if (relevantVerifications.length === 0) {
+      return { expirations: [], byDate: {}, summary: { total: 0, expired: 0, expiringSoon: 0, valid: 0 } }
+    }
+
+    // BATCH QUERY 3: Get all documents in parallel
+    const docIds = Array.from(new Set(relevantVerifications.map((rv) => rv.verification.cocDocumentId)))
+    const docPromises = docIds.map((id) => ctx.db.get(id))
+    const docsArray = await Promise.all(docPromises)
+    const docMap = new Map(
+      docsArray
+        .filter((d): d is NonNullable<typeof d> => d !== null)
+        .map((d) => [d._id.toString(), d])
+    )
+
+    // BATCH QUERY 4: Get all subcontractors in parallel
+    const subIds = Array.from(new Set(
+      docsArray.filter((d): d is NonNullable<typeof d> => d !== null).map((d) => d.subcontractorId)
+    ))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
+    )
+
+    // Process all in memory
     const expirations: Array<{
       id: string
       subcontractor_id: string
@@ -411,60 +504,32 @@ export const getExpirations = query({
       status: "expired" | "expiring_soon" | "valid"
     }> = []
 
-    for (const project of projects) {
-      // Get verifications with pass/review status
-      const verifications = await ctx.db
-        .query("verifications")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect()
+    for (const { verification: v, expiryDateStr, daysUntilExpiry, status } of relevantVerifications) {
+      const doc = docMap.get(v.cocDocumentId.toString())
+      if (!doc) continue
 
-      for (const v of verifications.filter(
-        (v) => v.status === "pass" || v.status === "review"
-      )) {
-        const extractedData = v.extractedData as Record<string, unknown> | null
-        if (!extractedData) continue
+      const subcontractor = subMap.get(doc.subcontractorId.toString())
+      if (!subcontractor) continue
 
-        const expiryDateStr = extractedData.period_of_insurance_end as string
-        if (!expiryDateStr) continue
+      const project = projectMap.get(v.projectId.toString())
+      if (!project) continue
 
-        const expiryDate = new Date(expiryDateStr).getTime()
+      const extractedData = v.extractedData as Record<string, unknown>
 
-        // Filter by date range
-        if (expiryDate < startDate || expiryDate > endDate) continue
-
-        const daysUntilExpiry = Math.ceil(
-          (expiryDate - now) / (1000 * 60 * 60 * 24)
-        )
-
-        let status: "expired" | "expiring_soon" | "valid" = "valid"
-        if (daysUntilExpiry < 0) {
-          status = "expired"
-        } else if (daysUntilExpiry <= 30) {
-          status = "expiring_soon"
-        }
-
-        // Get document and subcontractor
-        const doc = await ctx.db.get(v.cocDocumentId)
-        if (!doc) continue
-
-        const subcontractor = await ctx.db.get(doc.subcontractorId)
-        if (!subcontractor) continue
-
-        expirations.push({
-          id: v._id,
-          subcontractor_id: subcontractor._id,
-          subcontractor_name: subcontractor.name,
-          project_id: project._id,
-          project_name: project.name,
-          coc_document_id: doc._id,
-          file_name: doc.fileName || null,
-          policy_number: (extractedData.policy_number as string) || "Unknown",
-          insurer_name: (extractedData.insurer_name as string) || "Unknown",
-          expiry_date: expiryDateStr,
-          days_until_expiry: daysUntilExpiry,
-          status,
-        })
-      }
+      expirations.push({
+        id: v._id,
+        subcontractor_id: subcontractor._id,
+        subcontractor_name: subcontractor.name,
+        project_id: project._id,
+        project_name: project.name,
+        coc_document_id: doc._id,
+        file_name: doc.fileName || null,
+        policy_number: (extractedData.policy_number as string) || "Unknown",
+        insurer_name: (extractedData.insurer_name as string) || "Unknown",
+        expiry_date: expiryDateStr,
+        days_until_expiry: daysUntilExpiry,
+        status,
+      })
     }
 
     // Sort by expiry date
@@ -486,8 +551,7 @@ export const getExpirations = query({
     const summary = {
       total: expirations.length,
       expired: expirations.filter((e) => e.status === "expired").length,
-      expiringSoon: expirations.filter((e) => e.status === "expiring_soon")
-        .length,
+      expiringSoon: expirations.filter((e) => e.status === "expiring_soon").length,
       valid: expirations.filter((e) => e.status === "valid").length,
     }
 
@@ -499,11 +563,11 @@ export const getExpirations = query({
   },
 })
 
-// Get latest verification for a subcontractor (with details)
+// Get latest verification for a subcontractor (with details) - OPTIMIZED
 export const getLatestBySubcontractor = query({
   args: { subcontractorId: v.id("subcontractors") },
   handler: async (ctx, args) => {
-    // Get all documents for this subcontractor
+    // BATCH QUERY 1: Get all documents for this subcontractor
     const documents = await ctx.db
       .query("cocDocuments")
       .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.subcontractorId))
@@ -511,16 +575,19 @@ export const getLatestBySubcontractor = query({
 
     if (documents.length === 0) return null
 
-    // Get all verifications for these documents
-    let latestVerification = null
-    let latestTime = 0
-
-    for (const doc of documents) {
-      const verification = await ctx.db
+    // BATCH QUERY 2: Get all verifications for these documents in parallel
+    const verPromises = documents.map((doc) =>
+      ctx.db
         .query("verifications")
         .withIndex("by_document", (q) => q.eq("cocDocumentId", doc._id))
         .first()
+    )
+    const verificationsArray = await Promise.all(verPromises)
 
+    // Find latest verification in memory
+    let latestVerification = null
+    let latestTime = 0
+    for (const verification of verificationsArray) {
       if (verification && verification._creationTime > latestTime) {
         latestVerification = verification
         latestTime = verification._creationTime
@@ -529,8 +596,7 @@ export const getLatestBySubcontractor = query({
 
     if (!latestVerification) return null
 
-    // Get related data
-    const document = await ctx.db.get(latestVerification.cocDocumentId)
+    // Get subcontractor (we already have documents, no need to refetch document)
     const subcontractor = await ctx.db.get(args.subcontractorId)
 
     return {

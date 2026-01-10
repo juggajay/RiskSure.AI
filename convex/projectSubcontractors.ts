@@ -38,51 +38,63 @@ export const getByIdWithDetails = query({
   },
 })
 
-// Get all subcontractors for a project
+// Get all subcontractors for a project - OPTIMIZED
 export const getByProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    // BATCH QUERY 1: Get links
     const links = await ctx.db
       .query("projectSubcontractors")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect()
 
-    // Get subcontractor details for each link
-    const results = await Promise.all(
-      links.map(async (link) => {
-        const subcontractor = await ctx.db.get(link.subcontractorId)
-        return {
-          ...link,
-          subcontractor,
-        }
-      })
+    if (links.length === 0) return []
+
+    // BATCH QUERY 2: Get all subcontractors in parallel
+    const subIds = Array.from(new Set(links.map((l) => l.subcontractorId)))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
     )
 
-    return results
+    // Process in memory
+    return links.map((link) => ({
+      ...link,
+      subcontractor: subMap.get(link.subcontractorId.toString()) || null,
+    }))
   },
 })
 
-// Get all projects for a subcontractor
+// Get all projects for a subcontractor - OPTIMIZED
 export const getBySubcontractor = query({
   args: { subcontractorId: v.id("subcontractors") },
   handler: async (ctx, args) => {
+    // BATCH QUERY 1: Get links
     const links = await ctx.db
       .query("projectSubcontractors")
       .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.subcontractorId))
       .collect()
 
-    // Get project details for each link
-    const results = await Promise.all(
-      links.map(async (link) => {
-        const project = await ctx.db.get(link.projectId)
-        return {
-          ...link,
-          project,
-        }
-      })
+    if (links.length === 0) return []
+
+    // BATCH QUERY 2: Get all projects in parallel
+    const projectIds = Array.from(new Set(links.map((l) => l.projectId)))
+    const projectPromises = projectIds.map((id) => ctx.db.get(id))
+    const projectsArray = await Promise.all(projectPromises)
+    const projectMap = new Map(
+      projectsArray
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id.toString(), p])
     )
 
-    return results
+    // Process in memory
+    return links.map((link) => ({
+      ...link,
+      project: projectMap.get(link.projectId.toString()) || null,
+    }))
   },
 })
 
@@ -102,13 +114,14 @@ export const getByProjectAndSubcontractor = query({
   },
 })
 
-// Get subcontractors by project and status
+// Get subcontractors by project and status - OPTIMIZED
 export const getByProjectAndStatus = query({
   args: {
     projectId: v.id("projects"),
     status: complianceStatus,
   },
   handler: async (ctx, args) => {
+    // BATCH QUERY 1: Get links
     const links = await ctx.db
       .query("projectSubcontractors")
       .withIndex("by_status", (q) =>
@@ -116,18 +129,23 @@ export const getByProjectAndStatus = query({
       )
       .collect()
 
-    // Get subcontractor details
-    const results = await Promise.all(
-      links.map(async (link) => {
-        const subcontractor = await ctx.db.get(link.subcontractorId)
-        return {
-          ...link,
-          subcontractor,
-        }
-      })
+    if (links.length === 0) return []
+
+    // BATCH QUERY 2: Get all subcontractors in parallel
+    const subIds = Array.from(new Set(links.map((l) => l.subcontractorId)))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
     )
 
-    return results
+    // Process in memory
+    return links.map((link) => ({
+      ...link,
+      subcontractor: subMap.get(link.subcontractorId.toString()) || null,
+    }))
   },
 })
 
@@ -285,11 +303,11 @@ export const getComplianceStats = query({
   },
 })
 
-// Get company-wide compliance stats
+// Get company-wide compliance stats - OPTIMIZED
 export const getCompanyComplianceStats = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
-    // Get all active projects for the company
+    // BATCH QUERY 1: Get all active projects for the company
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_status", (q) =>
@@ -297,24 +315,25 @@ export const getCompanyComplianceStats = query({
       )
       .collect()
 
-    let totalCompliant = 0
-    let totalNonCompliant = 0
-    let totalPending = 0
-    let totalException = 0
+    if (projects.length === 0) {
+      return { total: 0, compliant: 0, nonCompliant: 0, pending: 0, exception: 0, complianceRate: 0 }
+    }
 
-    // Get compliance stats for each project
-    for (const project of projects) {
-      const links = await ctx.db
+    // BATCH QUERY 2: Get all project-subcontractor links for all projects in parallel
+    const linksPromises = projects.map((project) =>
+      ctx.db
         .query("projectSubcontractors")
         .withIndex("by_project", (q) => q.eq("projectId", project._id))
         .collect()
+    )
+    const linksArrays = await Promise.all(linksPromises)
+    const allLinks = linksArrays.flat()
 
-      totalCompliant += links.filter((l) => l.status === "compliant").length
-      totalNonCompliant += links.filter((l) => l.status === "non_compliant").length
-      totalPending += links.filter((l) => l.status === "pending").length
-      totalException += links.filter((l) => l.status === "exception").length
-    }
-
+    // Calculate stats in memory
+    const totalCompliant = allLinks.filter((l) => l.status === "compliant").length
+    const totalNonCompliant = allLinks.filter((l) => l.status === "non_compliant").length
+    const totalPending = allLinks.filter((l) => l.status === "pending").length
+    const totalException = allLinks.filter((l) => l.status === "exception").length
     const total = totalCompliant + totalNonCompliant + totalPending + totalException
 
     return {
@@ -330,19 +349,32 @@ export const getCompanyComplianceStats = query({
   },
 })
 
-// Get project subcontractors with full details (for project subcontractors list)
+// Get project subcontractors with full details (for project subcontractors list) - OPTIMIZED
 export const getByProjectWithDetails = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    // BATCH QUERY 1: Get links
     const links = await ctx.db
       .query("projectSubcontractors")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect()
 
-    // Get subcontractor details for each link
-    const results = await Promise.all(
-      links.map(async (link) => {
-        const subcontractor = await ctx.db.get(link.subcontractorId)
+    if (links.length === 0) return { subcontractors: [], total: 0 }
+
+    // BATCH QUERY 2: Get all subcontractors in parallel
+    const subIds = Array.from(new Set(links.map((l) => l.subcontractorId)))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
+    )
+
+    // Process in memory
+    const results = links
+      .map((link) => {
+        const subcontractor = subMap.get(link.subcontractorId.toString())
         if (!subcontractor) return null
 
         return {
@@ -368,15 +400,14 @@ export const getByProjectWithDetails = query({
           portalAccess: subcontractor.portalAccess,
         }
       })
-    )
+      .filter((r): r is NonNullable<typeof r> => r !== null)
 
-    // Filter out nulls and sort by name
-    const filteredResults = results.filter((r) => r !== null)
-    filteredResults.sort((a, b) => a!.name.localeCompare(b!.name))
+    // Sort by name
+    results.sort((a, b) => a.name.localeCompare(b.name))
 
     return {
-      subcontractors: filteredResults,
-      total: filteredResults.length,
+      subcontractors: results,
+      total: results.length,
     }
   },
 })
@@ -414,7 +445,7 @@ export const getByIdWithProject = query({
   },
 })
 
-// List all project-subcontractors for a company with role filtering
+// List all project-subcontractors for a company with role filtering - OPTIMIZED
 export const listByCompanyWithRoleFilter = query({
   args: {
     companyId: v.id("companies"),
@@ -422,7 +453,7 @@ export const listByCompanyWithRoleFilter = query({
     filterByProjectManagerOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get all projects for this company
+    // BATCH QUERY 1: Get all projects for this company
     let projects = await ctx.db
       .query("projects")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -433,21 +464,42 @@ export const listByCompanyWithRoleFilter = query({
       projects = projects.filter((p) => p.projectManagerId === args.userId)
     }
 
-    const projectMap = new Map(projects.map((p) => [p._id, p]))
+    if (projects.length === 0) return []
 
-    // Get all project-subcontractors for these projects
-    const results = []
-    for (const project of projects) {
-      const links = await ctx.db
+    const projectMap = new Map(projects.map((p) => [p._id.toString(), p]))
+
+    // BATCH QUERY 2: Get all project-subcontractor links for all projects in parallel
+    const linksPromises = projects.map((project) =>
+      ctx.db
         .query("projectSubcontractors")
         .withIndex("by_project", (q) => q.eq("projectId", project._id))
         .collect()
+    )
+    const linksArrays = await Promise.all(linksPromises)
+    const allLinks = linksArrays.flat()
 
-      for (const link of links) {
-        const subcontractor = await ctx.db.get(link.subcontractorId)
-        if (!subcontractor) continue
+    if (allLinks.length === 0) return []
 
-        results.push({
+    // BATCH QUERY 3: Get all unique subcontractors in parallel
+    const subIds = Array.from(new Set(allLinks.map((l) => l.subcontractorId)))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
+    )
+
+    // Process in memory
+    const results = allLinks
+      .map((link) => {
+        const subcontractor = subMap.get(link.subcontractorId.toString())
+        if (!subcontractor) return null
+
+        const project = projectMap.get(link.projectId.toString())
+        if (!project) return null
+
+        return {
           id: link._id,
           project_id: link.projectId,
           subcontractor_id: link.subcontractorId,
@@ -458,9 +510,9 @@ export const listByCompanyWithRoleFilter = query({
           project_name: project.name,
           subcontractor_name: subcontractor.name,
           subcontractor_abn: subcontractor.abn,
-        })
-      }
-    }
+        }
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null)
 
     // Sort by project name, then subcontractor name
     results.sort((a, b) => {

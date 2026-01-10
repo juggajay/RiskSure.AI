@@ -137,75 +137,94 @@ export const remove = mutation({
   },
 })
 
-// Get communications by subcontractor with project details
+// Get communications by subcontractor with project details - OPTIMIZED
 export const getBySubcontractorWithDetails = query({
   args: { subcontractorId: v.id("subcontractors") },
   handler: async (ctx, args) => {
+    // BATCH QUERY 1: Get communications
     const communications = await ctx.db
       .query("communications")
       .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.subcontractorId))
       .order("desc")
       .collect()
 
-    // Get project details for each communication
-    const results = await Promise.all(
-      communications.map(async (comm) => {
-        const project = await ctx.db.get(comm.projectId)
-        return {
-          ...comm,
-          projectName: project?.name || null,
-        }
-      })
+    if (communications.length === 0) return []
+
+    // BATCH QUERY 2: Get all unique projects in parallel
+    const projectIds = Array.from(new Set(communications.map((c) => c.projectId)))
+    const projectPromises = projectIds.map((id) => ctx.db.get(id))
+    const projectsArray = await Promise.all(projectPromises)
+    const projectMap = new Map(
+      projectsArray
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id.toString(), p])
     )
 
-    return results
+    // Process in memory
+    return communications.map((comm) => {
+      const project = projectMap.get(comm.projectId.toString())
+      return {
+        ...comm,
+        projectName: project?.name || null,
+      }
+    })
   },
 })
 
-// List communications by company with subcontractor and project details
+// List communications by company with subcontractor and project details - OPTIMIZED
 export const listByCompany = query({
   args: {
     companyId: v.id("companies"),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get all projects for this company
+    // BATCH QUERY 1: Get all projects for this company
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
       .collect()
 
-    const projectIds = new Set(projects.map((p) => p._id))
-    const projectMap = new Map(projects.map((p) => [p._id, p.name]))
+    if (projects.length === 0) return []
 
-    // Get communications for these projects
-    const allComms = []
-    for (const projectId of Array.from(projectIds)) {
-      const comms = await ctx.db
+    const projectIds = Array.from(new Set(projects.map((p) => p._id)))
+    const projectMap = new Map(projects.map((p) => [p._id.toString(), p.name]))
+
+    // BATCH QUERY 2: Get communications for all projects in parallel
+    const commsPromises = projectIds.map((projectId) =>
+      ctx.db
         .query("communications")
         .withIndex("by_project", (q) => q.eq("projectId", projectId))
         .order("desc")
         .collect()
-      allComms.push(...comms)
-    }
+    )
+    const commsArrays = await Promise.all(commsPromises)
+    const allComms = commsArrays.flat()
 
     // Sort by creation time descending and limit
-    allComms.sort((a: any, b: any) => (b._creationTime || 0) - (a._creationTime || 0))
+    allComms.sort((a, b) => (b._creationTime || 0) - (a._creationTime || 0))
     const limited = args.limit ? allComms.slice(0, args.limit) : allComms.slice(0, 100)
 
-    // Enrich with subcontractor and project names
-    const results = await Promise.all(
-      limited.map(async (comm) => {
-        const subcontractor = await ctx.db.get(comm.subcontractorId)
-        return {
-          ...comm,
-          subcontractor_name: subcontractor?.name || null,
-          project_name: projectMap.get(comm.projectId) || null,
-        }
-      })
+    if (limited.length === 0) return []
+
+    // BATCH QUERY 3: Get all unique subcontractors in parallel
+    const subIds = Array.from(new Set(limited.map((c) => c.subcontractorId)))
+    const subPromises = subIds.map((id) => ctx.db.get(id))
+    const subsArray = await Promise.all(subPromises)
+    const subMap = new Map(
+      subsArray
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
     )
 
-    return results
+    // Process in memory
+    return limited.map((comm) => {
+      const subcontractor = subMap.get(comm.subcontractorId.toString())
+      return {
+        ...comm,
+        subcontractor_name: subcontractor?.name || null,
+        project_name: projectMap.get(comm.projectId.toString()) || null,
+      }
+    })
   },
 })
 

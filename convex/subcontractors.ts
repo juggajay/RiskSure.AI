@@ -238,7 +238,7 @@ export const setPortalAccess = mutation({
   },
 })
 
-// Get paginated subcontractors with project counts
+// Get paginated subcontractors with project counts - OPTIMIZED
 export const listPaginated = query({
   args: {
     companyId: v.id("companies"),
@@ -248,13 +248,14 @@ export const listPaginated = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20
 
-    // Get all subcontractors for the company (for total count)
+    // BATCH QUERY 1: Get all subcontractors for the company (for total count)
     const allSubcontractors = await ctx.db
       .query("subcontractors")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
       .collect()
 
     const total = allSubcontractors.length
+    if (total === 0) return { subcontractors: [], total: 0, nextCursor: null, hasMore: false }
 
     // Sort by name and paginate
     allSubcontractors.sort((a, b) => a.name.localeCompare(b.name))
@@ -263,30 +264,46 @@ export const listPaginated = query({
     const offset = args.cursor ? parseInt(args.cursor) : 0
     const paginatedSubs = allSubcontractors.slice(offset, offset + limit)
 
-    // Get project counts for each subcontractor
-    const results = await Promise.all(
-      paginatedSubs.map(async (sub) => {
-        // Get active project assignments
-        const projectAssignments = await ctx.db
-          .query("projectSubcontractors")
-          .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", sub._id))
-          .collect()
-
-        // Count active projects (not completed)
-        let projectCount = 0
-        for (const pa of projectAssignments) {
-          const project = await ctx.db.get(pa.projectId)
-          if (project && project.status !== "completed") {
-            projectCount++
-          }
-        }
-
-        return {
-          ...sub,
-          projectCount,
-        }
-      })
+    // BATCH QUERY 2: Get all project assignments for paginated subcontractors in parallel
+    const paPromises = paginatedSubs.map((sub) =>
+      ctx.db
+        .query("projectSubcontractors")
+        .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", sub._id))
+        .collect()
     )
+    const paArrays = await Promise.all(paPromises)
+
+    // Build a map of subcontractor ID to their project assignments
+    const subToAssignments = new Map<string, (typeof paArrays)[number]>()
+    paginatedSubs.forEach((sub, i) => {
+      subToAssignments.set(sub._id.toString(), paArrays[i])
+    })
+
+    // BATCH QUERY 3: Get all unique projects in parallel
+    const allProjectIds = Array.from(new Set(paArrays.flat().map((pa) => pa.projectId)))
+    const projectPromises = allProjectIds.map((id) => ctx.db.get(id))
+    const projectsArray = await Promise.all(projectPromises)
+    const projectMap = new Map(
+      projectsArray
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id.toString(), p])
+    )
+
+    // Process in memory
+    const results = paginatedSubs.map((sub) => {
+      const assignments = subToAssignments.get(sub._id.toString()) || []
+      let projectCount = 0
+      for (const pa of assignments) {
+        const project = projectMap.get(pa.projectId.toString())
+        if (project && project.status !== "completed") {
+          projectCount++
+        }
+      }
+      return {
+        ...sub,
+        projectCount,
+      }
+    })
 
     // Next cursor
     const hasMore = offset + limit < total
@@ -301,24 +318,66 @@ export const listPaginated = query({
   },
 })
 
-// Get subcontractor with full details
+// Get subcontractor with full details - OPTIMIZED
 export const getByIdWithDetails = query({
   args: { id: v.id("subcontractors") },
   handler: async (ctx, args) => {
     const subcontractor = await ctx.db.get(args.id)
     if (!subcontractor) return null
 
-    // Get project assignments
+    // BATCH QUERY 1: Get project assignments
     const projectAssignments = await ctx.db
       .query("projectSubcontractors")
       .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.id))
       .collect()
 
-    // Get project details for active projects
+    // BATCH QUERY 2: Get COC documents
+    const cocDocuments = await ctx.db
+      .query("cocDocuments")
+      .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.id))
+      .order("desc")
+      .collect()
+
+    // BATCH QUERY 3: Get communications
+    const communications = await ctx.db
+      .query("communications")
+      .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.id))
+      .order("desc")
+      .collect()
+
+    // BATCH QUERY 4: Get all unique projects in parallel (from all sources)
+    const allProjectIds = Array.from(new Set([
+      ...projectAssignments.map((pa) => pa.projectId),
+      ...cocDocuments.map((doc) => doc.projectId),
+      ...communications.map((comm) => comm.projectId),
+    ]))
+    const projectPromises = allProjectIds.map((id) => ctx.db.get(id))
+    const projectsArray = await Promise.all(projectPromises)
+    const projectMap = new Map(
+      projectsArray
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id.toString(), p])
+    )
+
+    // BATCH QUERY 5: Get all verifications for COC documents in parallel
+    const verPromises = cocDocuments.map((doc) =>
+      ctx.db
+        .query("verifications")
+        .withIndex("by_document", (q) => q.eq("cocDocumentId", doc._id))
+        .first()
+    )
+    const verificationsArray = await Promise.all(verPromises)
+    const verMap = new Map(
+      verificationsArray
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        .map((v) => [v.cocDocumentId.toString(), v])
+    )
+
+    // Process project assignments in memory
     const projects = []
     let projectCount = 0
     for (const pa of projectAssignments) {
-      const project = await ctx.db.get(pa.projectId)
+      const project = projectMap.get(pa.projectId.toString())
       if (project && project.status !== "completed") {
         projectCount++
         projects.push({
@@ -331,71 +390,50 @@ export const getByIdWithDetails = query({
       }
     }
 
-    // Get COC documents
-    const cocDocuments = await ctx.db
-      .query("cocDocuments")
-      .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.id))
-      .order("desc")
-      .collect()
+    // Process COC documents in memory
+    const docsWithVerifications = cocDocuments.map((doc) => {
+      const verification = verMap.get(doc._id.toString())
+      const project = projectMap.get(doc.projectId.toString())
 
-    // Get verifications for each document
-    const docsWithVerifications = await Promise.all(
-      cocDocuments.map(async (doc) => {
-        const verification = await ctx.db
-          .query("verifications")
-          .withIndex("by_document", (q) => q.eq("cocDocumentId", doc._id))
-          .first()
-
-        const project = await ctx.db.get(doc.projectId)
-
-        return {
-          id: doc._id,
-          projectId: doc.projectId,
-          projectName: project?.name || null,
-          fileUrl: doc.fileUrl,
-          fileName: doc.fileName,
-          fileSize: doc.fileSize,
-          source: doc.source,
-          sourceEmail: doc.sourceEmail,
-          receivedAt: doc.receivedAt,
-          processedAt: doc.processedAt,
-          processingStatus: doc.processingStatus,
-          createdAt: doc._creationTime,
-          verification: verification
-            ? {
-                id: verification._id,
-                status: verification.status,
-                confidenceScore: verification.confidenceScore,
-                extractedData: verification.extractedData,
-                checks: verification.checks,
-                deficiencies: verification.deficiencies,
-                verifiedAt: verification.verifiedAt,
-              }
-            : null,
-        }
-      })
-    )
+      return {
+        id: doc._id,
+        projectId: doc.projectId,
+        projectName: project?.name || null,
+        fileUrl: doc.fileUrl,
+        fileName: doc.fileName,
+        fileSize: doc.fileSize,
+        source: doc.source,
+        sourceEmail: doc.sourceEmail,
+        receivedAt: doc.receivedAt,
+        processedAt: doc.processedAt,
+        processingStatus: doc.processingStatus,
+        createdAt: doc._creationTime,
+        verification: verification
+          ? {
+              id: verification._id,
+              status: verification.status,
+              confidenceScore: verification.confidenceScore,
+              extractedData: verification.extractedData,
+              checks: verification.checks,
+              deficiencies: verification.deficiencies,
+              verifiedAt: verification.verifiedAt,
+            }
+          : null,
+      }
+    })
 
     // Get current COC (most recent with verification)
     const currentCoc = docsWithVerifications.find((doc) => doc.verification)
 
-    // Get communications
-    const communications = await ctx.db
-      .query("communications")
-      .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.id))
-      .order("desc")
-      .collect()
-
-    const communicationsWithDetails = await Promise.all(
-      communications.map(async (comm) => {
-        const project = await ctx.db.get(comm.projectId)
-        return {
-          ...comm,
-          projectName: project?.name || null,
-          ccEmails: comm.ccEmails ? comm.ccEmails.split(",") : [],
-        }
-      })
-    )
+    // Process communications in memory
+    const communicationsWithDetails = communications.map((comm) => {
+      const project = projectMap.get(comm.projectId.toString())
+      return {
+        ...comm,
+        projectName: project?.name || null,
+        ccEmails: comm.ccEmails ? comm.ccEmails.split(",") : [],
+      }
+    })
 
     return {
       subcontractor: {

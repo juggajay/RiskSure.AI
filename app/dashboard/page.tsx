@@ -3,7 +3,7 @@
 import { useState, useCallback, memo } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { useUser, useMorningBrief, useComplianceHistory } from "@/lib/hooks/use-api"
+import { useDashboardData } from "@/lib/hooks/use-api"
 import {
   FileCheck,
   AlertTriangle,
@@ -139,22 +139,23 @@ export default function DashboardPage() {
   const [historyDays, setHistoryDays] = useState(30)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // React Query hooks - handles caching, background refresh, and deduplication
-  const { data: user, isLoading: isUserLoading, dataUpdatedAt: userUpdatedAt } = useUser()
-  const { data: morningBrief, isLoading: isBriefLoading, refetch: refetchBrief, dataUpdatedAt: briefUpdatedAt } = useMorningBrief()
-  const { data: complianceHistory, refetch: refetchHistory } = useComplianceHistory(historyDays)
+  // OPTIMIZED: Single combined hook instead of 3 separate HTTP requests
+  const { data: dashboardData, isLoading, refetch, dataUpdatedAt } = useDashboardData(historyDays)
 
-  // Derive last updated time from the most recent query update
-  const lastUpdated = briefUpdatedAt ? new Date(briefUpdatedAt) : null
+  // Extract data from combined response
+  const user = dashboardData?.user
+  const morningBrief = dashboardData?.morningBrief
+  const complianceHistory = dashboardData?.complianceHistory
+
+  // Derive last updated time from the query update
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null
 
   // Manual refresh with loading indicator
   const handleManualRefresh = useCallback(async () => {
     setIsRefreshing(true)
-    await Promise.all([refetchBrief(), refetchHistory()])
+    await refetch()
     setIsRefreshing(false)
-  }, [refetchBrief, refetchHistory])
-
-  const isLoading = isUserLoading || isBriefLoading
+  }, [refetch])
 
   if (isLoading || !user) {
     return <DashboardSkeleton />

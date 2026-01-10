@@ -8,6 +8,7 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 // GET /api/morning-brief - Get dashboard morning brief data
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
   try {
     const token = request.cookies.get('auth_token')?.value
 
@@ -15,7 +16,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
+    const authStart = Date.now()
     const user = getUserByToken(token)
+    console.log(`[PERF] morning-brief auth: ${Date.now() - authStart}ms`)
+
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -25,9 +29,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all morning brief data in a single efficient query
+    const queryStart = Date.now()
     const briefData = await convex.query(api.dashboard.getMorningBrief, {
       companyId: user.company_id as Id<"companies">,
     })
+    console.log(`[PERF] morning-brief Convex query: ${Date.now() - queryStart}ms`)
+    console.log(`[PERF] morning-brief TOTAL: ${Date.now() - startTime}ms`)
 
     return NextResponse.json(briefData)
 

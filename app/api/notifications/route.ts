@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { ConvexHttpClient } from "convex/browser"
-import { api } from "@/convex/_generated/api"
+import { getConvex, api } from "@/lib/convex"
 import type { Id } from "@/convex/_generated/dataModel"
-import { getUserByToken } from "@/lib/auth"
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 // GET /api/notifications - List notifications for current user
 export async function GET(request: NextRequest) {
@@ -14,10 +10,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
-    if (!user) {
+    const convex = getConvex()
+
+    // Use Convex for session validation (consistent with login route)
+    const sessionData = await convex.query(api.auth.getUserWithSession, { token })
+    if (!sessionData) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
+
+    const { user } = sessionData
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get("limit") || "20")
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const unreadOnly = searchParams.get("unread") === "true"
 
     const result = await convex.query(api.notifications.getByUser, {
-      userId: user.id as Id<"users">,
+      userId: user._id as Id<"users">,
       unreadOnly,
       limit,
       offset,
