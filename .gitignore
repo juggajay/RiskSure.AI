@@ -48,6 +48,7 @@ supabase/.temp/
 
 # Convex
 .convex/
+convex/*.js
 
 # Database files (features tracking)
 *.db
