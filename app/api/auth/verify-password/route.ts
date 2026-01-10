@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
-import { getUserByToken, verifyPassword } from '@/lib/auth'
+import { getConvex, api } from '@/lib/convex'
+import { verifyPassword } from '@/lib/auth'
 
 // POST /api/auth/verify-password - Verify current user's password
 export async function POST(request: NextRequest) {
@@ -11,8 +11,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
-    if (!user) {
+    const convex = getConvex()
+
+    // Get user from session
+    const sessionData = await convex.query(api.auth.getUserWithSession, { token })
+    if (!sessionData) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
@@ -23,14 +26,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Password is required' }, { status: 400 })
     }
 
-    const db = getDb()
-    const userWithPassword = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(user.id) as { password_hash: string } | undefined
+    // Get user with password hash (internal query)
+    const userWithPassword = await convex.query(api.users.getByEmailInternal, {
+      email: sessionData.user.email,
+    })
 
     if (!userWithPassword) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const passwordValid = await verifyPassword(password, userWithPassword.password_hash)
+    const passwordValid = await verifyPassword(password, userWithPassword.passwordHash)
 
     if (!passwordValid) {
       return NextResponse.json({ error: 'Incorrect password', valid: false }, { status: 401 })

@@ -36,7 +36,7 @@ export default function Home() {
           
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
             <Link href="#" className="hover:text-white transition-colors">Platform</Link>
-            <Link href="#" className="hover:text-white transition-colors">Intelligence</Link>
+            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
             <Link href="#" className="hover:text-white transition-colors">Enterprise</Link>
           </div>
 

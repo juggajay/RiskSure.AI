@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { v4 as uuidv4 } from 'uuid'
-import { getDb } from '@/lib/db'
-import { getUserByToken } from '@/lib/auth'
+import { getConvex, api } from '@/lib/convex'
 
 // ABN validation helper
 function validateABNChecksum(abn: string): boolean {
@@ -43,9 +41,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
-    if (!user) {
+    const convex = getConvex()
+
+    // Get user session
+    const sessionData = await convex.query(api.auth.getUserWithSession, { token })
+    if (!sessionData) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    const user = sessionData.user
+    if (!user.companyId) {
+      return NextResponse.json({ error: 'User has no company' }, { status: 400 })
     }
 
     // Only admin, risk_manager, project_manager can import subcontractors
@@ -63,7 +69,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No subcontractors to import' }, { status: 400 })
     }
 
-    const db = getDb()
     const created: string[] = []
     const merged: string[] = []
     const errors: string[] = []
@@ -98,42 +103,30 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if ABN already exists
-      const existingSub = db.prepare('SELECT id, name FROM subcontractors WHERE company_id = ? AND abn = ?').get(user.company_id, cleanedABN) as { id: string; name: string } | undefined
+      const existingSub = await convex.query(api.subcontractors.getByAbn, {
+        companyId: user.companyId,
+        abn: cleanedABN,
+      })
 
       if (existingSub) {
         // Check if user wants to merge this duplicate
-        if (mergeIds && mergeIds.includes(existingSub.id)) {
+        if (mergeIds && mergeIds.includes(existingSub._id)) {
           // Merge/update existing record
           try {
-            db.prepare(`
-              UPDATE subcontractors SET
-                name = COALESCE(?, name),
-                trading_name = COALESCE(?, trading_name),
-                trade = COALESCE(?, trade),
-                address = COALESCE(?, address),
-                contact_name = COALESCE(?, contact_name),
-                contact_email = COALESCE(?, contact_email),
-                contact_phone = COALESCE(?, contact_phone),
-                broker_name = COALESCE(?, broker_name),
-                broker_email = COALESCE(?, broker_email),
-                broker_phone = COALESCE(?, broker_phone),
-                updated_at = datetime('now')
-              WHERE id = ? AND company_id = ?
-            `).run(
-              sub.name.trim() || null,
-              sub.tradingName?.trim() || null,
-              sub.trade?.trim() || null,
-              sub.address?.trim() || null,
-              sub.contactName?.trim() || null,
-              sub.contactEmail?.toLowerCase().trim() || null,
-              sub.contactPhone?.trim() || null,
-              sub.brokerName?.trim() || null,
-              sub.brokerEmail?.toLowerCase().trim() || null,
-              sub.brokerPhone?.trim() || null,
-              existingSub.id,
-              user.company_id
-            )
-            merged.push(existingSub.id)
+            await convex.mutation(api.subcontractors.update, {
+              id: existingSub._id,
+              name: sub.name.trim() || undefined,
+              tradingName: sub.tradingName?.trim() || undefined,
+              trade: sub.trade?.trim() || undefined,
+              address: sub.address?.trim() || undefined,
+              contactName: sub.contactName?.trim() || undefined,
+              contactEmail: sub.contactEmail?.toLowerCase().trim() || undefined,
+              contactPhone: sub.contactPhone?.trim() || undefined,
+              brokerName: sub.brokerName?.trim() || undefined,
+              brokerEmail: sub.brokerEmail?.toLowerCase().trim() || undefined,
+              brokerPhone: sub.brokerPhone?.trim() || undefined,
+            })
+            merged.push(existingSub._id)
           } catch (err) {
             errors.push(`Row ${rowNum} (${sub.name}): Failed to merge`)
             console.error(`Merge error for row ${rowNum}:`, err)
@@ -143,7 +136,7 @@ export async function POST(request: NextRequest) {
           duplicates.push({
             rowNum,
             importData: sub,
-            existingId: existingSub.id,
+            existingId: existingSub._id,
             existingName: existingSub.name,
             cleanedABN
           })
@@ -153,30 +146,20 @@ export async function POST(request: NextRequest) {
 
       try {
         // Create subcontractor
-        const subcontractorId = uuidv4()
-
-        db.prepare(`
-          INSERT INTO subcontractors (
-            id, company_id, name, abn, trading_name, trade, address,
-            contact_name, contact_email, contact_phone,
-            broker_name, broker_email, broker_phone
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          subcontractorId,
-          user.company_id,
-          sub.name.trim(),
-          cleanedABN,
-          sub.tradingName?.trim() || null,
-          sub.trade?.trim() || null,
-          sub.address?.trim() || null,
-          sub.contactName?.trim() || null,
-          sub.contactEmail?.toLowerCase().trim() || null,
-          sub.contactPhone?.trim() || null,
-          sub.brokerName?.trim() || null,
-          sub.brokerEmail?.toLowerCase().trim() || null,
-          sub.brokerPhone?.trim() || null
-        )
+        const subcontractorId = await convex.mutation(api.subcontractors.create, {
+          companyId: user.companyId,
+          name: sub.name.trim(),
+          abn: cleanedABN,
+          tradingName: sub.tradingName?.trim() || undefined,
+          trade: sub.trade?.trim() || undefined,
+          address: sub.address?.trim() || undefined,
+          contactName: sub.contactName?.trim() || undefined,
+          contactEmail: sub.contactEmail?.toLowerCase().trim() || undefined,
+          contactPhone: sub.contactPhone?.trim() || undefined,
+          brokerName: sub.brokerName?.trim() || undefined,
+          brokerEmail: sub.brokerEmail?.toLowerCase().trim() || undefined,
+          brokerPhone: sub.brokerPhone?.trim() || undefined,
+        })
 
         created.push(subcontractorId)
       } catch (err) {
@@ -187,22 +170,20 @@ export async function POST(request: NextRequest) {
 
     // Log the bulk import action
     if (created.length > 0 || merged.length > 0) {
-      db.prepare(`
-        INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
-        VALUES (?, ?, ?, 'subcontractor', ?, 'bulk_import', ?)
-      `).run(
-        uuidv4(),
-        user.company_id,
-        user.id,
-        created[0] || merged[0], // Reference first created/merged ID
-        JSON.stringify({
+      await convex.mutation(api.auditLogs.create, {
+        companyId: user.companyId,
+        userId: user._id,
+        entityType: 'subcontractor',
+        entityId: created[0] || merged[0],
+        action: 'bulk_import',
+        details: {
           created: created.length,
           merged: merged.length,
           total: subcontractors.length,
           errors: errors.length,
           duplicates: duplicates.length
-        })
-      )
+        },
+      })
     }
 
     return NextResponse.json({

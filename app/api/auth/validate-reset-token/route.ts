@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { useSupabase } from '@/lib/db/supabase-db'
-import { validatePasswordResetToken, validatePasswordResetTokenAsync } from '@/lib/auth'
+import { getConvex, api } from '@/lib/convex'
 
 export async function GET(request: Request) {
   try {
@@ -14,13 +13,14 @@ export async function GET(request: Request) {
       )
     }
 
-    const validation = useSupabase()
-      ? await validatePasswordResetTokenAsync(token)
-      : validatePasswordResetToken(token)
+    const convex = getConvex()
 
-    if (!validation.valid) {
+    // Validate the reset token
+    const tokenDoc = await convex.query(api.auth.getPasswordResetToken, { token })
+
+    if (!tokenDoc) {
       return NextResponse.json(
-        { error: validation.error || 'Invalid or expired reset link' },
+        { error: 'Invalid or expired reset link' },
         { status: 400 }
       )
     }

@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { useSupabase } from '@/lib/db/supabase-db'
-import {
-  validatePasswordResetToken,
-  validatePasswordResetTokenAsync,
-  usePasswordResetToken,
-  usePasswordResetTokenAsync,
-  updateUserPassword,
-  updateUserPasswordAsync,
-  validatePassword
-} from '@/lib/auth'
+import { getConvex, api } from '@/lib/convex'
+import { hashPassword, validatePassword } from '@/lib/auth'
 import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
@@ -44,37 +36,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate the reset token (use async for Supabase)
-    const tokenValidation = useSupabase()
-      ? await validatePasswordResetTokenAsync(token)
-      : validatePasswordResetToken(token)
-    if (!tokenValidation.valid || !tokenValidation.userId) {
+    const convex = getConvex()
+
+    // Validate the reset token
+    const tokenDoc = await convex.query(api.auth.getPasswordResetToken, { token })
+    if (!tokenDoc) {
       return NextResponse.json(
-        { error: tokenValidation.error || 'Invalid or expired reset link' },
+        { error: 'Invalid or expired reset link' },
         { status: 400 }
       )
     }
 
     // Security: Mark the token as used BEFORE updating password to prevent race condition
-    if (useSupabase()) {
-      await usePasswordResetTokenAsync(token)
-    } else {
-      usePasswordResetToken(token)
-    }
+    await convex.mutation(api.auth.markPasswordResetTokenUsed, { token })
 
-    // Update the password
-    if (useSupabase()) {
-      await updateUserPasswordAsync(tokenValidation.userId, password)
-    } else {
-      await updateUserPassword(tokenValidation.userId, password)
-    }
+    // Hash and update the password
+    const passwordHash = await hashPassword(password)
+    await convex.mutation(api.users.updatePassword, {
+      id: tokenDoc.userId,
+      passwordHash,
+    })
+
+    // Delete all existing sessions for this user (security measure)
+    await convex.mutation(api.auth.deleteUserSessions, { userId: tokenDoc.userId })
 
     // Security: Only log sensitive operations in development
     if (process.env.NODE_ENV !== 'production') {
       console.log('\n========================================')
       console.log('PASSWORD RESET SUCCESSFUL')
       console.log('========================================')
-      console.log(`User ID: ${tokenValidation.userId}`)
+      console.log(`User ID: ${tokenDoc.userId}`)
       console.log('Password has been updated and all sessions invalidated.')
       console.log('========================================\n')
     }

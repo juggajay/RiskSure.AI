@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUserByToken, getUserByTokenAsync } from '@/lib/auth'
-import { getDb, isProduction, getSupabase } from '@/lib/db'
+import { getConvex, api } from '@/lib/convex'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,76 +12,43 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    let user
-    let company = null
+    const convex = getConvex()
 
-    if (isProduction) {
-      // Production: Use Supabase
-      user = await getUserByTokenAsync(token)
+    // Get user with session
+    const sessionData = await convex.query(api.auth.getUserWithSession, { token })
 
-      if (!user) {
-        const response = NextResponse.json(
-          { error: 'Session expired or invalid' },
-          { status: 401 }
-        )
-        response.cookies.set('auth_token', '', {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          maxAge: 0,
-          path: '/'
-        })
-        return response
-      }
-
-      // Get company info
-      if (user.company_id) {
-        const supabase = getSupabase()
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('id, name, abn, logo_url, subscription_tier, subscription_status')
-          .eq('id', user.company_id)
-          .single()
-        company = companyData
-      }
-
-    } else {
-      // Development: Use SQLite
-      user = getUserByToken(token)
-
-      if (!user) {
-        const response = NextResponse.json(
-          { error: 'Session expired or invalid' },
-          { status: 401 }
-        )
-        response.cookies.set('auth_token', '', {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 0,
-          path: '/'
-        })
-        return response
-      }
-
-      // Get company info
-      if (user.company_id) {
-        const db = getDb()
-        company = db.prepare(`
-          SELECT id, name, abn, logo_url, subscription_tier, subscription_status
-          FROM companies WHERE id = ?
-        `).get(user.company_id)
-      }
+    if (!sessionData) {
+      const response = NextResponse.json(
+        { error: 'Session expired or invalid' },
+        { status: 401 }
+      )
+      response.cookies.set('auth_token', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 0,
+        path: '/'
+      })
+      return response
     }
+
+    const { user, company } = sessionData
 
     return NextResponse.json({
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         name: user.name,
         role: user.role,
-        avatar_url: user.avatar_url,
-        company
+        avatar_url: user.avatarUrl,
+        company: company ? {
+          id: company._id,
+          name: company.name,
+          abn: company.abn,
+          logo_url: company.logoUrl,
+          subscription_tier: company.subscriptionTier,
+          subscription_status: company.subscriptionStatus,
+        } : null
       }
     })
   } catch (error) {

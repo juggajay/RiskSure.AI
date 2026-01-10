@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import jwt from 'jsonwebtoken'
-import type { User } from '@/lib/db'
-import { useSupabase, getSupabase } from '@/lib/db/supabase-db'
-import { verifyPassword, createSessionAsync, getJwtSecret } from '@/lib/auth'
+import { getConvex, api } from '@/lib/convex'
+import { verifyPassword, getJwtSecret } from '@/lib/auth'
 import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
@@ -25,132 +24,76 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let user: (User & { company_name?: string }) | null = null
-    let token: string
+    const convex = getConvex()
 
-    // Check at runtime whether to use Supabase (detects production via env vars)
-    if (useSupabase()) {
-      // Production: Use Supabase
-      const supabase = getSupabase()
+    // Find user by email (includes password hash for auth)
+    const user = await convex.query(api.users.getByEmailInternal, {
+      email: email.toLowerCase(),
+    })
 
-      // Find user by email with company join
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select(`
-          *,
-          companies:company_id (name)
-        `)
-        .eq('email', email.toLowerCase())
-        .single()
-
-      if (userError || !userData) {
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        )
-      }
-
-      user = {
-        ...userData,
-        company_name: userData.companies?.name
-      } as User & { company_name?: string }
-
-      // Verify password
-      const isValidPassword = await verifyPassword(password, user.password_hash)
-      if (!isValidPassword) {
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        )
-      }
-
-      // Update last login
-      await supabase
-        .from('users')
-        .update({ last_login_at: new Date().toISOString() })
-        .eq('id', user.id)
-
-      // Create session
-      const sessionResult = await createSessionAsync(user.id)
-      token = sessionResult.token
-
-      // Log the action
-      await supabase.from('audit_logs').insert({
-        id: uuidv4(),
-        company_id: user.company_id,
-        user_id: user.id,
-        entity_type: 'user',
-        entity_id: user.id,
-        action: 'login',
-        details: { email: user.email }
-      })
-
-    } else {
-      // Development: Use SQLite - dynamic import to avoid loading native module in production
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-
-      // Find user by email
-      const userData = db.prepare(`
-        SELECT u.*, c.name as company_name
-        FROM users u
-        LEFT JOIN companies c ON u.company_id = c.id
-        WHERE u.email = ?
-      `).get(email.toLowerCase()) as (User & { company_name?: string }) | undefined
-
-      if (!userData) {
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        )
-      }
-
-      user = userData
-
-      // Verify password
-      const isValidPassword = await verifyPassword(password, user.password_hash)
-      if (!isValidPassword) {
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        )
-      }
-
-      // Update last login
-      db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id)
-
-      // Create session - generate JWT token directly
-      const sessionId = uuidv4()
-      token = jwt.sign(
-        { sessionId, userId: user.id },
-        getJwtSecret(),
-        { algorithm: 'HS256', expiresIn: '8h' }
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
       )
-      const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString()
-      db.prepare(`
-        INSERT INTO sessions (id, user_id, token, expires_at)
-        VALUES (?, ?, ?, ?)
-      `).run(sessionId, user.id, token, expiresAt)
-
-      // Log the action
-      db.prepare(`
-        INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
-        VALUES (?, ?, ?, 'user', ?, 'login', ?)
-      `).run(uuidv4(), user.company_id, user.id, user.id, JSON.stringify({ email: user.email }))
     }
+
+    // Verify password
+    const isValidPassword = await verifyPassword(password, user.passwordHash)
+    if (!isValidPassword) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Get company info
+    let company = null
+    if (user.companyId) {
+      company = await convex.query(api.companies.getById, { id: user.companyId })
+    }
+
+    // Create session - generate JWT token
+    const sessionId = uuidv4()
+    const token = jwt.sign(
+      { sessionId, userId: user._id },
+      getJwtSecret(),
+      { algorithm: 'HS256', expiresIn: '8h' }
+    )
+    const expiresAt = Date.now() + 8 * 60 * 60 * 1000 // 8 hours
+
+    // Store session in Convex
+    await convex.mutation(api.auth.createSession, {
+      userId: user._id,
+      token,
+      expiresAt,
+    })
+
+    // Update last login
+    await convex.mutation(api.users.updateLastLogin, { id: user._id })
+
+    // Log the action
+    await convex.mutation(api.auditLogs.create, {
+      companyId: user.companyId,
+      userId: user._id,
+      entityType: 'user',
+      entityId: user._id,
+      action: 'login',
+      details: { email: user.email },
+    })
 
     // Return success response
     const response = NextResponse.json({
       success: true,
       message: 'Login successful',
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         name: user.name,
         role: user.role,
-        company: user.company_id ? {
-          id: user.company_id,
-          name: user.company_name
+        company: company ? {
+          id: company._id,
+          name: company.name
         } : null
       }
     })

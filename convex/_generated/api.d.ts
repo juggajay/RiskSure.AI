@@ -8,9 +8,12 @@
  * @module
  */
 
+import type * as auditLogs from "../auditLogs.js";
 import type * as auth from "../auth.js";
+import type * as communications from "../communications.js";
 import type * as companies from "../companies.js";
 import type * as documents from "../documents.js";
+import type * as exceptions from "../exceptions.js";
 import type * as projectSubcontractors from "../projectSubcontractors.js";
 import type * as projects from "../projects.js";
 import type * as subcontractors from "../subcontractors.js";
@@ -24,9 +27,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auditLogs: typeof auditLogs;
   auth: typeof auth;
+  communications: typeof communications;
   companies: typeof companies;
   documents: typeof documents;
+  exceptions: typeof exceptions;
   projectSubcontractors: typeof projectSubcontractors;
   projects: typeof projects;
   subcontractors: typeof subcontractors;

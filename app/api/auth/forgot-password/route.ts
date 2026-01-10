@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { useSupabase } from '@/lib/db/supabase-db'
-import { createPasswordResetToken, createPasswordResetTokenAsync, getUserByEmail, getUserByEmailAsync } from '@/lib/auth'
+import { v4 as uuidv4 } from 'uuid'
+import { getConvex, api } from '@/lib/convex'
 import { sendPasswordResetEmail, isEmailConfigured } from '@/lib/resend'
 import { authLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
@@ -22,18 +22,25 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim()
+    const convex = getConvex()
 
-    // Check if user exists (use async for Supabase in production)
-    const user = useSupabase()
-      ? await getUserByEmailAsync(normalizedEmail)
-      : getUserByEmail(normalizedEmail)
+    // Check if user exists
+    const user = await convex.query(api.users.getByEmail, {
+      email: normalizedEmail,
+    })
 
     // Always return success to prevent email enumeration
     // But only create token and log if user exists
     if (user) {
-      const { token, expiresAt } = useSupabase()
-        ? await createPasswordResetTokenAsync(user.id)
-        : createPasswordResetToken(user.id)
+      const token = uuidv4()
+      const expiresAt = Date.now() + 60 * 60 * 1000 // 1 hour
+
+      // Create password reset token
+      await convex.mutation(api.auth.createPasswordResetToken, {
+        userId: user._id,
+        token,
+        expiresAt,
+      })
 
       // Build reset URL
       const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3005'}/reset-password?token=${token}`
@@ -47,7 +54,7 @@ export async function POST(request: NextRequest) {
           console.log('========================================')
           console.log(`Email: ${normalizedEmail}`)
           console.log(`Reset URL: ${resetUrl}`)
-          console.log(`Expires: ${expiresAt}`)
+          console.log(`Expires: ${new Date(expiresAt).toISOString()}`)
           console.log('========================================\n')
         }
       }
