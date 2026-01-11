@@ -380,6 +380,7 @@ const PROJECT_LIMITS: Record<string, number | null> = {
 }
 
 // Get vendor limit info for a company
+// Uses high water mark (vendorsAddedThisPeriod) to prevent gaming by delete/add cycles
 export const getVendorLimitInfo = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
@@ -389,19 +390,24 @@ export const getVendorLimitInfo = query({
     const tier = company.subscriptionTier || 'trial'
     const limit = VENDOR_LIMITS[tier] ?? null
 
-    // Count current vendors
+    // Count current active vendors
     const subcontractors = await ctx.db
       .query("subcontractors")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
       .collect()
+    const activeCount = subcontractors.length
 
-    const currentCount = subcontractors.length
+    // Use high water mark for billing purposes (prevents gaming)
+    // High water mark = max vendors added this billing period
+    const highWaterMark = company.vendorsAddedThisPeriod ?? activeCount
+    const effectiveCount = Math.max(activeCount, highWaterMark)
 
     if (limit === null) {
       return {
         tier,
         limit: null,
-        current: currentCount,
+        current: activeCount,
+        highWaterMark,
         remaining: null,
         percentUsed: 0,
         isAtLimit: false,
@@ -410,18 +416,19 @@ export const getVendorLimitInfo = query({
       }
     }
 
-    const remaining = Math.max(0, limit - currentCount)
-    const percentUsed = limit > 0 ? Math.round((currentCount / limit) * 100) : 0
+    const remaining = Math.max(0, limit - effectiveCount)
+    const percentUsed = limit > 0 ? Math.round((effectiveCount / limit) * 100) : 0
 
     return {
       tier,
       limit,
-      current: currentCount,
+      current: activeCount,
+      highWaterMark,
       remaining,
       percentUsed,
-      isAtLimit: currentCount >= limit,
+      isAtLimit: effectiveCount >= limit,
       isNearLimit: percentUsed >= 80,
-      canAddVendor: currentCount < limit,
+      canAddVendor: effectiveCount < limit,
     }
   },
 })
@@ -522,20 +529,24 @@ export const canAddVendor = query({
       .query("subcontractors")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
       .collect()
+    const activeCount = subcontractors.length
 
-    const currentCount = subcontractors.length
+    // Use high water mark to prevent gaming by delete/add cycles
+    const highWaterMark = company.vendorsAddedThisPeriod ?? activeCount
+    const effectiveCount = Math.max(activeCount, highWaterMark)
 
-    if (currentCount >= limit) {
+    if (effectiveCount >= limit) {
       return {
         allowed: false,
         reason: `You've reached your vendor limit of ${limit}. Upgrade your plan to add more vendors.`,
-        currentCount,
+        currentCount: activeCount,
+        highWaterMark,
         limit,
         suggestedUpgrade: getSuggestedUpgradeTier(tier),
       }
     }
 
-    return { allowed: true, currentCount, limit, remaining: limit - currentCount }
+    return { allowed: true, currentCount: activeCount, highWaterMark, limit, remaining: limit - effectiveCount }
   },
 })
 
@@ -550,3 +561,62 @@ function getSuggestedUpgradeTier(currentTier: string): string | null {
   }
   return upgradeMap[currentTier] ?? null
 }
+
+// Increment the vendor high water mark when a new vendor is added
+// This prevents gaming by delete/add cycles within a billing period
+export const incrementVendorHighWaterMark = mutation({
+  args: { companyId: v.id("companies") },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.companyId)
+    if (!company) return
+
+    // Count current vendors to ensure high water mark is at least current count
+    const subcontractors = await ctx.db
+      .query("subcontractors")
+      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .collect()
+
+    const currentCount = subcontractors.length
+    const currentHighWater = company.vendorsAddedThisPeriod ?? 0
+
+    // Only increment if adding would increase the high water mark
+    // This handles the case where we're re-adding a deleted vendor
+    const newHighWater = Math.max(currentHighWater, currentCount)
+
+    await ctx.db.patch(args.companyId, {
+      vendorsAddedThisPeriod: newHighWater,
+      updatedAt: Date.now(),
+    })
+
+    return { previousHighWater: currentHighWater, newHighWater }
+  },
+})
+
+// Reset the billing period high water mark
+// Called by Stripe webhook on subscription renewal
+export const resetBillingPeriodVendorCount = mutation({
+  args: {
+    companyId: v.id("companies"),
+    billingPeriodStart: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.companyId)
+    if (!company) return
+
+    // Count current active vendors - this becomes the new baseline
+    const subcontractors = await ctx.db
+      .query("subcontractors")
+      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .collect()
+
+    const activeCount = subcontractors.length
+
+    await ctx.db.patch(args.companyId, {
+      vendorsAddedThisPeriod: activeCount, // Reset to current count
+      billingPeriodStart: args.billingPeriodStart ?? Date.now(),
+      updatedAt: Date.now(),
+    })
+
+    return { resetTo: activeCount, billingPeriodStart: args.billingPeriodStart ?? Date.now() }
+  },
+})

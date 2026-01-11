@@ -6,7 +6,7 @@ import { AlertCircle, AlertTriangle, ArrowRight, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
-import { useSession } from "@/lib/auth/session-context"
+import { useUser } from "@/lib/hooks/use-api"
 
 interface VendorLimitWarningProps {
   /**
@@ -22,7 +22,8 @@ interface VendorLimitWarningProps {
 }
 
 export function VendorLimitWarning({ variant = "banner", className = "" }: VendorLimitWarningProps) {
-  const { companyId } = useSession()
+  const { data: user } = useUser()
+  const companyId = user?.company?.id
 
   const vendorLimitInfo = useQuery(
     api.companies.getVendorLimitInfo,
@@ -164,7 +165,8 @@ export function VendorLimitWarning({ variant = "banner", className = "" }: Vendo
  * Returns an object with canAdd boolean and optional error message
  */
 export function useVendorLimitCheck() {
-  const { companyId } = useSession()
+  const { data: user } = useUser()
+  const companyId = user?.company?.id
 
   const canAddResult = useQuery(
     api.companies.canAddVendor,

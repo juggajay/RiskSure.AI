@@ -179,6 +179,27 @@ export const create = mutation({
       updatedAt: Date.now(),
     })
 
+    // Increment the high water mark for billing period tracking
+    // This prevents gaming by adding vendors, getting verified, then deleting
+    const company = await ctx.db.get(args.companyId)
+    if (company) {
+      const allSubcontractors = await ctx.db
+        .query("subcontractors")
+        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+        .collect()
+
+      const newCount = allSubcontractors.length
+      const currentHighWater = company.vendorsAddedThisPeriod ?? 0
+
+      // Update high water mark if new count exceeds it
+      if (newCount > currentHighWater) {
+        await ctx.db.patch(args.companyId, {
+          vendorsAddedThisPeriod: newCount,
+          updatedAt: Date.now(),
+        })
+      }
+    }
+
     return subcontractorId
   },
 })

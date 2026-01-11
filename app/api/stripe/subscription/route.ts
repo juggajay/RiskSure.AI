@@ -71,14 +71,16 @@ export async function GET(request: NextRequest) {
     // Get plan details
     let currentPlan
     if (tier === 'subcontractor') {
-      currentPlan = SUBCONTRACTOR_PLAN
+      currentPlan = { ...SUBCONTRACTOR_PLAN, priceMonthly: 0, priceAnnual: 0 }
     } else if (tier === 'trial') {
       currentPlan = {
         id: 'trial',
         name: 'Free Trial',
-        description: 'Full access to Professional features',
-        price: 0,
+        description: 'Full access to Compliance features during trial',
+        priceMonthly: 0,
+        priceAnnual: 0,
         features: TRIAL_CONFIG.features,
+        vendorLimit: TRIAL_CONFIG.vendorLimit,
       }
     } else if (tier in PRICING_PLANS) {
       currentPlan = PRICING_PLANS[tier as Exclude<SubscriptionTier, 'trial' | 'subcontractor'>]
@@ -87,7 +89,8 @@ export async function GET(request: NextRequest) {
         id: tier,
         name: 'Unknown Plan',
         description: '',
-        price: 0,
+        priceMonthly: 0,
+        priceAnnual: 0,
         features: [],
       }
     }
@@ -111,13 +114,13 @@ export async function GET(request: NextRequest) {
       },
       currentPlan: {
         ...currentPlan,
-        priceFormatted: formatPrice(currentPlan.price || 0),
+        priceMonthlyFormatted: formatPrice(currentPlan.priceMonthly || 0),
+        priceAnnualFormatted: formatPrice(currentPlan.priceAnnual || 0),
       },
       availablePlans: Object.values(PRICING_PLANS).map(plan => ({
         ...plan,
-        priceFormatted: formatPrice(plan.price),
         priceMonthlyFormatted: formatPrice(plan.priceMonthly),
-        vendorFeeFormatted: formatPrice(plan.vendorFee),
+        priceAnnualFormatted: formatPrice(plan.priceAnnual),
       })),
       billingEvents: billingEvents.map(event => ({
         ...event,

@@ -210,6 +210,9 @@ export default defineSchema({
     settings: v.optional(v.any()),
     subscriptionTier: v.string(),
     subscriptionStatus: v.string(),
+    // Billing period vendor tracking (high water mark)
+    vendorsAddedThisPeriod: v.optional(v.number()), // Count of vendors added in current billing period
+    billingPeriodStart: v.optional(v.number()), // Timestamp when current billing period started
     updatedAt: v.number(),
   })
     .index("by_abn", ["abn"])

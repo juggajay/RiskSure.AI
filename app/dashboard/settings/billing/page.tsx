@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useSession } from "@/lib/auth/session-context"
+import { useUser } from "@/lib/hooks/use-api"
 import { PRICING_PLANS, FOUNDER_COUPON, formatPrice, getAnnualSavings, type SubscriptionTier } from "@/lib/stripe/config"
 
 type BillingInterval = 'monthly' | 'annual'
@@ -19,7 +19,8 @@ type BillingInterval = 'monthly' | 'annual'
 export default function BillingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, companyId } = useSession()
+  const { data: user } = useUser()
+  const companyId = user?.company?.id
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly')
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
