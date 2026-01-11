@@ -55,6 +55,10 @@ export async function getPriceByLookupKey(lookupKey: string): Promise<string | n
     limit: 1,
   })
 
+  if (!prices.data[0]?.id) {
+    console.error(`[Stripe] No price found for lookup key: ${lookupKey}. Make sure you've created prices with this lookup key in your Stripe dashboard.`)
+  }
+
   return prices.data[0]?.id || null
 }
 
