@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
+import { VendorLimitWarning, useVendorLimitCheck } from "@/components/vendor-limit-warning"
 
 interface Subcontractor {
   id: string
@@ -134,7 +135,20 @@ export default function SubcontractorsPage() {
 
   const canAddSubcontractors = userRole && ['admin', 'risk_manager', 'project_manager'].includes(userRole)
 
+  // Check vendor limit
+  const vendorLimit = useVendorLimitCheck()
+
   const handleOpenAddModal = () => {
+    // Check if at vendor limit
+    if (!vendorLimit.canAdd) {
+      toast({
+        title: "Vendor Limit Reached",
+        description: vendorLimit.reason || "Please upgrade your plan to add more vendors.",
+        variant: "destructive"
+      })
+      return
+    }
+
     setFormData({
       name: '',
       abn: '',
@@ -775,19 +789,24 @@ export default function SubcontractorsPage() {
             <p className="text-slate-500">Manage your subcontractor database</p>
           </div>
           {canAddSubcontractors && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Button variant="outline" onClick={handleExportCSV}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <Button variant="outline" onClick={handleOpenImportModal}>
+              <Button variant="outline" onClick={handleOpenImportModal} disabled={!vendorLimit.canAdd}>
                 <Upload className="h-4 w-4 mr-2" />
                 Import CSV
               </Button>
-              <Button onClick={handleOpenAddModal}>
+              <Button onClick={handleOpenAddModal} disabled={!vendorLimit.canAdd}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Subcontractor
               </Button>
+              {vendorLimit.remaining !== null && vendorLimit.remaining <= 10 && vendorLimit.remaining > 0 && (
+                <span className="text-sm text-amber-600">
+                  {vendorLimit.remaining} slot{vendorLimit.remaining !== 1 ? 's' : ''} left
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -795,6 +814,9 @@ export default function SubcontractorsPage() {
 
       {/* Content */}
       <div className="p-6 md:p-8 lg:p-12 space-y-6">
+        {/* Vendor Limit Warning */}
+        <VendorLimitWarning variant="banner" />
+
         {/* Search */}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />

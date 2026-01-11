@@ -6,7 +6,6 @@ import { getUserByToken } from '@/lib/auth'
 import {
   createCheckoutSession,
   createOrGetCustomer,
-  getStripePriceId,
   PRICING_PLANS,
   isStripeConfigured,
   TRIAL_CONFIG,
@@ -19,7 +18,7 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
  * POST /api/stripe/create-checkout-session
  *
  * Create a Stripe Checkout Session for subscription signup
- * Includes 14-day free trial
+ * Includes 14-day free trial for monthly subscriptions
  */
 export async function POST(request: NextRequest) {
   try {
@@ -50,12 +49,32 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { tier } = body as { tier: string }
+    const { tier, billingInterval = 'monthly' } = body as {
+      tier: string
+      billingInterval?: 'monthly' | 'annual'
+    }
 
     // Validate tier
-    if (!tier || !['starter', 'professional', 'enterprise'].includes(tier)) {
+    const validTiers = ['velocity', 'compliance', 'business', 'enterprise']
+    if (!tier || !validTiers.includes(tier)) {
       return NextResponse.json(
-        { error: 'Invalid subscription tier. Must be starter, professional, or enterprise.' },
+        { error: `Invalid subscription tier. Must be one of: ${validTiers.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // Validate billing interval
+    if (!['monthly', 'annual'].includes(billingInterval)) {
+      return NextResponse.json(
+        { error: 'Invalid billing interval. Must be monthly or annual.' },
+        { status: 400 }
+      )
+    }
+
+    // Enterprise tier requires contact sales
+    if (tier === 'enterprise') {
+      return NextResponse.json(
+        { error: 'Enterprise tier requires contacting sales. Please reach out to sales@risksure.ai' },
         { status: 400 }
       )
     }
@@ -72,21 +91,22 @@ export async function POST(request: NextRequest) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const priceId = getStripePriceId(subscriptionTier)
 
     // Check if Stripe is configured
     if (!isStripeConfigured()) {
       // Simulated mode - return a simulated success
       console.log('[Stripe Test Mode] Simulating checkout session creation')
 
-      // Calculate trial end date
-      const trialEndsAt = Date.now() + TRIAL_CONFIG.durationDays * 24 * 60 * 60 * 1000
+      // Calculate trial end date (only for monthly)
+      const trialEndsAt = billingInterval === 'monthly'
+        ? Date.now() + TRIAL_CONFIG.durationDays * 24 * 60 * 60 * 1000
+        : undefined
 
       // Update company with simulated subscription
       await convex.mutation(api.companies.updateSubscription, {
         id: user.company_id as Id<"companies">,
         subscriptionTier: subscriptionTier,
-        subscriptionStatus: 'trialing',
+        subscriptionStatus: trialEndsAt ? 'trialing' : 'active',
         trialEndsAt,
       })
 
@@ -99,16 +119,17 @@ export async function POST(request: NextRequest) {
         action: 'create_checkout',
         details: {
           tier: subscriptionTier,
+          billingInterval,
           simulated: true,
-          trial_days: TRIAL_CONFIG.durationDays,
+          trial_days: billingInterval === 'monthly' ? TRIAL_CONFIG.durationDays : 0,
         },
       })
 
       return NextResponse.json({
         success: true,
         simulated: true,
-        message: `Trial started for ${PRICING_PLANS[subscriptionTier].name} plan (Stripe test mode)`,
-        redirectUrl: `${appUrl}/dashboard/settings/billing?success=true&tier=${subscriptionTier}&simulated=true`,
+        message: `${trialEndsAt ? 'Trial started' : 'Subscription activated'} for ${PRICING_PLANS[subscriptionTier].name} plan (Stripe test mode)`,
+        redirectUrl: `${appUrl}/dashboard/settings/billing?success=true&tier=${subscriptionTier}&interval=${billingInterval}&simulated=true`,
       })
     }
 
@@ -135,12 +156,12 @@ export async function POST(request: NextRequest) {
     const session = await createCheckoutSession({
       customerId: stripeCustomerId,
       customerEmail: user.email,
-      priceId,
       tier: subscriptionTier,
+      billingInterval,
       companyId: user.company_id,
       successUrl: `${appUrl}/dashboard/settings/billing?success=true`,
       cancelUrl: `${appUrl}/dashboard/settings/billing?canceled=true`,
-      trialDays: TRIAL_CONFIG.durationDays,
+      trialDays: billingInterval === 'monthly' ? TRIAL_CONFIG.durationDays : 0,
     })
 
     // Log the action
@@ -152,8 +173,9 @@ export async function POST(request: NextRequest) {
       action: 'create_checkout',
       details: {
         tier: subscriptionTier,
+        billingInterval,
         stripe_customer_id: stripeCustomerId,
-        trial_days: TRIAL_CONFIG.durationDays,
+        trial_days: billingInterval === 'monthly' ? TRIAL_CONFIG.durationDays : 0,
       },
     })
 

@@ -81,6 +81,16 @@ export const searchByName = query({
   },
 })
 
+// Vendor limit configuration by tier
+const VENDOR_LIMITS: Record<string, number | null> = {
+  trial: 50,
+  velocity: 50,
+  compliance: 200,
+  business: 500,
+  enterprise: null, // Unlimited
+  subcontractor: 0,
+}
+
 // Create subcontractor
 export const create = mutation({
   args: {
@@ -100,8 +110,43 @@ export const create = mutation({
     workersCompState: v.optional(v.string()),
     portalAccess: v.optional(v.boolean()),
     portalUserId: v.optional(v.id("users")),
+    skipLimitCheck: v.optional(v.boolean()), // For admin overrides
   },
   handler: async (ctx, args) => {
+    // Check vendor limit (unless explicitly skipped for admin operations)
+    if (!args.skipLimitCheck) {
+      const company = await ctx.db.get(args.companyId)
+      if (!company) {
+        throw new Error("Company not found")
+      }
+
+      // Check subscription status
+      if (company.subscriptionStatus === 'cancelled') {
+        throw new Error("Subscription is cancelled. Please reactivate to add vendors.")
+      }
+
+      if (company.subscriptionStatus === 'past_due') {
+        throw new Error("Payment is past due. Please update your payment method to add vendors.")
+      }
+
+      const tier = company.subscriptionTier || 'trial'
+      const limit = VENDOR_LIMITS[tier] ?? null
+
+      // Check limit if not unlimited
+      if (limit !== null) {
+        const existingCount = await ctx.db
+          .query("subcontractors")
+          .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+          .collect()
+
+        if (existingCount.length >= limit) {
+          throw new Error(
+            `Vendor limit reached (${limit} vendors). Upgrade your plan to add more vendors.`
+          )
+        }
+      }
+    }
+
     // Check if subcontractor with same ABN exists in this company
     const existingByAbn = await ctx.db
       .query("subcontractors")

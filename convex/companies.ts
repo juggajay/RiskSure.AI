@@ -348,3 +348,205 @@ export const updateSubscriptionStatus = mutation({
     })
   },
 })
+
+// Vendor limit configuration by tier
+const VENDOR_LIMITS: Record<string, number | null> = {
+  trial: 50,
+  velocity: 50,
+  compliance: 200,
+  business: 500,
+  enterprise: null, // Unlimited
+  subcontractor: 0,
+}
+
+// User limit configuration by tier
+const USER_LIMITS: Record<string, number | null> = {
+  trial: 3,
+  velocity: 3,
+  compliance: null, // Unlimited
+  business: null,
+  enterprise: null,
+  subcontractor: 1,
+}
+
+// Project limit configuration by tier
+const PROJECT_LIMITS: Record<string, number | null> = {
+  trial: 5,
+  velocity: 5,
+  compliance: null, // Unlimited
+  business: null,
+  enterprise: null,
+  subcontractor: 0,
+}
+
+// Get vendor limit info for a company
+export const getVendorLimitInfo = query({
+  args: { companyId: v.id("companies") },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.companyId)
+    if (!company) return null
+
+    const tier = company.subscriptionTier || 'trial'
+    const limit = VENDOR_LIMITS[tier] ?? null
+
+    // Count current vendors
+    const subcontractors = await ctx.db
+      .query("subcontractors")
+      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .collect()
+
+    const currentCount = subcontractors.length
+
+    if (limit === null) {
+      return {
+        tier,
+        limit: null,
+        current: currentCount,
+        remaining: null,
+        percentUsed: 0,
+        isAtLimit: false,
+        isNearLimit: false,
+        canAddVendor: true,
+      }
+    }
+
+    const remaining = Math.max(0, limit - currentCount)
+    const percentUsed = limit > 0 ? Math.round((currentCount / limit) * 100) : 0
+
+    return {
+      tier,
+      limit,
+      current: currentCount,
+      remaining,
+      percentUsed,
+      isAtLimit: currentCount >= limit,
+      isNearLimit: percentUsed >= 80,
+      canAddVendor: currentCount < limit,
+    }
+  },
+})
+
+// Get all usage limits for a company
+export const getUsageLimits = query({
+  args: { companyId: v.id("companies") },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.companyId)
+    if (!company) return null
+
+    const tier = company.subscriptionTier || 'trial'
+
+    // Get limits for this tier
+    const vendorLimit = VENDOR_LIMITS[tier] ?? null
+    const userLimit = USER_LIMITS[tier] ?? null
+    const projectLimit = PROJECT_LIMITS[tier] ?? null
+
+    // Count current usage
+    const [subcontractors, users, projects] = await Promise.all([
+      ctx.db
+        .query("subcontractors")
+        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+        .collect(),
+      ctx.db
+        .query("users")
+        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+        .collect(),
+      ctx.db
+        .query("projects")
+        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+        .collect(),
+    ])
+
+    const vendorCount = subcontractors.length
+    const userCount = users.length
+    const projectCount = projects.length
+
+    return {
+      tier,
+      subscriptionStatus: company.subscriptionStatus,
+      vendors: {
+        limit: vendorLimit,
+        current: vendorCount,
+        remaining: vendorLimit !== null ? Math.max(0, vendorLimit - vendorCount) : null,
+        percentUsed: vendorLimit !== null && vendorLimit > 0 ? Math.round((vendorCount / vendorLimit) * 100) : 0,
+        isAtLimit: vendorLimit !== null && vendorCount >= vendorLimit,
+        isNearLimit: vendorLimit !== null && vendorLimit > 0 && (vendorCount / vendorLimit) >= 0.8,
+      },
+      users: {
+        limit: userLimit,
+        current: userCount,
+        remaining: userLimit !== null ? Math.max(0, userLimit - userCount) : null,
+        percentUsed: userLimit !== null && userLimit > 0 ? Math.round((userCount / userLimit) * 100) : 0,
+        isAtLimit: userLimit !== null && userCount >= userLimit,
+        isNearLimit: userLimit !== null && userLimit > 0 && (userCount / userLimit) >= 0.8,
+      },
+      projects: {
+        limit: projectLimit,
+        current: projectCount,
+        remaining: projectLimit !== null ? Math.max(0, projectLimit - projectCount) : null,
+        percentUsed: projectLimit !== null && projectLimit > 0 ? Math.round((projectCount / projectLimit) * 100) : 0,
+        isAtLimit: projectLimit !== null && projectCount >= projectLimit,
+        isNearLimit: projectLimit !== null && projectLimit > 0 && (projectCount / projectLimit) >= 0.8,
+      },
+    }
+  },
+})
+
+// Check if a company can add a vendor (pre-check before creation)
+export const canAddVendor = query({
+  args: { companyId: v.id("companies") },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.companyId)
+    if (!company) {
+      return { allowed: false, reason: "Company not found" }
+    }
+
+    // Check subscription status
+    if (company.subscriptionStatus === 'cancelled') {
+      return { allowed: false, reason: "Subscription is cancelled. Please reactivate to add vendors." }
+    }
+
+    if (company.subscriptionStatus === 'past_due') {
+      return { allowed: false, reason: "Payment is past due. Please update your payment method." }
+    }
+
+    const tier = company.subscriptionTier || 'trial'
+    const limit = VENDOR_LIMITS[tier] ?? null
+
+    // Unlimited tier
+    if (limit === null) {
+      return { allowed: true }
+    }
+
+    // Count current vendors
+    const subcontractors = await ctx.db
+      .query("subcontractors")
+      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .collect()
+
+    const currentCount = subcontractors.length
+
+    if (currentCount >= limit) {
+      return {
+        allowed: false,
+        reason: `You've reached your vendor limit of ${limit}. Upgrade your plan to add more vendors.`,
+        currentCount,
+        limit,
+        suggestedUpgrade: getSuggestedUpgradeTier(tier),
+      }
+    }
+
+    return { allowed: true, currentCount, limit, remaining: limit - currentCount }
+  },
+})
+
+// Helper function to get suggested upgrade tier
+function getSuggestedUpgradeTier(currentTier: string): string | null {
+  const upgradeMap: Record<string, string | null> = {
+    trial: 'velocity',
+    velocity: 'compliance',
+    compliance: 'business',
+    business: 'enterprise',
+    enterprise: null,
+  }
+  return upgradeMap[currentTier] ?? null
+}

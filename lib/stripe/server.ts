@@ -6,7 +6,7 @@
  */
 
 import Stripe from 'stripe'
-import { PRICING_PLANS, getStripePriceId, type SubscriptionTier, TRIAL_CONFIG } from './config'
+import { PRICING_PLANS, getStripeLookupKey, type SubscriptionTier, TRIAL_CONFIG } from './config'
 
 // Check if we're in test/development mode
 const isTestMode = process.env.STRIPE_SECRET_KEY === 'test' || !process.env.STRIPE_SECRET_KEY
@@ -39,15 +39,35 @@ export function getStripe(): Stripe {
   return stripe
 }
 
+/**
+ * Get price by lookup key
+ * This fetches the actual price ID from Stripe using the lookup key
+ */
+export async function getPriceByLookupKey(lookupKey: string): Promise<string | null> {
+  if (isTestMode) {
+    console.log('[Stripe Test Mode] Would get price for lookup key:', lookupKey)
+    return `price_simulated_${lookupKey}`
+  }
+
+  const stripeClient = getStripe()
+  const prices = await stripeClient.prices.list({
+    lookup_keys: [lookupKey],
+    limit: 1,
+  })
+
+  return prices.data[0]?.id || null
+}
+
 interface CreateCheckoutSessionParams {
   customerId?: string
   customerEmail: string
-  priceId: string
   tier: Exclude<SubscriptionTier, 'trial' | 'subcontractor'>
+  billingInterval: 'monthly' | 'annual'
   companyId: string
   successUrl: string
   cancelUrl: string
   trialDays?: number
+  promotionCode?: string
 }
 
 /**
@@ -57,24 +77,33 @@ interface CreateCheckoutSessionParams {
 export async function createCheckoutSession({
   customerId,
   customerEmail,
-  priceId,
   tier,
+  billingInterval,
   companyId,
   successUrl,
   cancelUrl,
   trialDays = TRIAL_CONFIG.durationDays,
+  promotionCode,
 }: CreateCheckoutSessionParams): Promise<Stripe.Checkout.Session | { url: string; isSimulated: true }> {
+  // Get the lookup key for the selected tier and billing interval
+  const lookupKey = getStripeLookupKey(tier, billingInterval)
+
   // In test mode, return a simulated session
   if (isTestMode) {
-    console.log('[Stripe Test Mode] Would create checkout session:', { customerEmail, tier, priceId })
+    console.log('[Stripe Test Mode] Would create checkout session:', { customerEmail, tier, billingInterval, lookupKey })
     return {
-      url: `${successUrl}?simulated=true&tier=${tier}`,
+      url: `${successUrl}?simulated=true&tier=${tier}&interval=${billingInterval}`,
       isSimulated: true,
     }
   }
 
   const stripeClient = getStripe()
-  const plan = PRICING_PLANS[tier]
+
+  // Get the price ID from the lookup key
+  const priceId = await getPriceByLookupKey(lookupKey)
+  if (!priceId) {
+    throw new Error(`No price found for lookup key: ${lookupKey}`)
+  }
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
@@ -90,14 +119,16 @@ export async function createCheckoutSession({
     metadata: {
       companyId,
       tier,
+      billingInterval,
     },
     subscription_data: {
       metadata: {
         companyId,
         tier,
+        billingInterval,
       },
     },
-    // Allow promotion codes for discounts
+    // Allow promotion codes for discounts (like FOUNDER50)
     allow_promotion_codes: true,
     // Collect billing address for tax purposes
     billing_address_collection: 'required',
@@ -105,8 +136,8 @@ export async function createCheckoutSession({
     automatic_tax: { enabled: true },
   }
 
-  // Add trial period if applicable
-  if (trialDays > 0) {
+  // Add trial period if applicable (only for monthly to start)
+  if (trialDays > 0 && billingInterval === 'monthly') {
     sessionParams.subscription_data!.trial_period_days = trialDays
   }
 
@@ -115,6 +146,12 @@ export async function createCheckoutSession({
     sessionParams.customer = customerId
   } else {
     sessionParams.customer_email = customerEmail
+  }
+
+  // Pre-fill promotion code if provided
+  if (promotionCode) {
+    // Note: For pre-filled promo codes, we'd need to look up the promotion code ID
+    // For now, allow_promotion_codes enables manual entry
   }
 
   return stripeClient.checkout.sessions.create(sessionParams)
