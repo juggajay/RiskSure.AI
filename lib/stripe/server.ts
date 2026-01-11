@@ -1,42 +1,93 @@
 /**
- * Server-side Stripe client and utilities
+ * Server-side Stripe utilities
  *
- * Uses Stripe Checkout Sessions API for payment collection
+ * Uses raw fetch API for Vercel compatibility (Stripe SDK v20 has issues)
+ * Implements Stripe Checkout Sessions API for payment collection
  * and Customer Portal for subscription management.
  */
 
 import Stripe from 'stripe'
 import { PRICING_PLANS, getStripeLookupKey, type SubscriptionTier, TRIAL_CONFIG } from './config'
 
-// Check if we're in test/development mode
-const isTestMode = process.env.STRIPE_SECRET_KEY === 'test' || !process.env.STRIPE_SECRET_KEY
+const STRIPE_API_BASE = 'https://api.stripe.com/v1'
 
-// Initialize Stripe client (only if we have a real key)
-let stripe: Stripe | null = null
-
-if (!isTestMode && process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-12-15.clover',
-    typescript: true,
-  })
+/**
+ * Check if we're in test/development mode
+ */
+function isTestMode(): boolean {
+  return process.env.STRIPE_SECRET_KEY === 'test' || !process.env.STRIPE_SECRET_KEY
 }
 
 /**
  * Check if Stripe is configured and available
  */
 export function isStripeConfigured(): boolean {
-  return !isTestMode && stripe !== null
+  return !isTestMode() && !!process.env.STRIPE_SECRET_KEY
 }
 
 /**
- * Get the Stripe client instance
- * Throws if Stripe is not configured
+ * Make a raw Stripe API request
+ */
+async function stripeRequest<T>(
+  endpoint: string,
+  method: 'GET' | 'POST' | 'DELETE' = 'GET',
+  body?: Record<string, string | number | boolean | undefined>
+): Promise<T> {
+  const apiKey = process.env.STRIPE_SECRET_KEY!
+
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Stripe-Version': '2024-12-18.acacia',
+  }
+
+  let requestBody: string | undefined
+  if (body && method === 'POST') {
+    // Convert nested objects to Stripe's bracket notation
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(body)) {
+      if (value !== undefined) {
+        params.append(key, String(value))
+      }
+    }
+    requestBody = params.toString()
+  }
+
+  const response = await fetch(`${STRIPE_API_BASE}${endpoint}`, {
+    method,
+    headers,
+    body: requestBody,
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    const error = new Error(data.error?.message || 'Stripe API error') as Error & {
+      type?: string
+      code?: string
+      statusCode?: number
+    }
+    error.type = data.error?.type
+    error.code = data.error?.code
+    error.statusCode = response.status
+    throw error
+  }
+
+  return data as T
+}
+
+/**
+ * Get the Stripe client instance (for webhook signature verification only)
  */
 export function getStripe(): Stripe {
-  if (!stripe) {
+  if (isTestMode()) {
     throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.')
   }
-  return stripe
+  // Only used for webhook signature verification
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-12-15.clover',
+    typescript: true,
+  })
 }
 
 /**
@@ -44,22 +95,20 @@ export function getStripe(): Stripe {
  * This fetches the actual price ID from Stripe using the lookup key
  */
 export async function getPriceByLookupKey(lookupKey: string): Promise<string | null> {
-  if (isTestMode) {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would get price for lookup key:', lookupKey)
     return `price_simulated_${lookupKey}`
   }
 
-  const stripeClient = getStripe()
-  const prices = await stripeClient.prices.list({
-    lookup_keys: [lookupKey],
-    limit: 1,
-  })
+  const data = await stripeRequest<{ data: Array<{ id: string }> }>(
+    `/prices?lookup_keys[]=${encodeURIComponent(lookupKey)}&limit=1`
+  )
 
-  if (!prices.data[0]?.id) {
+  if (!data.data[0]?.id) {
     console.error(`[Stripe] No price found for lookup key: ${lookupKey}. Make sure you've created prices with this lookup key in your Stripe dashboard.`)
   }
 
-  return prices.data[0]?.id || null
+  return data.data[0]?.id || null
 }
 
 interface CreateCheckoutSessionParams {
@@ -87,13 +136,12 @@ export async function createCheckoutSession({
   successUrl,
   cancelUrl,
   trialDays = TRIAL_CONFIG.durationDays,
-  promotionCode,
-}: CreateCheckoutSessionParams): Promise<Stripe.Checkout.Session | { url: string; isSimulated: true }> {
+}: CreateCheckoutSessionParams): Promise<{ url: string } | { url: string; isSimulated: true }> {
   // Get the lookup key for the selected tier and billing interval
   const lookupKey = getStripeLookupKey(tier, billingInterval)
 
   // In test mode, return a simulated session
-  if (isTestMode) {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would create checkout session:', { customerEmail, tier, billingInterval, lookupKey })
     return {
       url: `${successUrl}?simulated=true&tier=${tier}&interval=${billingInterval}`,
@@ -101,64 +149,57 @@ export async function createCheckoutSession({
     }
   }
 
-  const stripeClient = getStripe()
-
   // Get the price ID from the lookup key
   const priceId = await getPriceByLookupKey(lookupKey)
   if (!priceId) {
     throw new Error(`No price found for lookup key: ${lookupKey}`)
   }
 
-  const sessionParams: Stripe.Checkout.SessionCreateParams = {
-    mode: 'subscription',
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: priceId,
-        quantity: 1,
-      },
-    ],
-    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: cancelUrl,
-    metadata: {
-      companyId,
-      tier,
-      billingInterval,
-    },
-    subscription_data: {
-      metadata: {
-        companyId,
-        tier,
-        billingInterval,
-      },
-    },
-    // Allow promotion codes for discounts (like FOUNDER50)
-    allow_promotion_codes: true,
-    // Collect billing address for tax purposes
-    billing_address_collection: 'required',
-    // Automatic tax calculation (if enabled in Stripe)
-    automatic_tax: { enabled: true },
-  }
+  // Build form data for Stripe API
+  const params = new URLSearchParams()
+  params.append('mode', 'subscription')
+  params.append('line_items[0][price]', priceId)
+  params.append('line_items[0][quantity]', '1')
+  params.append('success_url', `${successUrl}?session_id={CHECKOUT_SESSION_ID}`)
+  params.append('cancel_url', cancelUrl)
+  params.append('metadata[companyId]', companyId)
+  params.append('metadata[tier]', tier)
+  params.append('metadata[billingInterval]', billingInterval)
+  params.append('subscription_data[metadata][companyId]', companyId)
+  params.append('subscription_data[metadata][tier]', tier)
+  params.append('subscription_data[metadata][billingInterval]', billingInterval)
+  params.append('allow_promotion_codes', 'true')
 
   // Add trial period if applicable (only for monthly to start)
   if (trialDays > 0 && billingInterval === 'monthly') {
-    sessionParams.subscription_data!.trial_period_days = trialDays
+    params.append('subscription_data[trial_period_days]', String(trialDays))
   }
 
   // Use existing customer or collect email
   if (customerId) {
-    sessionParams.customer = customerId
+    params.append('customer', customerId)
   } else {
-    sessionParams.customer_email = customerEmail
+    params.append('customer_email', customerEmail)
   }
 
-  // Pre-fill promotion code if provided
-  if (promotionCode) {
-    // Note: For pre-filled promo codes, we'd need to look up the promotion code ID
-    // For now, allow_promotion_codes enables manual entry
+  const apiKey = process.env.STRIPE_SECRET_KEY!
+  const response = await fetch(`${STRIPE_API_BASE}/checkout/sessions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Stripe-Version': '2024-12-18.acacia',
+    },
+    body: params.toString(),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || 'Failed to create checkout session')
   }
 
-  return stripeClient.checkout.sessions.create(sessionParams)
+  return { url: data.url }
 }
 
 interface CreatePortalSessionParams {
@@ -173,9 +214,9 @@ interface CreatePortalSessionParams {
 export async function createPortalSession({
   customerId,
   returnUrl,
-}: CreatePortalSessionParams): Promise<Stripe.BillingPortal.Session | { url: string; isSimulated: true }> {
+}: CreatePortalSessionParams): Promise<{ url: string } | { url: string; isSimulated: true }> {
   // In test mode, return a simulated portal URL
-  if (isTestMode) {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would create portal session for customer:', customerId)
     return {
       url: `${returnUrl}?portal=simulated`,
@@ -183,11 +224,16 @@ export async function createPortalSession({
     }
   }
 
-  const stripeClient = getStripe()
-  return stripeClient.billingPortal.sessions.create({
-    customer: customerId,
-    return_url: returnUrl,
-  })
+  const session = await stripeRequest<{ url: string }>(
+    '/billing_portal/sessions',
+    'POST',
+    {
+      customer: customerId,
+      return_url: returnUrl,
+    }
+  )
+
+  return { url: session.url }
 }
 
 interface CreateOrGetCustomerParams {
@@ -205,54 +251,71 @@ export async function createOrGetCustomer({
   companyName,
 }: CreateOrGetCustomerParams): Promise<string> {
   // In test mode, return a simulated customer ID
-  if (isTestMode) {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would create/get customer:', { email, companyId })
     return `cus_simulated_${companyId}`
   }
 
-  const stripeClient = getStripe()
+  // Search for existing customer by email
+  const searchData = await stripeRequest<{ data: Array<{ id: string; metadata: Record<string, string> }> }>(
+    `/customers?email=${encodeURIComponent(email)}&limit=1`
+  )
 
-  // Search for existing customer
-  const existingCustomers = await stripeClient.customers.list({
-    email,
-    limit: 1,
-  })
-
-  if (existingCustomers.data.length > 0) {
+  if (searchData.data.length > 0) {
     // Update metadata if needed
-    const customer = existingCustomers.data[0]
+    const customer = searchData.data[0]
     if (customer.metadata.companyId !== companyId) {
-      await stripeClient.customers.update(customer.id, {
-        metadata: { companyId },
-      })
+      await stripeRequest<{ id: string }>(
+        `/customers/${customer.id}`,
+        'POST',
+        { 'metadata[companyId]': companyId }
+      )
     }
     return customer.id
   }
 
   // Create new customer
-  const customer = await stripeClient.customers.create({
-    email,
-    name: companyName,
-    metadata: {
-      companyId,
-    },
-  })
+  const newCustomer = await stripeRequest<{ id: string }>(
+    '/customers',
+    'POST',
+    {
+      email,
+      name: companyName,
+      'metadata[companyId]': companyId,
+    }
+  )
 
-  return customer.id
+  return newCustomer.id
+}
+
+interface StripeSubscription {
+  id: string
+  status: string
+  current_period_start: number
+  current_period_end: number
+  cancel_at_period_end: boolean
+  canceled_at: number | null
+  metadata: Record<string, string>
+  items: {
+    data: Array<{
+      id: string
+      price: { id: string; lookup_key: string | null }
+      quantity: number
+    }>
+  }
 }
 
 /**
  * Get subscription details for a customer
  */
-export async function getSubscription(subscriptionId: string): Promise<Stripe.Subscription | null> {
-  if (isTestMode) {
+export async function getSubscription(subscriptionId: string): Promise<StripeSubscription | null> {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would get subscription:', subscriptionId)
     return null
   }
 
-  const stripeClient = getStripe()
   try {
-    return await stripeClient.subscriptions.retrieve(subscriptionId)
+    return await stripeRequest<StripeSubscription>(`/subscriptions/${subscriptionId}`)
   } catch {
     return null
   }
@@ -261,22 +324,25 @@ export async function getSubscription(subscriptionId: string): Promise<Stripe.Su
 /**
  * Cancel a subscription
  */
-export async function cancelSubscription(subscriptionId: string, immediate = false): Promise<Stripe.Subscription | { status: 'canceled'; isSimulated: true }> {
-  if (isTestMode) {
+export async function cancelSubscription(subscriptionId: string, immediate = false): Promise<StripeSubscription | { status: 'canceled'; isSimulated: true }> {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would cancel subscription:', subscriptionId)
     return { status: 'canceled', isSimulated: true }
   }
 
-  const stripeClient = getStripe()
-
   if (immediate) {
-    return stripeClient.subscriptions.cancel(subscriptionId)
+    return await stripeRequest<StripeSubscription>(
+      `/subscriptions/${subscriptionId}`,
+      'DELETE'
+    )
   }
 
   // Cancel at period end (more user-friendly)
-  return stripeClient.subscriptions.update(subscriptionId, {
-    cancel_at_period_end: true,
-  })
+  return await stripeRequest<StripeSubscription>(
+    `/subscriptions/${subscriptionId}`,
+    'POST',
+    { cancel_at_period_end: true }
+  )
 }
 
 /**
@@ -291,20 +357,18 @@ export async function reportVendorUsage(
   quantity: number,
   _timestamp?: number
 ): Promise<{ id: string; quantity: number } | { isSimulated: true }> {
-  if (isTestMode) {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would report usage:', { subscriptionItemId, quantity })
     return { isSimulated: true }
   }
 
-  // For metered billing, we'll update the subscription quantity
-  // or use Stripe's usage-based billing when implemented
-  const stripeClient = getStripe()
-
   // Update the subscription item quantity for licensed billing
   // For true metered billing, you would use Stripe Billing Meters
-  const updatedItem = await stripeClient.subscriptionItems.update(subscriptionItemId, {
-    quantity,
-  })
+  const updatedItem = await stripeRequest<{ id: string; quantity: number }>(
+    `/subscription_items/${subscriptionItemId}`,
+    'POST',
+    { quantity }
+  )
 
   return { id: updatedItem.id, quantity: updatedItem.quantity || quantity }
 }
@@ -316,7 +380,7 @@ export function constructWebhookEvent(
   payload: string | Buffer,
   signature: string
 ): Stripe.Event {
-  if (isTestMode) {
+  if (isTestMode()) {
     // In test mode, parse the payload directly
     return JSON.parse(typeof payload === 'string' ? payload : payload.toString())
   }
@@ -326,22 +390,33 @@ export function constructWebhookEvent(
   return stripeClient.webhooks.constructEvent(payload, signature, webhookSecret)
 }
 
+interface StripeInvoice {
+  id: string
+  status: string
+  amount_due: number
+  amount_paid: number
+  currency: string
+  created: number
+  period_start: number
+  period_end: number
+  hosted_invoice_url: string | null
+  invoice_pdf: string | null
+}
+
 /**
  * Get all invoices for a customer
  */
 export async function getCustomerInvoices(
   customerId: string,
   limit = 10
-): Promise<Stripe.Invoice[] | { invoices: []; isSimulated: true }> {
-  if (isTestMode) {
+): Promise<StripeInvoice[] | { invoices: []; isSimulated: true }> {
+  if (isTestMode()) {
     console.log('[Stripe Test Mode] Would get invoices for customer:', customerId)
     return { invoices: [], isSimulated: true }
   }
 
-  const stripeClient = getStripe()
-  const invoices = await stripeClient.invoices.list({
-    customer: customerId,
-    limit,
-  })
-  return invoices.data
+  const data = await stripeRequest<{ data: StripeInvoice[] }>(
+    `/invoices?customer=${encodeURIComponent(customerId)}&limit=${limit}`
+  )
+  return data.data
 }
