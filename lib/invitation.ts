@@ -76,6 +76,9 @@ export async function sendSubcontractorInvitation(
     })
 
     const requirementsList = requirements.map((r: any) => {
+      if (r.minimumLimit == null) {
+        return `${r.coverageType}: Required`
+      }
       const limit = r.minimumLimit >= 1000000
         ? `$${(r.minimumLimit / 1000000).toFixed(0)}M`
         : `$${r.minimumLimit.toLocaleString()}`
