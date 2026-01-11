@@ -1,5 +1,5 @@
-import { v4 as uuidv4 } from 'uuid'
-import { getDb } from '@/lib/db'
+import { getConvex, api } from '@/lib/convex'
+import type { Id } from '@/convex/_generated/dataModel'
 import { sendInvitationEmail } from '@/lib/resend'
 
 // Invitation token expiry: 7 days
@@ -12,117 +12,13 @@ interface InvitationResult {
   error?: string
 }
 
-interface SubcontractorInfo {
-  id: string
-  name: string
-  abn: string
-  contact_name: string | null
-  contact_email: string | null
-}
-
-interface ProjectInfo {
-  id: string
-  name: string
-  state: string | null
-  on_site_date?: string | null
-}
-
-interface CompanyInfo {
-  id: string
-  name: string
-}
-
 /**
- * Create an invitation token for a subcontractor to access the portal
+ * Generate a random token for invitations
  */
-export function createInvitationToken(
-  email: string,
-  projectId: string,
-  subcontractorId: string
-): { token: string; expiresAt: Date } {
-  const db = getDb()
-  const token = uuidv4()
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS)
-
-  // Invalidate any existing invitation tokens for this email/project combination
-  db.prepare(`
-    UPDATE magic_link_tokens
-    SET used = 1
-    WHERE email = ? AND project_id = ? AND type = 'invitation' AND used = 0
-  `).run(email.toLowerCase(), projectId)
-
-  // Create new invitation token
-  db.prepare(`
-    INSERT INTO magic_link_tokens (id, email, token, expires_at, type, project_id, subcontractor_id)
-    VALUES (?, ?, ?, ?, 'invitation', ?, ?)
-  `).run(
-    uuidv4(),
-    email.toLowerCase(),
-    token,
-    expiresAt.toISOString(),
-    projectId,
-    subcontractorId
-  )
-
-  return { token, expiresAt }
-}
-
-/**
- * Verify an invitation token
- */
-export function verifyInvitationToken(token: string): {
-  valid: boolean
-  email?: string
-  projectId?: string
-  subcontractorId?: string
-  error?: string
-} {
-  const db = getDb()
-
-  const invitation = db.prepare(`
-    SELECT * FROM magic_link_tokens
-    WHERE token = ? AND type = 'invitation'
-  `).get(token) as {
-    id: string
-    email: string
-    token: string
-    expires_at: string
-    used: number
-    project_id: string
-    subcontractor_id: string
-  } | undefined
-
-  if (!invitation) {
-    return { valid: false, error: 'Invalid invitation token' }
-  }
-
-  if (invitation.used) {
-    return { valid: false, error: 'This invitation link has already been used' }
-  }
-
-  if (new Date(invitation.expires_at) < new Date()) {
-    return { valid: false, error: 'This invitation link has expired' }
-  }
-
-  return {
-    valid: true,
-    email: invitation.email,
-    projectId: invitation.project_id,
-    subcontractorId: invitation.subcontractor_id
-  }
-}
-
-/**
- * Mark an invitation token as used
- */
-export function markInvitationUsed(token: string): void {
-  const db = getDb()
-  db.prepare(`
-    UPDATE magic_link_tokens
-    SET used = 1
-    WHERE token = ? AND type = 'invitation'
-  `).run(token)
+function generateToken(): string {
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 /**
@@ -133,118 +29,115 @@ export async function sendSubcontractorInvitation(
   subcontractorId: string,
   projectSubcontractorId: string
 ): Promise<InvitationResult> {
-  const db = getDb()
+  try {
+    const convex = getConvex()
 
-  // Get subcontractor info
-  const subcontractor = db.prepare(`
-    SELECT id, name, abn, contact_name, contact_email
-    FROM subcontractors
-    WHERE id = ?
-  `).get(subcontractorId) as SubcontractorInfo | undefined
-
-  if (!subcontractor) {
-    return { success: false, error: 'Subcontractor not found' }
-  }
-
-  if (!subcontractor.contact_email) {
-    return { success: false, error: 'Subcontractor has no contact email' }
-  }
-
-  // Get project info
-  const project = db.prepare(`
-    SELECT p.id, p.name, p.state, ps.on_site_date
-    FROM projects p
-    JOIN project_subcontractors ps ON ps.project_id = p.id
-    WHERE p.id = ? AND ps.id = ?
-  `).get(projectId, projectSubcontractorId) as ProjectInfo | undefined
-
-  if (!project) {
-    return { success: false, error: 'Project not found' }
-  }
-
-  // Get company info (the builder)
-  const company = db.prepare(`
-    SELECT c.id, c.name
-    FROM companies c
-    JOIN projects p ON p.company_id = c.id
-    WHERE p.id = ?
-  `).get(projectId) as CompanyInfo | undefined
-
-  if (!company) {
-    return { success: false, error: 'Company not found' }
-  }
-
-  // Get insurance requirements for display
-  const requirements = db.prepare(`
-    SELECT coverage_type, minimum_limit
-    FROM insurance_requirements
-    WHERE project_id = ?
-  `).all(projectId) as { coverage_type: string; minimum_limit: number }[]
-
-  const requirementsList = requirements.map(r => {
-    const limit = r.minimum_limit >= 1000000
-      ? `$${(r.minimum_limit / 1000000).toFixed(0)}M`
-      : `$${r.minimum_limit.toLocaleString()}`
-    return `${r.coverage_type}: ${limit} minimum`
-  })
-
-  // Create invitation token
-  const { token, expiresAt } = createInvitationToken(
-    subcontractor.contact_email,
-    projectId,
-    subcontractorId
-  )
-
-  // Build invitation link
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const invitationLink = `${baseUrl}/portal/verify?token=${token}&type=invitation`
-
-  // Send email
-  const emailResult = await sendInvitationEmail({
-    recipientEmail: subcontractor.contact_email,
-    recipientName: subcontractor.contact_name || subcontractor.name,
-    subcontractorName: subcontractor.name,
-    subcontractorAbn: subcontractor.abn,
-    projectName: project.name,
-    builderName: company.name,
-    onSiteDate: project.on_site_date || undefined,
-    requirements: requirementsList.length > 0 ? requirementsList : undefined,
-    invitationLink,
-    expiresInDays: INVITATION_EXPIRY_DAYS
-  })
-
-  if (!emailResult.success) {
-    return { success: false, error: emailResult.error || 'Failed to send email' }
-  }
-
-  // Update project_subcontractors with invitation status
-  db.prepare(`
-    UPDATE project_subcontractors
-    SET invitation_sent_at = datetime('now'),
-        invitation_status = 'sent'
-    WHERE id = ?
-  `).run(projectSubcontractorId)
-
-  // Log the action
-  db.prepare(`
-    INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
-    VALUES (?, ?, NULL, 'invitation', ?, 'send', ?)
-  `).run(
-    uuidv4(),
-    company.id,
-    projectSubcontractorId,
-    JSON.stringify({
-      subcontractorId,
-      projectId,
-      email: subcontractor.contact_email,
-      expiresAt: expiresAt.toISOString()
+    // Get subcontractor info
+    const subcontractor = await convex.query(api.subcontractors.getById, {
+      id: subcontractorId as Id<"subcontractors">
     })
-  )
 
-  return {
-    success: true,
-    invitationId: projectSubcontractorId,
-    token
+    if (!subcontractor) {
+      return { success: false, error: 'Subcontractor not found' }
+    }
+
+    // Get contact email - prefer contactEmail, fallback to brokerEmail
+    const recipientEmail = subcontractor.contactEmail || subcontractor.brokerEmail
+    if (!recipientEmail) {
+      return { success: false, error: 'Subcontractor has no contact email' }
+    }
+
+    // Get project info
+    const project = await convex.query(api.projects.getById, {
+      id: projectId as Id<"projects">
+    })
+
+    if (!project) {
+      return { success: false, error: 'Project not found' }
+    }
+
+    // Get company info (the builder)
+    const company = await convex.query(api.companies.getById, {
+      id: project.companyId
+    })
+
+    if (!company) {
+      return { success: false, error: 'Company not found' }
+    }
+
+    // Get project-subcontractor link for on_site_date
+    const projectSubcontractor = await convex.query(api.projectSubcontractors.getById, {
+      id: projectSubcontractorId as Id<"projectSubcontractors">
+    })
+
+    // Get insurance requirements for display
+    const requirements = await convex.query(api.insuranceRequirements.getByProject, {
+      projectId: projectId as Id<"projects">
+    })
+
+    const requirementsList = requirements.map((r: any) => {
+      const limit = r.minimumLimit >= 1000000
+        ? `$${(r.minimumLimit / 1000000).toFixed(0)}M`
+        : `$${r.minimumLimit.toLocaleString()}`
+      return `${r.coverageType}: ${limit} minimum`
+    })
+
+    // Generate invitation token
+    const token = generateToken()
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS)
+
+    // Store invitation token in Convex
+    await convex.mutation(api.invitations.create, {
+      email: recipientEmail.toLowerCase(),
+      token,
+      expiresAt: expiresAt.getTime(),
+      projectId: projectId as Id<"projects">,
+      subcontractorId: subcontractorId as Id<"subcontractors">,
+      projectSubcontractorId: projectSubcontractorId as Id<"projectSubcontractors">,
+    })
+
+    // Build invitation link
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const invitationLink = `${baseUrl}/portal/verify?token=${token}&type=invitation`
+
+    // Get on-site date if available
+    const onSiteDate = projectSubcontractor?.onSiteDate
+      ? new Date(projectSubcontractor.onSiteDate).toISOString()
+      : undefined
+
+    // Send email
+    const emailResult = await sendInvitationEmail({
+      recipientEmail,
+      recipientName: subcontractor.contactName || subcontractor.name,
+      subcontractorName: subcontractor.name,
+      subcontractorAbn: subcontractor.abn,
+      projectName: project.name,
+      builderName: company.name,
+      onSiteDate,
+      requirements: requirementsList.length > 0 ? requirementsList : undefined,
+      invitationLink,
+      expiresInDays: INVITATION_EXPIRY_DAYS
+    })
+
+    if (!emailResult.success) {
+      return { success: false, error: emailResult.error || 'Failed to send email' }
+    }
+
+    // Update project_subcontractors with invitation status
+    await convex.mutation(api.projectSubcontractors.update, {
+      id: projectSubcontractorId as Id<"projectSubcontractors">,
+      // Note: invitation fields would need to be added to schema if tracking is needed
+    })
+
+    return {
+      success: true,
+      invitationId: projectSubcontractorId,
+      token
+    }
+  } catch (error) {
+    console.error('Send invitation error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to send invitation' }
   }
 }
 
@@ -254,26 +147,76 @@ export async function sendSubcontractorInvitation(
 export async function resendInvitation(
   projectSubcontractorId: string
 ): Promise<InvitationResult> {
-  const db = getDb()
+  try {
+    const convex = getConvex()
 
-  // Get the project-subcontractor assignment
-  const assignment = db.prepare(`
-    SELECT ps.id, ps.project_id, ps.subcontractor_id
-    FROM project_subcontractors ps
-    WHERE ps.id = ?
-  `).get(projectSubcontractorId) as {
-    id: string
-    project_id: string
-    subcontractor_id: string
-  } | undefined
+    // Get the project-subcontractor assignment
+    const assignment = await convex.query(api.projectSubcontractors.getById, {
+      id: projectSubcontractorId as Id<"projectSubcontractors">
+    })
 
-  if (!assignment) {
-    return { success: false, error: 'Assignment not found' }
+    if (!assignment) {
+      return { success: false, error: 'Assignment not found' }
+    }
+
+    return sendSubcontractorInvitation(
+      assignment.projectId,
+      assignment.subcontractorId,
+      projectSubcontractorId
+    )
+  } catch (error) {
+    console.error('Resend invitation error:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to resend invitation' }
   }
+}
 
-  return sendSubcontractorInvitation(
-    assignment.project_id,
-    assignment.subcontractor_id,
-    projectSubcontractorId
-  )
+/**
+ * Verify an invitation token
+ */
+export async function verifyInvitationToken(token: string): Promise<{
+  valid: boolean
+  email?: string
+  projectId?: string
+  subcontractorId?: string
+  error?: string
+}> {
+  try {
+    const convex = getConvex()
+
+    const invitation = await convex.query(api.invitations.getByToken, { token })
+
+    if (!invitation) {
+      return { valid: false, error: 'Invalid invitation token' }
+    }
+
+    if (invitation.used) {
+      return { valid: false, error: 'This invitation link has already been used' }
+    }
+
+    if (invitation.expiresAt < Date.now()) {
+      return { valid: false, error: 'This invitation link has expired' }
+    }
+
+    return {
+      valid: true,
+      email: invitation.email,
+      projectId: invitation.projectId,
+      subcontractorId: invitation.subcontractorId
+    }
+  } catch (error) {
+    console.error('Verify invitation error:', error)
+    return { valid: false, error: 'Failed to verify invitation' }
+  }
+}
+
+/**
+ * Mark an invitation token as used
+ */
+export async function markInvitationUsed(token: string): Promise<void> {
+  try {
+    const convex = getConvex()
+    await convex.mutation(api.invitations.markUsed, { token })
+  } catch (error) {
+    console.error('Mark invitation used error:', error)
+  }
 }

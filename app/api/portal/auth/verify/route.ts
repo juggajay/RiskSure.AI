@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     // Check if this is an invitation token
     if (type === 'invitation') {
-      const invitationValidation = verifyInvitationToken(token)
+      const invitationValidation = await verifyInvitationToken(token)
 
       if (!invitationValidation.valid || !invitationValidation.email) {
         return NextResponse.json(
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
     // Check if this is an invitation token
     if (isInvitation) {
-      const invitationValidation = verifyInvitationToken(token)
+      const invitationValidation = await verifyInvitationToken(token)
 
       if (!invitationValidation.valid || !invitationValidation.email) {
         return NextResponse.json(
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       subcontractorId = invitationValidation.subcontractorId
 
       // Mark invitation as used
-      markInvitationUsed(token)
+      await markInvitationUsed(token)
     } else {
       // Validate the magic link token
       const validation = validateMagicLinkToken(token)

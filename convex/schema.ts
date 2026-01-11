@@ -195,6 +195,14 @@ const procoreSyncStatus = v.union(
   v.literal("failed")
 );
 
+// Cron job status
+const cronJobStatus = v.union(
+  v.literal("running"),
+  v.literal("success"),
+  v.literal("failed"),
+  v.literal("partial")
+);
+
 export default defineSchema({
   // Companies - Multi-tenant root entity
   companies: defineTable({
@@ -378,12 +386,17 @@ export default defineSchema({
     sentAt: v.optional(v.number()),
     deliveredAt: v.optional(v.number()),
     openedAt: v.optional(v.number()),
+    // Follow-up tracking fields
+    followUpCount: v.optional(v.number()),
+    escalated: v.optional(v.boolean()),
+    escalatedAt: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index("by_subcontractor", ["subcontractorId"])
     .index("by_project", ["projectId"])
     .index("by_status", ["status"])
-    .index("by_verification", ["verificationId"]),
+    .index("by_verification", ["verificationId"])
+    .index("by_type_date", ["type", "sentAt"]),
 
   // Exceptions - Compliance waivers
   exceptions: defineTable({
@@ -561,4 +574,33 @@ export default defineSchema({
     durationMs: v.optional(v.number()),
   })
     .index("by_company", ["companyId", "startedAt"]),
+
+  // Invitations - Subcontractor portal invitations
+  invitations: defineTable({
+    email: v.string(),
+    token: v.string(),
+    expiresAt: v.number(),
+    projectId: v.id("projects"),
+    subcontractorId: v.id("subcontractors"),
+    projectSubcontractorId: v.id("projectSubcontractors"),
+    used: v.boolean(),
+  })
+    .index("by_token", ["token"])
+    .index("by_email", ["email"])
+    .index("by_project_subcontractor", ["projectSubcontractorId"]),
+
+  // Cron job execution logs
+  cronJobLogs: defineTable({
+    jobName: v.string(),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    status: cronJobStatus,
+    recordsProcessed: v.number(),
+    errors: v.optional(v.array(v.string())),
+    executionTimeMs: v.optional(v.number()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_job_name", ["jobName"])
+    .index("by_started_at", ["startedAt"])
+    .index("by_job_status", ["jobName", "status"]),
 });

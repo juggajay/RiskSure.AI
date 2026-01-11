@@ -22,6 +22,7 @@ import type * as emailTemplates from "../emailTemplates.js";
 import type * as exceptions from "../exceptions.js";
 import type * as insuranceRequirements from "../insuranceRequirements.js";
 import type * as integrations from "../integrations.js";
+import type * as invitations from "../invitations.js";
 import type * as notifications from "../notifications.js";
 import type * as portal from "../portal.js";
 import type * as projectSubcontractors from "../projectSubcontractors.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   exceptions: typeof exceptions;
   insuranceRequirements: typeof insuranceRequirements;
   integrations: typeof integrations;
+  invitations: typeof invitations;
   notifications: typeof notifications;
   portal: typeof portal;
   projectSubcontractors: typeof projectSubcontractors;
