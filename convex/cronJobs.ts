@@ -359,8 +359,8 @@ export const runFollowUpSequence = internalAction({
             companyId: company._id,
           })
           const adminEmails = admins
-            .filter((a) => a.email)
-            .map((a) => a.email as string)
+            .filter((a: { email?: string }) => a.email)
+            .map((a: { email?: string }) => a.email as string)
 
           for (const item of pendingFollowups) {
             try {
