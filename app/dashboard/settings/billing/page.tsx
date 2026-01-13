@@ -444,18 +444,26 @@ function PlanCard({
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
-        <div className="space-y-2 mb-4 text-sm">
-          <div className="flex items-center gap-2 text-slate-600">
-            <Users className="h-4 w-4" />
-            <span>{subcontractorLimit === null ? 'Unlimited' : `Up to ${subcontractorLimit}`} subcontractors</span>
+        {/* Subcontractor limit - key differentiator */}
+        <div className={`mb-4 p-4 rounded-xl text-center ${isRecommended ? 'bg-primary/10 border border-primary/20' : 'bg-blue-50 border border-blue-100'}`}>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <Users className={`h-5 w-5 ${isRecommended ? 'text-primary' : 'text-blue-600'}`} />
+            <span className={`text-sm font-medium ${isRecommended ? 'text-primary' : 'text-blue-600'}`}>Active Subcontractors</span>
           </div>
-          <div className="flex items-center gap-2 text-slate-600">
+          <div className={`text-3xl font-bold ${isRecommended ? 'text-primary' : 'text-blue-700'}`}>
+            {subcontractorLimit === null ? 'Unlimited' : subcontractorLimit}
+          </div>
+        </div>
+
+        {/* Other limits */}
+        <div className="flex justify-center gap-6 mb-4 text-sm text-slate-500">
+          <div className="flex items-center gap-1.5">
             <Briefcase className="h-4 w-4" />
-            <span>{userLimit === null ? 'Unlimited' : `Up to ${userLimit}`} team members</span>
+            <span>{userLimit === null ? 'Unlimited' : userLimit} users</span>
           </div>
-          <div className="flex items-center gap-2 text-slate-600">
+          <div className="flex items-center gap-1.5">
             <Building2 className="h-4 w-4" />
-            <span>{projectLimit === null ? 'Unlimited' : `Up to ${projectLimit}`} projects</span>
+            <span>{projectLimit === null ? 'Unlimited' : projectLimit} projects</span>
           </div>
         </div>
         <ul className="space-y-2 flex-1">
