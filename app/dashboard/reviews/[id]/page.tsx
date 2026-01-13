@@ -560,7 +560,7 @@ export default function ReviewDetailPage() {
                       <div key={idx} className={`p-3 border rounded-lg ${getSeverityStyle(def.severity)}`}>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-bold uppercase">{def.severity}</span>
-                          <span className="font-medium">{def.type.replace(/_/g, ' ')}</span>
+                          <span className="font-medium">{(def.type || 'unknown').replace(/_/g, ' ')}</span>
                         </div>
                         <p className="text-sm">{def.description}</p>
                         {(def.required_value || def.actual_value) && (

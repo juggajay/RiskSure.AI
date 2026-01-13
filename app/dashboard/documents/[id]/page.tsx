@@ -585,7 +585,7 @@ export default function DocumentDetailPage() {
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-500">Limit Type</span>
-                            <span className="capitalize">{coverage.limit_type.replace(/_/g, ' ')}</span>
+                            <span className="capitalize">{(coverage.limit_type || 'per_occurrence').replace(/_/g, ' ')}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Excess</span>

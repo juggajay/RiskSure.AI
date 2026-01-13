@@ -1,5 +1,5 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalQuery, internalMutation } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
 
 // Communication type validator
@@ -294,5 +294,153 @@ export const updateFromWebhook = mutation({
     }
 
     return { updated: false, previousStatus: comm.status, newStatus: args.status }
+  },
+})
+
+// ============================================================================
+// Internal functions for cron jobs
+// ============================================================================
+
+// Internal query: Check if we already sent a communication of this type today
+export const checkIfSentToday = internalQuery({
+  args: {
+    subcontractorId: v.id("subcontractors"),
+    type: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const startOfToday = new Date()
+    startOfToday.setUTCHours(0, 0, 0, 0)
+    const startOfTodayMs = startOfToday.getTime()
+
+    const communications = await ctx.db
+      .query("communications")
+      .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", args.subcontractorId))
+      .filter((q) => q.eq(q.field("type"), args.type))
+      .collect()
+
+    // Check if any were sent today
+    return communications.some(
+      (c) => c.sentAt && c.sentAt >= startOfTodayMs
+    )
+  },
+})
+
+// Internal query: Get the follow-up count for a verification
+export const getFollowUpCount = internalQuery({
+  args: {
+    verificationId: v.id("verifications"),
+  },
+  handler: async (ctx, args) => {
+    const communications = await ctx.db
+      .query("communications")
+      .withIndex("by_verification", (q) => q.eq("verificationId", args.verificationId))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("type"), "deficiency"),
+          q.eq(q.field("type"), "follow_up")
+        )
+      )
+      .collect()
+
+    // Count follow-ups specifically
+    return communications.filter((c) => c.type === "follow_up").length
+  },
+})
+
+// Internal mutation: Mark communications for a verification as escalated
+export const escalate = internalMutation({
+  args: {
+    verificationId: v.id("verifications"),
+  },
+  handler: async (ctx, args) => {
+    const communications = await ctx.db
+      .query("communications")
+      .withIndex("by_verification", (q) => q.eq("verificationId", args.verificationId))
+      .collect()
+
+    const now = Date.now()
+    for (const comm of communications) {
+      if (!comm.escalated) {
+        await ctx.db.patch(comm._id, {
+          escalated: true,
+          escalatedAt: now,
+          updatedAt: now,
+        })
+      }
+    }
+
+    return { escalatedCount: communications.length }
+  },
+})
+
+// Internal mutation: Create a communication (for cron jobs)
+export const createInternal = internalMutation({
+  args: {
+    subcontractorId: v.id("subcontractors"),
+    projectId: v.id("projects"),
+    verificationId: v.optional(v.id("verifications")),
+    type: v.string(),
+    channel: v.string(),
+    recipientEmail: v.optional(v.string()),
+    ccEmails: v.optional(v.string()),
+    subject: v.optional(v.string()),
+    body: v.optional(v.string()),
+    status: v.string(),
+    sentAt: v.optional(v.number()),
+    followUpCount: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const communicationId = await ctx.db.insert("communications", {
+      subcontractorId: args.subcontractorId,
+      projectId: args.projectId,
+      verificationId: args.verificationId,
+      type: args.type as "deficiency" | "follow_up" | "confirmation" | "expiration_reminder" | "critical_alert",
+      channel: args.channel as "email" | "sms",
+      recipientEmail: args.recipientEmail?.toLowerCase(),
+      ccEmails: args.ccEmails,
+      subject: args.subject,
+      body: args.body,
+      status: args.status as "pending" | "sent" | "delivered" | "opened" | "failed",
+      sentAt: args.sentAt,
+      deliveredAt: undefined,
+      openedAt: undefined,
+      followUpCount: args.followUpCount,
+      escalated: false,
+      escalatedAt: undefined,
+      updatedAt: Date.now(),
+    })
+    return communicationId
+  },
+})
+
+// Internal query: Check if we already sent a stop-work alert today for this project subcontractor
+export const checkStopWorkAlertSentToday = internalQuery({
+  args: {
+    projectSubcontractorId: v.id("projectSubcontractors"),
+  },
+  handler: async (ctx, args) => {
+    // Get the project subcontractor to find project and subcontractor IDs
+    const ps = await ctx.db.get(args.projectSubcontractorId)
+    if (!ps) return false
+
+    const startOfToday = new Date()
+    startOfToday.setUTCHours(0, 0, 0, 0)
+    const startOfTodayMs = startOfToday.getTime()
+
+    // Check for critical_alert type sent today
+    const communications = await ctx.db
+      .query("communications")
+      .withIndex("by_subcontractor", (q) => q.eq("subcontractorId", ps.subcontractorId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("projectId"), ps.projectId),
+          q.eq(q.field("type"), "critical_alert")
+        )
+      )
+      .collect()
+
+    return communications.some(
+      (c) => c.sentAt && c.sentAt >= startOfTodayMs
+    )
   },
 })

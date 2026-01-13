@@ -1,6 +1,14 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalQuery } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
+
+// Internal query: Get project by ID (for cron jobs)
+export const getByIdInternal = internalQuery({
+  args: { id: v.id("projects") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id)
+  },
+})
 
 // Australian state type validator
 const australianState = v.union(

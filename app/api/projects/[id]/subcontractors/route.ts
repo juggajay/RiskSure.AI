@@ -105,6 +105,17 @@ export async function POST(
       return NextResponse.json({ error: 'Subcontractor ID is required' }, { status: 400 })
     }
 
+    // Debug: Log the subcontractor ID format
+    console.log('Received subcontractorId:', subcontractorId, 'type:', typeof subcontractorId)
+
+    // Validate that subcontractorId looks like a valid Convex ID (not a UUID or number)
+    if (typeof subcontractorId !== 'string') {
+      return NextResponse.json({
+        error: 'Invalid subcontractor ID format',
+        message: 'Expected string, got ' + typeof subcontractorId
+      }, { status: 400 })
+    }
+
     // Verify subcontractor exists and belongs to same company
     const subResult = await convex.query(api.projectSubcontractors.validateSubcontractor, {
       subcontractorId: subcontractorId as Id<"subcontractors">,
@@ -155,7 +166,7 @@ export async function POST(
       const invitationResult = await sendSubcontractorInvitation(
         id,
         subcontractorId,
-        projectSubcontractorId
+        projectSubcontractorId.toString() // Ensure string for invitation function
       )
       invitationSent = invitationResult.success
       if (!invitationResult.success) {
@@ -174,7 +185,16 @@ export async function POST(
 
   } catch (error) {
     console.error('Add subcontractor to project error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    // Return more detailed error info for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorDetails = error instanceof Error ? error.stack : String(error)
+    console.error('Error details:', errorDetails)
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: errorMessage,
+      // Only include details in development
+      ...(process.env.NODE_ENV === 'development' && { details: errorDetails })
+    }, { status: 500 })
   }
 }
 

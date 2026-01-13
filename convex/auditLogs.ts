@@ -1,6 +1,33 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalMutation } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
+
+// Internal mutation: Create audit log entry (for cron jobs)
+export const createInternal = internalMutation({
+  args: {
+    companyId: v.optional(v.id("companies")),
+    userId: v.optional(v.id("users")),
+    entityType: v.string(),
+    entityId: v.string(),
+    action: v.string(),
+    details: v.optional(v.any()),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const logId = await ctx.db.insert("auditLogs", {
+      companyId: args.companyId,
+      userId: args.userId,
+      entityType: args.entityType,
+      entityId: args.entityId,
+      action: args.action,
+      details: args.details || {},
+      ipAddress: args.ipAddress,
+      userAgent: args.userAgent,
+    })
+    return logId
+  },
+})
 
 // Create audit log entry
 export const create = mutation({

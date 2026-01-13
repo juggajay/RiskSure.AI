@@ -189,6 +189,17 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Create checkout session error:', error)
+    // Log full error details for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+      // Check for Stripe-specific error properties
+      const stripeError = error as { type?: string; code?: string; statusCode?: number }
+      if (stripeError.type) console.error('Stripe error type:', stripeError.type)
+      if (stripeError.code) console.error('Stripe error code:', stripeError.code)
+      if (stripeError.statusCode) console.error('Stripe status code:', stripeError.statusCode)
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
       { error: `Checkout failed: ${errorMessage}` },

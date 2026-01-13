@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskSure.AI | The Compliance Singularity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/ScrollTrigger.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        void: '#020408',
+                        deep: '#050A14',
+                        electric: '#0047FF',
+                        plasma: '#3B82F6',
+                        signal: '#00FF94',
+                        alert: '#FF2E2E',
+                    },
+                    backgroundImage: {
+                        'grid-slate': "url('data:image/svg+xml,%3Csvg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%231e293b" fill-opacity="0.4" fill-rule="evenodd"%3E%3Cpath d="M0 40L40 0H20L0 20M40 40V20L20 40"/%3E%3C/g%3E%3C/svg%3E')",
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #020408;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* --- S-TIER UTILITIES --- */
+        .glass-panel {
+            background: rgba(10, 15, 30, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 1px rgba(0, 71, 255, 0.05);
+        }
+
+        .text-glow {
+            text-shadow: 0 0 30px rgba(0, 71, 255, 0.6);
+        }
+
+        .scanner-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #0047FF;
+            box-shadow: 0 0 20px #0047FF;
+            z-index: 50;
+            opacity: 0;
+        }
+
+        /* --- TYPOGRAPHY --- */
+        .hero-text {
+            font-size: clamp(3rem, 8vw, 7rem);
+            line-height: 0.9;
+            letter-spacing: -0.04em;
+        }
+
+        /* --- ANIMATIONS --- */
+        .data-stream {
+            position: absolute;
+            top: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(59, 130, 246, 0.2);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            white-space: nowrap;
+            opacity: 0.3;
+            mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+        }
+
+        .reveal-char {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+    </style>
+</head>
+<body class="selection:bg-electric selection:text-white">
+
+    <!-- BACKGROUND MATRIX -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-void to-void"></div>
+        <div id="matrix-container" class="absolute inset-0 overflow-hidden opacity-20"></div>
+    </div>
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-void/80 backdrop-blur-xl transition-all duration-500" id="navbar">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative w-8 h-8 flex items-center justify-center bg-electric rounded-lg shadow-[0_0_20px_rgba(0,71,255,0.5)]">
+                    <i data-lucide="shield-check" class="text-white w-5 h-5"></i>
+                </div>
+                <span class="font-bold text-xl tracking-tight">RiskSure<span class="text-electric">.AI</span></span>
+            </div>
+            
+            <div class="hidden md:flex items-center gap-8 text-xs font-mono text-gray-400">
+                <a href="#" class="hover:text-electric transition-colors">/// PLATFORM</a>
+                <a href="#" class="hover:text-electric transition-colors">/// INTELLIGENCE</a>
+                <a href="#" class="hover:text-electric transition-colors">/// ENTERPRISE</a>
+            </div>
+
+            <a href="#" class="group relative px-6 py-2 bg-white text-void font-bold text-sm tracking-wide overflow-hidden hover:scale-105 transition-transform">
+                <div class="absolute inset-0 bg-electric translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                <span class="relative z-10 group-hover:text-white transition-colors">START AUDIT</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- SECTION 1: THE SINGULARITY (Hero) -->
+    <section class="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+        <div class="container mx-auto px-6 relative z-10 text-center">
+            
+            <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-electric/30 bg-electric/5 text-electric text-xs font-mono mb-12 animate-fade-in opacity-0" id="badge">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-electric opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-electric"></span>
+                </span>
+                FORENSIC DOCUMENT INTELLIGENCE
+            </div>
+
+            <h1 class="hero-text font-black mb-8 text-white">
+                <div class="overflow-hidden"><span class="reveal-text block">THE PAPER TRAIL</span></div>
+                <div class="overflow-hidden"><span class="reveal-text block text-transparent bg-clip-text bg-gradient-to-r from-electric via-white to-electric animate-gradient bg-300%">ENDS HERE.</span></div>
+            </h1>
+
+            <p class="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto mb-16 font-light leading-relaxed opacity-0" id="hero-sub">
+                RiskSure doesn't just "read" certificates. It <span class="text-white font-medium">interrogates</span> them against AS 4000 standards, flagging liability gaps your admin team can't see.
+            </p>
+
+            <!-- INTERACTIVE DEMO CONSOLE -->
+            <div class="relative max-w-5xl mx-auto opacity-0" id="hero-console">
+                <div class="absolute -inset-1 bg-gradient-to-r from-electric to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                <div class="relative glass-panel rounded-xl overflow-hidden aspect-[16/9] md:aspect-[21/9] flex flex-col shadow-2xl">
+                    
+                    <!-- Console Header -->
+                    <div class="h-10 border-b border-white/5 bg-black/50 flex items-center justify-between px-4">
+                        <div class="flex items-center gap-2">
+                            <div class="h-3 w-3 rounded-full bg-red-500/20"></div>
+                            <div class="h-3 w-3 rounded-full bg-yellow-500/20"></div>
+                            <div class="h-3 w-3 rounded-full bg-green-500/20"></div>
+                        </div>
+                        <div class="text-[10px] font-mono text-gray-500">LIVE_EXECUTION_ENVIRONMENT</div>
+                    </div>
+
+                    <!-- Console Body -->
+                    <div class="flex-1 flex relative">
+                        <!-- Code Column -->
+                        <div class="w-1/2 p-6 font-mono text-xs text-gray-500 border-r border-white/5 hidden md:block">
+                            <div class="space-y-2" id="code-lines">
+                                <div>> initializing_neural_engine... <span class="text-signal">OK</span></div>
+                                <div>> loading_schema: AS_4000_CONTRACT... <span class="text-signal">OK</span></div>
+                                <div>> ingesting: "COC_Metro_Civil.pdf"...</div>
+                                <div class="pl-4 text-electric">> analyzing_clause: "Principal Indemnity"</div>
+                                <div class="pl-4 text-electric">> analyzing_clause: "Cross Liability"</div>
+                                <div class="pl-4 text-electric">> analyzing_clause: "Waiver of Subrogation"</div>
+                                <div class="text-alert">> CRITICAL_EXCEPTION_FOUND: LINE 42</div>
+                            </div>
+                        </div>
+
+                        <!-- Visual Column -->
+                        <div class="w-full md:w-1/2 p-8 flex flex-col justify-center items-center relative">
+                            <!-- Scanning Effect -->
+                            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-electric/5 to-transparent scanner-beam"></div>
+                            
+                            <div class="text-center space-y-6">
+                                <div class="h-20 w-20 bg-electric/10 rounded-2xl border border-electric flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(0,71,255,0.2)]">
+                                    <i data-lucide="file-warning" class="h-10 w-10 text-electric"></i>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-white mb-2">Liability Gap Detected</div>
+                                    <p class="text-sm text-gray-400">"Welding Exclusion" found in PDS.</p>
+                                </div>
+                                <div class="flex items-center justify-center gap-3">
+                                    <span class="px-3 py-1 bg-alert/10 text-alert border border-alert/20 rounded text-[10px] font-bold tracking-wider">BLOCK PAYMENT</span>
+                                    <span class="px-3 py-1 bg-white/5 text-gray-400 border border-white/10 rounded text-[10px] font-bold tracking-wider">NOTIFY BROKER</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION 2: THE EVIDENCE -->
+    <section class="py-32 relative bg-deep">
+        <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-electric/50 to-transparent"></div>
+        
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-24 items-center">
+                <div class="space-y-12">
+                    <h2 class="text-4xl md:text-5xl font-bold leading-tight">
+                        The "Corporate Veil" <br>
+                        is thinner than you think.
+                    </h2>
+                    
+                    <div class="space-y-8">
+                        <div class="flex gap-6 group">
+                            <div class="h-12 w-12 rounded-full border border-white/10 flex items-center justify-center text-gray-500 font-mono text-lg group-hover:border-alert group-hover:text-alert transition-colors">01</div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-2 group-hover:text-alert transition-colors">Deemed Employer</h3>
+                                <p class="text-gray-400 leading-relaxed">If a sub hasn't paid WorkCover, <span class="text-white">you become the employer</span>. We validate payment status directly with state schemes in real-time.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-6 group">
+                            <div class="h-12 w-12 rounded-full border border-white/10 flex items-center justify-center text-gray-500 font-mono text-lg group-hover:border-alert group-hover:text-alert transition-colors">02</div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-2 group-hover:text-alert transition-colors">The "Hot Work" Trap</h3>
+                                <p class="text-gray-400 leading-relaxed">A $20M policy is worthless if it excludes welding. Our AI reads the 40-page PDS to find trade-specific exclusions.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-6 group">
+                            <div class="h-12 w-12 rounded-full border border-white/10 flex items-center justify-center text-gray-500 font-mono text-lg group-hover:border-alert group-hover:text-alert transition-colors">03</div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-2 group-hover:text-alert transition-colors">Phoenix Detection</h3>
+                                <p class="text-gray-400 leading-relaxed">We match ABNs on the policy against the contract entity. No more "Phoenix Companies" slipping through with invalid insurance.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D CARD STACK -->
+                <div class="relative h-[600px] perspective-1000 w-full flex items-center justify-center">
+                    <!-- Background Glow -->
+                    <div class="absolute inset-0 bg-electric/5 blur-[100px] rounded-full"></div>
+                    
+                    <!-- Card 1 (Back) -->
+                    <div class="absolute w-80 h-96 glass-panel rounded-2xl p-6 transform scale-90 -translate-y-12 translate-x-12 opacity-40 z-0"></div>
+                    
+                    <!-- Card 2 (Middle) -->
+                    <div class="absolute w-80 h-96 glass-panel rounded-2xl p-6 transform scale-95 -translate-y-6 translate-x-6 opacity-70 z-10"></div>
+                    
+                    <!-- Card 3 (Front - Active) -->
+                    <div class="absolute w-80 h-[450px] bg-void border border-white/10 rounded-2xl p-6 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] z-20 hover:scale-105 transition-transform duration-500 group">
+                        <div class="flex justify-between items-center mb-8">
+                            <div class="h-8 w-8 bg-gray-800 rounded-full"></div>
+                            <div class="px-2 py-1 bg-alert/10 text-alert text-[10px] font-bold rounded border border-alert/20">REJECTED</div>
+                        </div>
+                        <div class="h-2 w-24 bg-gray-800 rounded mb-4"></div>
+                        <div class="h-2 w-full bg-gray-800 rounded mb-2"></div>
+                        <div class="h-2 w-2/3 bg-gray-800 rounded mb-8"></div>
+                        
+                        <div class="p-4 bg-alert/5 border-l-2 border-alert rounded-r-lg">
+                            <div class="flex items-center gap-2 text-alert text-xs font-bold mb-2">
+                                <i data-lucide="x-circle" class="h-3 w-3"></i>
+                                PRINCIPAL INDEMNITY
+                            </div>
+                            <p class="text-[10px] text-gray-400 leading-relaxed">
+                                Clause 4.2 missing. Policy does not cover Head Contractor for vicarious liability.
+                            </p>
+                        </div>
+
+                        <div class="absolute bottom-6 left-6 right-6">
+                            <div class="w-full h-10 bg-white text-void font-bold text-xs flex items-center justify-center rounded uppercase tracking-wider group-hover:bg-electric group-hover:text-white transition-colors">
+                                AUTO-REJECT
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: THE PORTAL (Zero Friction) -->
+    <section class="py-32 relative bg-void overflow-hidden">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-24">
+                <h2 class="text-4xl md:text-6xl font-bold mb-6">Zero Friction. <span class="text-electric">Zero Excuses.</span></h2>
+                <p class="text-xl text-gray-400">No apps to download. No passwords to forget.</p>
+            </div>
+
+            <div class="relative max-w-sm mx-auto">
+                <!-- Phone Frame -->
+                <div class="relative z-10 border-8 border-gray-800 bg-void rounded-[3rem] h-[700px] w-full shadow-2xl overflow-hidden ring-1 ring-white/10">
+                    <!-- Screen Content -->
+                    <div class="absolute inset-0 bg-white flex flex-col">
+                        <!-- Header -->
+                        <div class="pt-14 px-6 pb-4 bg-slate-50 border-b border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="shield" class="h-5 w-5 text-electric fill-electric"></i>
+                                <span class="font-bold text-slate-900">RiskSure</span>
+                            </div>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="p-6 flex-1 flex flex-col">
+                            <div class="text-center mt-8 mb-8">
+                                <div class="h-16 w-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                                    <i data-lucide="arrow-up" class="h-8 w-8 text-electric"></i>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-900">Upload Certificate</h3>
+                                <p class="text-sm text-slate-500 mt-1">Project: Sydney Metro</p>
+                            </div>
+
+                            <div class="border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl flex-1 flex flex-col items-center justify-center p-6 mb-6">
+                                <span class="text-sm font-medium text-electric">Tap to Select File</span>
+                            </div>
+
+                            <button class="w-full h-14 bg-slate-900 text-white rounded-xl font-bold shadow-xl">
+                                Submit
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Notch -->
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-gray-800 rounded-b-xl z-20"></div>
+                </div>
+
+                <!-- Floating Elements -->
+                <div class="absolute top-1/3 -left-32 glass-panel p-4 rounded-xl hidden md:block animate-float delay-75">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 bg-green-500/20 rounded-full flex items-center justify-center">
+                            <i data-lucide="zap" class="h-5 w-5 text-green-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-400">Upload Time</div>
+                            <div class="text-lg font-bold text-white font-mono">14s</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-1/4 -right-32 glass-panel p-4 rounded-xl hidden md:block animate-float">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                            <i data-lucide="lock" class="h-5 w-5 text-blue-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-400">Auth Method</div>
+                            <div class="text-lg font-bold text-white font-mono">Magic Link</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 4: THE BIG CTA -->
+    <section class="py-40 bg-electric relative overflow-hidden">
+        <div class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+        
+        <div class="container mx-auto px-6 text-center relative z-10">
+            <h2 class="text-5xl md:text-8xl font-black text-white mb-12 tracking-tighter">
+                SECURE THE SITE.
+            </h2>
+            
+            <a href="#" class="inline-flex h-20 px-12 bg-white text-electric text-xl font-bold items-center justify-center rounded-none hover:scale-105 transition-transform shadow-2xl">
+                START AUDIT
+                <i data-lucide="arrow-right" class="ml-3 h-6 w-6"></i>
+            </a>
+            
+            <div class="mt-12 flex justify-center gap-8 text-blue-200 text-sm font-mono">
+                <span>// NO CREDIT CARD</span>
+                <span>// SETUP < 15 MINS</span>
+                <span>// CANCEL ANYTIME</span>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        lucide.createIcons();
+
+        // GSAP ANIMATIONS
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Hero Reveal
+        const tl = gsap.timeline();
+        tl.to("#badge", { opacity: 1, y: 0, duration: 0.5 })
+          .to(".reveal-text", { y: 0, opacity: 1, duration: 0.8, stagger: 0.2, ease: "power4.out" })
+          .to("#hero-sub", { opacity: 1, y: 0, duration: 0.8 }, "-=0.4")
+          .to("#hero-console", { opacity: 1, y: 0, duration: 1, ease: "power2.out" }, "-=0.4");
+
+        // Code Typing Effect
+        const codeLines = document.getElementById('code-lines').children;
+        gsap.from(codeLines, {
+            opacity: 0,
+            x: -10,
+            stagger: 0.8, // Slow typing feel
+            duration: 0.5,
+            ease: "power1.out",
+            repeat: -1,
+            repeatDelay: 5
+        });
+
+        // Matrix Rain
+        const matrixContainer = document.getElementById('matrix-container');
+        const chars = "010101RISKSURE_AI_SECURE_PROTOCOL_VERIFIED";
+        
+        for (let i = 0; i < 20; i++) {
+            const stream = document.createElement('div');
+            stream.className = 'data-stream';
+            stream.style.left = Math.random() * 100 + 'vw';
+            stream.style.animationDuration = (Math.random() * 5 + 5) + 's';
+            stream.style.opacity = Math.random() * 0.3;
+            stream.innerText = Array(30).fill(0).map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+            matrixContainer.appendChild(stream);
+            
+            gsap.to(stream, {
+                y: '100vh',
+                duration: Math.random() * 10 + 10,
+                repeat: -1,
+                ease: "none"
+            });
+        }
+
+    </script>
+</body>
+</html>

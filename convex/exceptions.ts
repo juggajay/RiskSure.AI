@@ -1,6 +1,80 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalQuery, internalMutation } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
+
+// ============================================================================
+// Internal functions for cron jobs
+// ============================================================================
+
+// Internal query: Get all active exceptions that have expired
+export const getExpiredActiveExceptions = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now()
+    const activeExceptions = await ctx.db
+      .query("exceptions")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect()
+
+    // Filter to only those that have expired and are not permanent
+    return activeExceptions.filter(
+      (e) =>
+        e.expirationType !== "permanent" &&
+        e.expiresAt &&
+        e.expiresAt <= now
+    )
+  },
+})
+
+// Internal mutation: Expire an exception and recalculate compliance status
+export const expireAndRecalculate = internalMutation({
+  args: {
+    exceptionId: v.id("exceptions"),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now()
+
+    // Get the exception
+    const exception = await ctx.db.get(args.exceptionId)
+    if (!exception || exception.status !== "active") {
+      return { expired: false, reason: "Exception not found or not active" }
+    }
+
+    // Update exception status to expired
+    await ctx.db.patch(args.exceptionId, {
+      status: "expired",
+      updatedAt: now,
+    })
+
+    // Get the project subcontractor to recalculate compliance
+    const projectSubcontractor = await ctx.db.get(exception.projectSubcontractorId)
+    if (!projectSubcontractor) {
+      return { expired: true, complianceUpdated: false }
+    }
+
+    // Check if there are any other active exceptions for this project-subcontractor
+    const otherActiveExceptions = await ctx.db
+      .query("exceptions")
+      .withIndex("by_project_subcontractor", (q) =>
+        q.eq("projectSubcontractorId", exception.projectSubcontractorId)
+      )
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect()
+
+    // If no other active exceptions, recalculate compliance based on verifications
+    if (otherActiveExceptions.length === 0 && projectSubcontractor.status === "exception") {
+      // Set to non_compliant since the exception that was granting compliance has expired
+      // The actual compliance status should be recalculated based on current verification status
+      await ctx.db.patch(projectSubcontractor._id, {
+        status: "non_compliant",
+        updatedAt: now,
+      })
+      return { expired: true, complianceUpdated: true, newStatus: "non_compliant" }
+    }
+
+    return { expired: true, complianceUpdated: false }
+  },
+})
 
 // Exception risk level validator
 const riskLevel = v.union(

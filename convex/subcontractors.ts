@@ -1,6 +1,14 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalQuery } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
+
+// Internal query: Get subcontractor by ID (for cron jobs)
+export const getByIdInternal = internalQuery({
+  args: { id: v.id("subcontractors") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id)
+  },
+})
 
 // Get subcontractor by ID
 export const getById = query({
@@ -367,6 +375,7 @@ export const listPaginated = query({
       }
       return {
         ...sub,
+        id: sub._id, // Map _id to id for frontend compatibility
         projectCount,
       }
     })

@@ -1,6 +1,18 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalQuery } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
+
+// Internal query: Get all companies with active subscriptions (for cron jobs)
+export const getActiveCompanies = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const companies = await ctx.db.query("companies").collect()
+    // Filter for active subscriptions
+    return companies.filter(
+      (c) => c.subscriptionStatus === "active" || c.subscriptionStatus === "trialing"
+    )
+  },
+})
 
 // Get company by ID
 export const getById = query({

@@ -1,6 +1,34 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalMutation } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
+
+// Internal mutation: Create notification (for cron jobs)
+export const createInternal = internalMutation({
+  args: {
+    userId: v.id("users"),
+    companyId: v.id("companies"),
+    type: v.string(),
+    title: v.string(),
+    message: v.string(),
+    link: v.optional(v.string()),
+    entityType: v.optional(v.string()),
+    entityId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const notificationId = await ctx.db.insert("notifications", {
+      userId: args.userId,
+      companyId: args.companyId,
+      type: args.type as "coc_received" | "coc_verified" | "coc_failed" | "exception_created" | "exception_approved" | "exception_expired" | "expiration_warning" | "communication_sent" | "stop_work_risk" | "system",
+      title: args.title,
+      message: args.message,
+      link: args.link,
+      entityType: args.entityType,
+      entityId: args.entityId,
+      read: false,
+    })
+    return notificationId
+  },
+})
 
 // Notification type validator (must match schema.ts)
 const notificationType = v.union(

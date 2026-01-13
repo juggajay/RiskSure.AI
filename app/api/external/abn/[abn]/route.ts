@@ -17,6 +17,7 @@ const MOCK_ABR_DATA: Record<string, { entityName: string; status: string; entity
   '12345678901': { entityName: 'ABC Electrical Pty Ltd', status: 'Active', entityType: 'Private Company' },
   '99887766554': { entityName: 'Test Plumbing Services Pty Ltd', status: 'Active', entityType: 'Private Company' },
   '11222333444': { entityName: 'Test Subcontractor Pty Ltd', status: 'Active', entityType: 'Private Company' },
+  '74158818056': { entityName: 'RYOX CARPENTRY & BUILDING SOLUTIONS PTY LTD', status: 'Active', entityType: 'Private Company' },
 }
 
 // GET /api/external/abn/[abn] - Validate ABN and lookup entity details

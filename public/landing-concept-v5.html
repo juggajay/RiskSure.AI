@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskShield AI | Autonomous Compliance Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            950: '#020617', // Darker Slate
+                            900: '#0F172A',
+                            800: '#1E293B',
+                            accent: '#3B82F6', // Blue 500
+                            accentHover: '#2563EB', // Blue 600
+                            success: '#10B981', // Emerald 500
+                            warning: '#F59E0B', // Amber 500
+                            danger: '#EF4444', // Red 500
+                        }
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(59, 130, 246, 0.4)',
+                        'glow-success': '0 0 40px -10px rgba(16, 185, 129, 0.4)',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #020617;
+            color: #F8FAFC;
+        }
+        
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card-light {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+
+        .hero-glow {
+            background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-brand-accent selection:text-white grid-bg">
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-brand-950/80 backdrop-blur-md">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative group cursor-pointer">
+                    <div class="absolute inset-0 bg-brand-accent blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                    <i data-lucide="shield-check" class="relative h-6 w-6 text-brand-accent"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight text-white">RiskShield<span class="text-slate-500">.ai</span></span>
+            </div>
+            <div class="flex items-center gap-8">
+                <div class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
+                    <a href="#how-it-works" class="hover:text-white transition-colors">Platform</a>
+                    <a href="#portal" class="hover:text-white transition-colors">Subcontractor Portal</a>
+                    <a href="#security" class="hover:text-white transition-colors">Security</a>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="#" class="text-sm font-medium text-slate-400 hover:text-white transition-colors">Login</a>
+                    <a href="#" class="bg-white hover:bg-slate-200 text-brand-950 px-5 py-2 rounded-full text-sm font-bold transition-all shadow-lg hover:scale-105">
+                        Start Audit
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="relative pt-32 pb-24 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="hero-glow absolute inset-0 pointer-events-none"></div>
+
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="flex flex-col lg:flex-row gap-16 items-center">
+                
+                <!-- COPY -->
+                <div class="lg:w-5/12">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-900 border border-brand-accent/30 text-brand-accent text-xs font-mono mb-8 animate-pulse-slow">
+                        <div class="h-1.5 w-1.5 rounded-full bg-brand-accent"></div>
+                        AUTONOMOUS COMPLIANCE ENGINE
+                    </div>
+                    
+                    <h1 class="text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1] text-white">
+                        Your admin team chases COCs. <br>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-success">Our AI verifies them.</span>
+                    </h1>
+                    
+                    <p class="text-lg text-slate-400 mb-10 max-w-xl leading-relaxed">
+                        The only platform that reads insurance fine print to catch <strong>Principal Indemnity</strong> exclusions and unpaid <strong>WorkCover</strong> premiums before they enter your site.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="#" class="h-14 px-8 bg-brand-accent hover:bg-brand-accentHover text-white rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-glow hover:-translate-y-0.5">
+                            Start Free Trial
+                        </a>
+                        <a href="#" class="h-14 px-8 glass-card hover:bg-white/5 text-white rounded-lg font-medium text-lg flex items-center justify-center gap-2 transition-all group">
+                            <i data-lucide="play-circle" class="h-5 w-5 text-slate-400 group-hover:text-white transition-colors"></i>
+                            Watch Demo
+                        </a>
+                    </div>
+                    
+                    <div class="mt-10 flex items-center gap-6 text-xs font-mono text-slate-500">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="check" class="h-3 w-3 text-brand-success"></i>
+                            <span>PROCORE SYNC</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="check" class="h-3 w-3 text-brand-success"></i>
+                            <span>AS 4000 COMPLIANT</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HERO VISUAL: ACCURATE DASHBOARD MOCKUP -->
+                <div class="lg:w-7/12 w-full animate-float">
+                    <div class="relative w-full rounded-xl border border-white/10 shadow-2xl bg-brand-900 overflow-hidden transform perspective-1000 rotate-y-[-5deg] rotate-x-[5deg]">
+                        
+                        <!-- Top Bar Mockup -->
+                        <div class="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-brand-900">
+                            <div class="flex items-center gap-4">
+                                <div class="text-sm font-semibold text-white">Dashboard</div>
+                                <div class="h-4 w-px bg-white/10"></div>
+                                <div class="flex items-center gap-2 text-xs text-brand-success">
+                                    <div class="h-1.5 w-1.5 rounded-full bg-brand-success animate-pulse"></div>
+                                    Live Updates
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="h-8 w-8 rounded-full bg-brand-800 flex items-center justify-center border border-white/5">
+                                    <i data-lucide="bell" class="h-4 w-4 text-slate-400"></i>
+                                </div>
+                                <div class="h-8 w-8 rounded-full bg-brand-accent/20 flex items-center justify-center text-xs font-bold text-brand-accent">JD</div>
+                            </div>
+                        </div>
+
+                        <!-- Dashboard Content Mockup (Based on actual app/dashboard/page.tsx) -->
+                        <div class="p-6 bg-brand-950/50">
+                            
+                            <!-- Stats Row -->
+                            <div class="grid grid-cols-4 gap-4 mb-6">
+                                <!-- Compliance Gauge -->
+                                <div class="col-span-1 glass-card p-4 rounded-lg border border-white/5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="relative h-12 w-12 flex items-center justify-center">
+                                            <svg class="h-full w-full -rotate-90" viewBox="0 0 36 36">
+                                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#1E293B" stroke-width="3" />
+                                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="3" stroke-dasharray="85, 100" />
+                                            </svg>
+                                            <span class="absolute text-xs font-bold text-white">85%</span>
+                                        </div>
+                                        <div>
+                                            <div class="text-[10px] text-slate-400 uppercase tracking-wide">Compliance</div>
+                                            <div class="text-xs font-medium text-brand-success">High</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Active Projects -->
+                                <div class="col-span-1 glass-card p-4 rounded-lg border border-white/5">
+                                    <div class="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Active Projects</div>
+                                    <div class="text-2xl font-bold text-white">12</div>
+                                    <div class="text-[10px] text-slate-500 mt-1">3 ending soon</div>
+                                </div>
+
+                                <!-- Pending Reviews -->
+                                <div class="col-span-1 glass-card p-4 rounded-lg border border-brand-warning/20 bg-brand-warning/5">
+                                    <div class="text-[10px] text-brand-warning uppercase tracking-wide mb-1 flex items-center gap-1">
+                                        <i data-lucide="clock" class="h-3 w-3"></i> Pending
+                                    </div>
+                                    <div class="text-2xl font-bold text-white">5</div>
+                                    <div class="text-[10px] text-slate-500 mt-1">COCs awaiting review</div>
+                                </div>
+
+                                <!-- Stop Work Risks -->
+                                <div class="col-span-1 glass-card p-4 rounded-lg border border-brand-danger/20 bg-brand-danger/5 relative overflow-hidden">
+                                    <div class="absolute inset-0 bg-brand-danger/5 animate-pulse"></div>
+                                    <div class="text-[10px] text-brand-danger uppercase tracking-wide mb-1 flex items-center gap-1 relative z-10">
+                                        <i data-lucide="alert-triangle" class="h-3 w-3"></i> CRITICAL
+                                    </div>
+                                    <div class="text-2xl font-bold text-white relative z-10">2</div>
+                                    <div class="text-[10px] text-brand-danger/80 mt-1 relative z-10">Stop work risks</div>
+                                </div>
+                            </div>
+
+                            <!-- Morning Brief & New COCs -->
+                            <div class="grid grid-cols-2 gap-6">
+                                <!-- Morning Brief List -->
+                                <div class="glass-card rounded-lg border border-white/5 p-4">
+                                    <div class="flex items-center gap-2 mb-4 text-sm font-semibold text-white border-b border-white/5 pb-2">
+                                        <i data-lucide="sun" class="h-4 w-4 text-brand-warning"></i>
+                                        Morning Brief
+                                    </div>
+                                    <div class="space-y-3">
+                                        <!-- Risk Item 1 -->
+                                        <div class="flex items-center justify-between p-2 rounded bg-brand-danger/10 border border-brand-danger/20">
+                                            <div class="flex items-center gap-3">
+                                                <div class="h-8 w-8 rounded bg-brand-danger/20 flex items-center justify-center">
+                                                    <i data-lucide="shield-alert" class="h-4 w-4 text-brand-danger"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="text-xs font-bold text-white">Apex Concreting</div>
+                                                    <div class="text-[10px] text-brand-danger">Expired PL Policy (Yesterday)</div>
+                                                </div>
+                                            </div>
+                                            <div class="px-2 py-1 bg-brand-danger text-white text-[10px] rounded font-bold">STOP</div>
+                                        </div>
+                                        
+                                        <!-- Warning Item -->
+                                        <div class="flex items-center justify-between p-2 rounded bg-brand-warning/10 border border-brand-warning/20">
+                                            <div class="flex items-center gap-3">
+                                                <div class="h-8 w-8 rounded bg-brand-warning/20 flex items-center justify-center">
+                                                    <i data-lucide="alert-circle" class="h-4 w-4 text-brand-warning"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="text-xs font-bold text-white">Spark Electrical</div>
+                                                    <div class="text-[10px] text-brand-warning">Missing Principal Indemnity</div>
+                                                </div>
+                                            </div>
+                                            <div class="px-2 py-1 bg-brand-800 text-slate-300 text-[10px] rounded border border-white/10">REVIEW</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Real-Time Feed (Visualizing AI Processing) -->
+                                <div class="glass-card rounded-lg border border-white/5 p-4 relative overflow-hidden">
+                                    <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
+                                        <div class="text-sm font-semibold text-white flex items-center gap-2">
+                                            <i data-lucide="activity" class="h-4 w-4 text-brand-accent"></i>
+                                            Processing Feed
+                                        </div>
+                                        <span class="text-[10px] font-mono text-slate-500">Q_DEPTH: 0</span>
+                                    </div>
+                                    
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="text-slate-400">coc_metro_civil.pdf</span>
+                                            <span class="text-brand-success font-mono flex items-center gap-1">
+                                                <i data-lucide="check" class="h-3 w-3"></i> VERIFIED
+                                            </span>
+                                        </div>
+                                        <div class="h-px bg-white/5 w-full"></div>
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="text-slate-400">pl_policy_j_smith.pdf</span>
+                                            <span class="text-brand-accent font-mono flex items-center gap-1">
+                                                <i data-lucide="loader-2" class="h-3 w-3 animate-spin"></i> READING...
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- AI Insight Overlay -->
+                                        <div class="mt-3 p-2 bg-brand-800 rounded border border-white/10 text-[10px] font-mono text-slate-400">
+                                            > Extracting: Limit of Liability...<br>
+                                            > Found: <span class="text-white">$20,000,000</span><br>
+                                            > Status: <span class="text-brand-success">MATCHES_REQ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- THE PROBLEM (The Administrative Gap) -->
+    <section class="py-24 bg-brand-900 border-y border-white/5">
+        <div class="container mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-3xl font-bold text-white mb-4">The "Administrative Gap" is where liability hides.</h2>
+                <p class="text-slate-400 text-lg">Manual verification is slow, boring, and error-prone. RiskShield closes the gap between receiving a document and knowing the truth.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Card 1 -->
+                <div class="glass-card-light p-8 rounded-xl hover:bg-white/5 transition-colors group">
+                    <div class="h-12 w-12 bg-brand-950 rounded-lg flex items-center justify-center mb-6 border border-white/10 group-hover:border-brand-accent/50 transition-colors">
+                        <i data-lucide="clock" class="h-6 w-6 text-brand-accent"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-3">Eliminate the Chase</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Your PAs spend hours emailing brokers for updated docs. We automate the entire follow-up sequence until a compliant certificate is received.
+                    </p>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="glass-card-light p-8 rounded-xl hover:bg-white/5 transition-colors group">
+                    <div class="h-12 w-12 bg-brand-950 rounded-lg flex items-center justify-center mb-6 border border-white/10 group-hover:border-brand-warning/50 transition-colors">
+                        <i data-lucide="scan-eye" class="h-6 w-6 text-brand-warning"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-3">Verify, Don't Just File</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Most systems just store the PDF. We read it. Our AI validates coverage amounts, expiry dates, and specific clauses against your project rules.
+                    </p>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="glass-card-light p-8 rounded-xl hover:bg-white/5 transition-colors group">
+                    <div class="h-12 w-12 bg-brand-950 rounded-lg flex items-center justify-center mb-6 border border-white/10 group-hover:border-brand-danger/50 transition-colors">
+                        <i data-lucide="layout-dashboard" class="h-6 w-6 text-brand-danger"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-3">The Morning Brief</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Site managers get a simple daily digest: "These 2 subcontractors have expired insurance today." Stop them at the gate before risk enters the site.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURE: SUBCONTRACTOR PORTAL -->
+    <section id="portal" class="py-24 relative overflow-hidden">
+        <div class="absolute right-0 top-1/2 -translate-y-1/2 w-1/2 h-full bg-brand-accent/5 blur-[100px] rounded-full pointer-events-none"></div>
+
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col-reverse lg:flex-row gap-20 items-center">
+                
+                <!-- PORTAL MOCKUP (Mobile Focus) -->
+                <div class="lg:w-1/2 w-full flex justify-center">
+                    <div class="relative w-[300px] h-[600px] bg-brand-950 border-4 border-slate-700 rounded-[3rem] shadow-2xl overflow-hidden">
+                        <!-- Notch -->
+                        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-700 rounded-b-xl z-20"></div>
+                        
+                        <!-- Portal UI -->
+                        <div class="h-full bg-white text-slate-900 pt-12 p-6 flex flex-col">
+                            <div class="flex justify-between items-center mb-8">
+                                <div class="font-bold text-lg">RiskShield</div>
+                                <div class="h-8 w-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold">JS</div>
+                            </div>
+
+                            <div class="mb-6">
+                                <h3 class="text-2xl font-bold mb-2">Upload COC</h3>
+                                <p class="text-sm text-slate-500">For Project: Sydney Tower</p>
+                            </div>
+
+                            <!-- Upload Zone -->
+                            <div class="border-2 border-dashed border-blue-200 bg-blue-50 rounded-xl h-40 flex flex-col items-center justify-center mb-6 text-center p-4">
+                                <i data-lucide="upload-cloud" class="h-8 w-8 text-blue-500 mb-2"></i>
+                                <span class="text-sm font-medium text-blue-700">Tap to upload PDF</span>
+                            </div>
+
+                            <!-- Verification Status -->
+                            <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl mb-4">
+                                <div class="flex gap-3">
+                                    <div class="h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                        <i data-lucide="check" class="h-3 w-3 text-emerald-600"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-bold text-emerald-800">Verification Passed</div>
+                                        <div class="text-xs text-emerald-600 mt-1">QBE Policy #99281 Validated</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-auto">
+                                <button class="w-full py-3 bg-slate-900 text-white rounded-xl font-bold">Done</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PORTAL COPY -->
+                <div class="lg:w-1/2">
+                    <div class="text-brand-accent font-mono text-xs mb-4">/// SUBCONTRACTOR PORTAL</div>
+                    <h2 class="text-4xl font-bold text-white mb-6">Zero Friction for Subcontractors.</h2>
+                    <p class="text-lg text-slate-400 mb-8">
+                        No accounts to create. No passwords to remember. We send a secure "Magic Link" to their email. They tap, upload, and get instant verification feedback.
+                    </p>
+
+                    <div class="space-y-6">
+                        <div class="flex gap-4">
+                            <div class="h-10 w-10 rounded-lg bg-brand-accent/10 flex items-center justify-center shrink-0 border border-brand-accent/20">
+                                <i data-lucide="smartphone" class="h-5 w-5 text-brand-accent"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white">Mobile Optimized</h4>
+                                <p class="text-sm text-slate-400 mt-1">Designed for the guy in the ute. Upload from a phone in 30 seconds.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="h-10 w-10 rounded-lg bg-brand-accent/10 flex items-center justify-center shrink-0 border border-brand-accent/20">
+                                <i data-lucide="zap" class="h-5 w-5 text-brand-accent"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white">Instant Feedback</h4>
+                                <p class="text-sm text-slate-400 mt-1">They know immediately if their COC passed or failed, and exactly what to fix.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- CLOSER -->
+    <section class="py-32 border-t border-white/5 bg-brand-900 relative overflow-hidden">
+        <div class="absolute inset-0 bg-brand-accent/5 pointer-events-none"></div>
+        <div class="container mx-auto px-6 max-w-2xl text-center relative z-10">
+            <h2 class="text-4xl font-bold text-white mb-6">Secure your jobsite today.</h2>
+            <p class="text-slate-400 mb-10 text-lg">
+                Start with a free audit of your current projects. <br>
+                Setup takes less than 15 minutes.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="#" class="h-14 px-8 bg-brand-accent hover:bg-brand-accentHover text-white rounded-lg font-semibold text-lg flex items-center justify-center shadow-glow transition-all hover:scale-105">
+                    Start Free Audit
+                </a>
+                <span class="text-sm text-slate-500 flex items-center self-center">
+                    <i data-lucide="lock" class="h-3 w-3 mr-2"></i> No credit card required
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="py-12 border-t border-white/5 bg-brand-950">
+        <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <i data-lucide="shield" class="h-5 w-5 text-slate-600"></i>
+                <div class="text-sm text-slate-500">&copy; 2026 RiskShield AI</div>
+            </div>
+            <div class="flex gap-8 text-sm text-slate-500">
+                <a href="#" class="hover:text-white transition-colors">Privacy</a>
+                <a href="#" class="hover:text-white transition-colors">Terms</a>
+                <a href="#" class="hover:text-white transition-colors">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

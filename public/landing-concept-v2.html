@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskShield AI - Construction Compliance Automation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .animate-scan {
+            animation: scan 3s ease-in-out infinite;
+        }
+        @keyframes scan {
+            0%, 100% { top: 0%; }
+            50% { top: 100%; }
+        }
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .rotate-card {
+            transform: rotateX(5deg) rotateY(-5deg);
+            transition: transform 0.5s ease;
+        }
+        .rotate-card:hover {
+            transform: rotateX(0deg) rotateY(0deg);
+        }
+    </style>
+    <!-- Lucide Icons (SVGs) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-blue-100 selection:text-blue-900">
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="shield" class="h-6 w-6 text-blue-600 fill-blue-600"></i>
+                <span class="font-bold text-xl tracking-tight text-slate-900">RiskShield<span class="text-slate-400">.ai</span></span>
+            </div>
+            <div class="flex items-center gap-6">
+                <a href="#" class="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">Login</a>
+                <a href="#" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2.5 font-semibold text-sm shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5">
+                    Start Free Audit
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- SECTION A: THE HOOK -->
+    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <!-- Copy -->
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider mb-6">
+                        For Australian Head Contractors
+                    </div>
+                    
+                    <h1 class="text-5xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1] text-slate-900">
+                        Never Let an Uninsured Subcontractor On Your Site.
+                    </h1>
+                    
+                    <p class="text-xl text-slate-600 mb-10 leading-relaxed max-w-xl">
+                        Automate your COC verification in 5 minutes. <span class="text-slate-900 font-semibold">Save 20+ hours of admin every month</span> while eliminating the risk of uninsured claims.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <a href="#" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-10 py-4 text-xl font-bold transition-all shadow-xl shadow-blue-200 hover:-translate-y-0.5 text-center">
+                            Start Free Risk Audit
+                        </a>
+                        <div class="flex flex-col gap-1 px-2">
+                            <div class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                <i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-500"></i>
+                                No credit card required
+                            </div>
+                            <div class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                <i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-500"></i>
+                                Setup in &lt; 5 minutes
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual: AI Scanner -->
+                <div class="relative perspective-1000 hidden lg:block">
+                    <div class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden rotate-card">
+                        <!-- Window Controls -->
+                        <div class="h-12 border-b border-slate-100 flex items-center px-4 justify-between bg-slate-50/50">
+                            <div class="flex items-center gap-2">
+                                <div class="h-3 w-3 rounded-full bg-slate-200"></div>
+                                <div class="h-3 w-3 rounded-full bg-slate-200"></div>
+                                <div class="h-3 w-3 rounded-full bg-slate-200"></div>
+                            </div>
+                            <div class="text-xs font-mono text-slate-400 flex items-center gap-2 tracking-tight">
+                                <i data-lucide="file-text" class="h-3 w-3"></i>
+                                COC_Verification_Audit.pdf
+                            </div>
+                        </div>
+
+                        <div class="p-8 space-y-6">
+                            <!-- Simulated Document Content -->
+                            <div class="space-y-3">
+                                <div class="h-2 w-24 bg-slate-100 rounded"></div>
+                                <div class="h-4 w-64 bg-slate-200 rounded"></div>
+                            </div>
+                            
+                            <!-- The Critical Deficiency Found -->
+                            <div class="p-4 bg-red-50 border border-red-100 rounded-xl relative overflow-hidden">
+                                <div class="flex items-start gap-4 relative z-10">
+                                    <div class="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                                        <i data-lucide="alert-triangle" class="h-6 w-6 text-red-600"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-red-900 font-bold text-sm mb-1 uppercase tracking-tight">Indemnity Breach Detected</div>
+                                        <p class="text-red-700 text-xs leading-relaxed">
+                                            The "Principal Indemnity" clause is missing. You are <span class="font-bold">unprotected</span> against claims arising from this sub's negligence.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3 pt-2">
+                                <div class="h-2 w-32 bg-slate-100 rounded"></div>
+                                <div class="h-3 w-full bg-slate-50 rounded"></div>
+                                <div class="h-3 w-5/6 bg-slate-50 rounded"></div>
+                            </div>
+
+                            <!-- Overlay Log -->
+                            <div class="absolute bottom-4 right-4 bg-slate-900 text-white p-4 rounded-lg font-mono text-[10px] shadow-2xl max-w-[200px] z-30">
+                                <div class="flex gap-2 text-emerald-400">
+                                    <span>&gt;</span>
+                                    <span>Scan: 100% complete</span>
+                                </div>
+                                <div class="flex gap-2 text-red-400 mt-1 font-bold">
+                                    <span>&gt;</span>
+                                    <span>ERROR: Cross_Liability_Fail</span>
+                                </div>
+                                <div class="flex gap-2 text-slate-400 mt-1">
+                                    <span>&gt;</span>
+                                    <span>Alerting Site Mgr...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scan Line -->
+                        <div class="absolute top-0 left-0 w-full h-1 bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.8)] z-20 animate-scan"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION B: THE ARGUMENT (Problem -> Solution) -->
+    <section class="py-24 bg-white">
+        <div class="container mx-auto px-6 max-w-5xl">
+            <div class="text-center mb-20">
+                <h2 class="text-3xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">
+                    A "Certificate of Currency" is not enough.
+                </h2>
+                <p class="text-xl text-slate-600 max-w-3xl mx-auto">
+                    Your admin team checks dates and limits. They don't check the 40-page PDS for exclusions that leave your directors legally liable.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-12">
+                <!-- Problem 1 -->
+                <div class="space-y-4">
+                    <div class="h-14 w-14 rounded-2xl bg-red-100 flex items-center justify-center mb-6">
+                        <i data-lucide="siren" class="h-8 w-8 text-red-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">The "Deemed Employer" Trap</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        If a subcontractor hasn't paid their WorkCover, <span class="text-slate-900 font-semibold italic">you</span> become the employer when an injury happens. We validate payment status directly with state schemes.
+                    </p>
+                </div>
+
+                <!-- Problem 2 -->
+                <div class="space-y-4">
+                    <div class="h-14 w-14 rounded-2xl bg-amber-100 flex items-center justify-center mb-6">
+                        <i data-lucide="file-search" class="h-8 w-8 text-amber-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">Hidden Exclusions</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        A $20M policy is worthless if it excludes "Hot Work" or "Height Restrictions" relevant to your project. Our AI reads the entire document to flag trade-specific dealbreakers.
+                    </p>
+                </div>
+
+                <!-- Problem 3 -->
+                <div class="space-y-4">
+                    <div class="h-14 w-14 rounded-2xl bg-indigo-100 flex items-center justify-center mb-6">
+                        <i data-lucide="scale" class="h-8 w-8 text-indigo-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">Industrial Manslaughter</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        "We didn't know" is no longer a legal defense in QLD or VIC. An auditable, AI-verified compliance trail is your company's strongest protection against criminal negligence.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION C: HOW IT WORKS -->
+    <section class="py-24 bg-slate-900 text-white relative overflow-hidden">
+        <!-- Grid Background -->
+        <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 30px 30px;"></div>
+        
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="text-center mb-20">
+                <h2 class="text-3xl md:text-5xl font-bold mb-6">Compliance on Autopilot</h2>
+                <p class="text-xl text-slate-400">Zero data entry. Zero manual follow-ups.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-16 text-center md:text-left">
+                <!-- Step 1 -->
+                <div class="relative group">
+                    <div class="h-16 w-16 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold mb-8 mx-auto md:mx-0 group-hover:scale-110 transition-transform shadow-lg shadow-blue-900/50">1</div>
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 justify-center md:justify-start">
+                        <i data-lucide="mail" class="h-6 w-6 text-blue-400"></i>
+                        Connect Your Inbox
+                    </h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        RiskShield syncs with your project email address. When a broker emails a certificate, we catch it instantly.
+                    </p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="relative group">
+                    <div class="h-16 w-16 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold mb-8 mx-auto md:mx-0 group-hover:scale-110 transition-transform shadow-lg shadow-blue-900/50">2</div>
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 justify-center md:justify-start">
+                        <i data-lucide="zap" class="h-6 w-6 text-blue-400"></i>
+                        AI-Powered Audit
+                    </h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        Our AI audits the policy against 25+ criteria (AS 4000) and flags deficiencies directly to the broker for fixing.
+                    </p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="relative group">
+                    <div class="h-16 w-16 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold mb-8 mx-auto md:mx-0 group-hover:scale-110 transition-transform shadow-lg shadow-blue-900/50">3</div>
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 justify-center md:justify-start">
+                        <i data-lucide="clock" class="h-6 w-6 text-blue-400"></i>
+                        The Morning Brief
+                    </h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        Site managers get a 6 AM alert: "Stop these 2 subs at the gate." Everyone else is green-lit to work.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION D: FEATURES (Australian Specifics) -->
+    <section class="py-24 bg-slate-50">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col lg:flex-row gap-16 items-center">
+                <div class="lg:w-1/2">
+                    <h2 class="text-3xl md:text-4xl font-bold text-slate-900 mb-8 tracking-tight leading-tight">
+                        Engineering for Australian <br> Insurance Standards.
+                    </h2>
+                    
+                    <div class="grid sm:grid-cols-2 gap-x-8 gap-y-10">
+                        <div class="space-y-2">
+                            <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                                <i data-lucide="check-circle-2" class="h-5 w-5 text-blue-600"></i>
+                                Principal Indemnity
+                            </h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Explicitly confirms your company is named and covered as Principal.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                                <i data-lucide="check-circle-2" class="h-5 w-5 text-blue-600"></i>
+                                State WC Schemes
+                            </h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Automatic validation for NSW icare, VIC WorkSafe, and QLD WorkCover.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                                <i data-lucide="check-circle-2" class="h-5 w-5 text-blue-600"></i>
+                                Phoenix Detection
+                            </h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Flags when the ABN on the policy doesn't match the contract entity.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                                <i data-lucide="check-circle-2" class="h-5 w-5 text-blue-600"></i>
+                                APRA Validation
+                            </h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Ensures the insurer is licensed to operate in Australia.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:w-1/2 w-full">
+                    <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-200">
+                        <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
+                            <h5 class="font-bold text-slate-900">Project Compliance State</h5>
+                            <span class="text-xs font-mono text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded">Live_Updates_Active</span>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <!-- Pass Item -->
+                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                                <div class="flex items-center gap-4">
+                                    <div class="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                                        <i data-lucide="check" class="h-5 w-5 text-emerald-600"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-bold text-slate-900">14 Subcontractors</div>
+                                        <div class="text-xs text-slate-500">Fully Compliant</div>
+                                    </div>
+                                </div>
+                                <div class="text-emerald-600 font-bold text-sm tracking-wide">PASS</div>
+                            </div>
+
+                            <!-- Review Item -->
+                            <div class="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                <div class="flex items-center gap-4">
+                                    <div class="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                                        <i data-lucide="alert-triangle" class="h-5 w-5 text-amber-600"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-bold text-slate-900">2 Pending Review</div>
+                                        <div class="text-xs text-slate-500">Missing Cross Liability</div>
+                                    </div>
+                                </div>
+                                <div class="text-amber-600 font-bold text-sm tracking-wide">REVIEW</div>
+                            </div>
+
+                            <!-- Fail Item -->
+                            <div class="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-100">
+                                <div class="flex items-center gap-4">
+                                    <div class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                                        <i data-lucide="x-circle" class="h-5 w-5 text-red-600"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-bold text-slate-900">1 Stop Work Risk</div>
+                                        <div class="text-xs text-slate-500">Apex Concreting (Expired)</div>
+                                    </div>
+                                </div>
+                                <div class="text-red-600 font-bold text-sm tracking-wide">FAIL</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION F: FAQ -->
+    <section class="py-24 bg-white">
+        <div class="container mx-auto px-6 max-w-3xl">
+            <h2 class="text-3xl font-bold text-center mb-12 text-slate-900">Common Objections</h2>
+            <div class="space-y-6">
+                
+                <div class="p-6 rounded-2xl border border-slate-200 hover:border-blue-200 transition-colors cursor-default bg-white group">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">Is this just another OCR tool?</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        No. OCR just reads characters. RiskShield AI understands insurance context. We detect things OCR misses—like whether an 'Interested Party' notation actually meets your project's 'Principal Indemnity' requirements.
+                    </p>
+                </div>
+
+                <div class="p-6 rounded-2xl border border-slate-200 hover:border-blue-200 transition-colors cursor-default bg-white group">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">How do our subcontractors submit documents?</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        They don't have to do anything new. They simply CC their broker into your project's RiskShield email address. We handle the collection, audit, and follow-up automatically.
+                    </p>
+                </div>
+
+                <div class="p-6 rounded-2xl border border-slate-200 hover:border-blue-200 transition-colors cursor-default bg-white group">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">Does it integrate with Procore?</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Yes. We have a native Procore integration. Compliance status and documents are synced directly to your Procore vendor directory in real-time.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION G: CLOSER -->
+    <section class="py-24 bg-blue-600 text-white text-center">
+        <div class="container mx-auto px-6 max-w-4xl">
+            <h2 class="text-4xl md:text-6xl font-bold mb-8 leading-tight tracking-tight">
+                Stop auditing certificates. <br class="hidden md:block" /> Start auditing risk.
+            </h2>
+            <p class="text-xl text-blue-100 mb-12 max-w-2xl mx-auto">
+                Get your first 3 projects audited for free. No credit card, no long-term contracts.
+            </p>
+            
+            <a href="#" class="inline-block h-20 px-12 bg-white text-blue-600 hover:bg-blue-50 text-2xl font-bold rounded-2xl shadow-2xl transition-all hover:-translate-y-1 flex items-center justify-center w-full sm:w-auto mx-auto">
+                Start Your Free Audit
+            </a>
+            
+            <p class="mt-8 text-blue-200 font-medium">
+                Join the safest jobsites in Australia.
+            </p>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="py-12 border-t border-slate-100 bg-slate-50">
+        <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="flex items-center gap-2">
+                <i data-lucide="shield" class="h-5 w-5 text-slate-400"></i>
+                <span class="font-bold text-slate-400">RiskShield AI</span>
+            </div>
+            <div class="text-slate-400 text-sm">
+                &copy; 2026 RiskShield AI. Built for the Australian Construction Industry.
+            </div>
+            <div class="flex gap-6 text-sm text-slate-400">
+                <a href="#" class="hover:text-slate-900 transition-colors">Privacy</a>
+                <a href="#" class="hover:text-slate-900 transition-colors">Terms</a>
+                <a href="#" class="hover:text-slate-900 transition-colors">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Initialize Lucide Icons -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

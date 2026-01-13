@@ -1313,7 +1313,7 @@ export default function ProjectDetailPage() {
                     {project.requirements.map(req => (
                       <div key={req.id} className="p-3 bg-slate-50 rounded-lg">
                         <div className="font-medium text-sm capitalize">
-                          {req.coverage_type.replace(/_/g, ' ')}
+                          {(req.coverage_type || 'Unknown').replace(/_/g, ' ')}
                         </div>
                         {req.minimum_limit && (
                           <div className="text-xs text-slate-500">
@@ -1700,7 +1700,7 @@ export default function ProjectDetailPage() {
                   {project.requirements.map((req, idx) => (
                     <li key={idx} className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
-                      <span className="capitalize">{req.coverage_type.replace(/_/g, ' ')}</span>
+                      <span className="capitalize">{(req.coverage_type || 'Unknown').replace(/_/g, ' ')}</span>
                       {req.minimum_limit && (
                         <span className="text-slate-500">
                           - ${req.minimum_limit.toLocaleString()} min
@@ -1958,7 +1958,7 @@ export default function ProjectDetailPage() {
                       <div key={idx} className="p-3 bg-white border rounded-lg">
                         <div className="flex items-center justify-between">
                           <span className="font-medium capitalize">
-                            {req.coverage_type.replace(/_/g, ' ')}
+                            {(req.coverage_type || 'Unknown').replace(/_/g, ' ')}
                           </span>
                           {req.minimum_limit && (
                             <span className="text-sm text-slate-600">

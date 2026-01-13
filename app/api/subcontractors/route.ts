@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getConvex, api } from '@/lib/convex'
 import { parsePaginationParams, createPaginatedResponse } from '@/lib/pagination'
+import { lookupABN, companyNamesMatch } from '@/lib/abn-lookup'
 
 // GET /api/subcontractors - List all subcontractors for the company
 export async function GET(request: NextRequest) {
@@ -98,6 +99,27 @@ export async function POST(request: NextRequest) {
     const sum = digits.reduce((acc: number, digit: number, i: number) => acc + digit * weights[i], 0)
     if (sum % 89 !== 0) {
       return NextResponse.json({ error: 'Invalid ABN checksum - please verify the ABN is correct' }, { status: 400 })
+    }
+
+    // Verify company name matches ABN's registered entity
+    try {
+      const abnLookupUrl = new URL(`/api/external/abn/${cleanedABN}`, request.url)
+      const abnResponse = await fetch(abnLookupUrl.toString())
+      const abnData = await abnResponse.json()
+
+      if (abnResponse.ok && abnData.entityName) {
+        // ABN has a registered entity name - verify it matches the submitted name
+        if (!companyNamesMatch(name.trim(), abnData.entityName)) {
+          return NextResponse.json({
+            error: `Company name does not match ABN records. The registered entity for this ABN is "${abnData.entityName}". Please use the registered business name or verify the ABN is correct.`,
+            registeredName: abnData.entityName
+          }, { status: 400 })
+        }
+      }
+      // If ABN lookup fails or has no entity name, allow submission (the ABN is still valid by checksum)
+    } catch (abnLookupError) {
+      // If ABN lookup fails, log but don't block - the ABN is still valid by checksum
+      console.warn('ABN lookup failed during subcontractor creation:', abnLookupError)
     }
 
     // Check if ABN already exists

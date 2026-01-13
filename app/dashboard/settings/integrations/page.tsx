@@ -431,8 +431,10 @@ export default function IntegrationsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#F47920] rounded-lg flex items-center justify-center">
-                      <Building2 className="h-5 w-5 text-white" />
+                    <div className="w-10 h-10 bg-[#1a1a1a] rounded-lg flex items-center justify-center">
+                      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="#F47920" strokeWidth="2">
+                        <path d="M17 5H9L5 9v6l4 4h8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </div>
                     <div>
                       <CardTitle className="text-base">Procore</CardTitle>

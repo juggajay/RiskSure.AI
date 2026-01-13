@@ -253,10 +253,34 @@ export default function SubcontractorsPage() {
           description: `Company name auto-populated: ${data.entityName}`
         })
       } else if (data.entityName) {
-        toast({
-          title: "ABN Verified",
-          description: `Registered entity: ${data.entityName}`
-        })
+        // Check if the current name matches the registered entity
+        const currentName = formData.name.trim().toLowerCase()
+        const registeredName = data.entityName.toLowerCase()
+        // Simple check - normalize by removing common suffixes
+        const normalizeForComparison = (name: string) =>
+          name.replace(/\b(pty\.?\s*ltd\.?|proprietary\s+limited|limited|pty|ltd)\b/gi, '')
+              .replace(/[.,\-'"`()&]/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+
+        const normalizedCurrent = normalizeForComparison(currentName)
+        const normalizedRegistered = normalizeForComparison(registeredName)
+
+        if (normalizedCurrent !== normalizedRegistered &&
+            !normalizedCurrent.includes(normalizedRegistered) &&
+            !normalizedRegistered.includes(normalizedCurrent)) {
+          toast({
+            title: "Name Mismatch Warning",
+            description: `The ABN is registered to "${data.entityName}". Your entered name may not match.`,
+            variant: "destructive",
+            duration: 8000
+          })
+        } else {
+          toast({
+            title: "ABN Verified",
+            description: `Registered entity: ${data.entityName}`
+          })
+        }
       } else {
         toast({
           title: "ABN Format Valid",
@@ -659,6 +683,19 @@ export default function SubcontractorsPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        // Check if this is a company name mismatch error with a registered name suggestion
+        if (data.registeredName) {
+          toast({
+            title: "Company Name Mismatch",
+            description: `The ABN is registered to "${data.registeredName}". Would you like to use this name instead?`,
+            variant: "destructive",
+            duration: 10000
+          })
+          // Auto-fill the registered name for convenience
+          setFormData(prev => ({ ...prev, name: data.registeredName }))
+          setIsAdding(false)
+          return
+        }
         throw new Error(data.error || 'Failed to create subcontractor')
       }
 

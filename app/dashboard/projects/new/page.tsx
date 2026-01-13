@@ -481,7 +481,7 @@ export default function NewProjectPage() {
                       {getSelectedTemplate()?.requirements.map((req, idx) => (
                         <li key={idx} className="flex items-center gap-2">
                           <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                          <span className="capitalize">{req.coverage_type.replace(/_/g, ' ')}</span>
+                          <span className="capitalize">{(req.coverage_type || 'Unknown').replace(/_/g, ' ')}</span>
                           {req.minimum_limit && (
                             <span className="text-blue-600">
                               - ${(req.minimum_limit / 1000000).toFixed(0)}M min

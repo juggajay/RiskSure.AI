@@ -1,6 +1,30 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalQuery } from "./_generated/server"
 import { Id } from "./_generated/dataModel"
+
+// Internal query: Get user by ID (for cron jobs)
+export const getByIdInternal = internalQuery({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id)
+  },
+})
+
+// Internal query: Get admin and risk manager users for a company (for cron jobs)
+export const getAdminsByCompany = internalQuery({
+  args: { companyId: v.id("companies") },
+  handler: async (ctx, args) => {
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .collect()
+
+    // Filter for admin and risk_manager roles
+    return users.filter(
+      (u) => u.role === "admin" || u.role === "risk_manager"
+    )
+  },
+})
 
 // Role type validator
 const userRole = v.union(

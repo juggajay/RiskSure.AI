@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskShield AI | Autonomous Compliance Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Roboto Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            900: '#0F172A', // Slate 900
+                            800: '#1E293B', // Slate 800
+                            700: '#334155', // Slate 700
+                            accent: '#3B82F6', // Blue 500
+                            success: '#10B981', // Emerald 500
+                            warning: '#F59E0B', // Amber 500
+                        }
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(59, 130, 246, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0F172A;
+            color: #F8FAFC;
+        }
+        
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Subtle Fade In for Data Fields */
+        .fade-in-up {
+            animation: fadeInUp 0.8s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-400 { animation-delay: 0.4s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Subtle Shimmer for "Processing" State */
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite linear;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-brand-accent selection:text-white">
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-brand-900/90 backdrop-blur-md">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-brand-accent blur-lg opacity-20"></div>
+                    <i data-lucide="shield-check" class="relative h-6 w-6 text-brand-accent"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight text-white">RiskShield AI</span>
+            </div>
+            <div class="flex items-center gap-8">
+                <div class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
+                    <a href="#" class="hover:text-white transition-colors">Platform</a>
+                    <a href="#" class="hover:text-white transition-colors">Integrations</a>
+                    <a href="#" class="hover:text-white transition-colors">Security</a>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="#" class="text-sm font-medium text-slate-400 hover:text-white transition-colors">Login</a>
+                    <a href="#" class="bg-white text-brand-900 hover:bg-slate-200 rounded-full px-5 py-2 text-sm font-bold transition-all">
+                        Get Demo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="relative pt-32 pb-24 lg:pt-48 lg:pb-32 overflow-hidden">
+        <!-- Background Gradient -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-brand-accent/10 blur-[120px] rounded-full pointer-events-none"></div>
+
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="flex flex-col lg:flex-row gap-16 items-center">
+                
+                <!-- COPY -->
+                <div class="lg:w-1/2">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-800 border border-white/10 text-brand-accent text-xs font-semibold mb-8">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-accent"></span>
+                        </span>
+                        Autonomous Compliance for Australian Construction
+                    </div>
+                    
+                    <h1 class="text-5xl lg:text-6xl font-bold tracking-tight mb-6 leading-[1.1] text-white">
+                        Your admin team chases COCs. <br>
+                        <span class="text-brand-accent">Our AI verifies them.</span>
+                    </h1>
+                    
+                    <p class="text-lg text-slate-400 mb-10 max-w-xl leading-relaxed">
+                        RiskShield reads insurance certificates, verifies them against your specific project requirements, and <span class="text-white">automatically chases brokers</span> for missing details.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="#" class="h-14 px-8 bg-brand-accent hover:bg-blue-600 text-white rounded-lg font-semibold text-lg flex items-center justify-center gap-2 transition-all shadow-glow hover:-translate-y-0.5">
+                            Start Free Trial
+                        </a>
+                        <a href="#" class="h-14 px-8 glass-card hover:bg-white/5 text-white rounded-lg font-medium text-lg flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="play-circle" class="h-5 w-5 text-slate-400"></i>
+                            See It In Action
+                        </a>
+                    </div>
+                    
+                    <div class="mt-10 flex items-center gap-6 text-sm text-slate-500">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="check" class="h-4 w-4 text-brand-success"></i>
+                            <span>Procore Integration</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="check" class="h-4 w-4 text-brand-success"></i>
+                            <span>Australian Standards</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HERO VISUAL: The "Autonomous Processor" -->
+                <div class="lg:w-1/2 w-full">
+                    <div class="relative w-full max-w-lg mx-auto">
+                        <!-- Main Interface Card -->
+                        <div class="glass-card rounded-xl border border-white/10 shadow-2xl overflow-hidden">
+                            <!-- Header -->
+                            <div class="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-brand-900/50">
+                                <div class="flex items-center gap-3">
+                                    <div class="h-8 w-8 rounded bg-white/5 flex items-center justify-center">
+                                        <i data-lucide="file-text" class="h-4 w-4 text-brand-accent"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-slate-400">Processing Document</div>
+                                        <div class="text-sm font-medium text-white">COC_Plumbing_QBE.pdf</div>
+                                    </div>
+                                </div>
+                                <div class="text-xs font-mono text-brand-accent animate-pulse">
+                                    AI_ANALYSIS_ACTIVE...
+                                </div>
+                            </div>
+
+                            <!-- Content -->
+                            <div class="p-6 space-y-6">
+                                <!-- Extraction Layer -->
+                                <div class="space-y-4">
+                                    
+                                    <!-- Field 1: Insurer -->
+                                    <div class="flex items-center justify-between p-3 rounded bg-white/5 border border-white/5 fade-in-up delay-100">
+                                        <div class="flex items-center gap-3">
+                                            <div class="h-2 w-2 rounded-full bg-brand-success"></div>
+                                            <span class="text-sm text-slate-400">Insurer</span>
+                                        </div>
+                                        <div class="font-mono text-sm text-white">QBE Insurance (Australia)</div>
+                                    </div>
+
+                                    <!-- Field 2: Limit -->
+                                    <div class="flex items-center justify-between p-3 rounded bg-white/5 border border-white/5 fade-in-up delay-200">
+                                        <div class="flex items-center gap-3">
+                                            <div class="h-2 w-2 rounded-full bg-brand-success"></div>
+                                            <span class="text-sm text-slate-400">Public Liability</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-brand-success bg-brand-success/10 px-2 py-0.5 rounded">PASSED</span>
+                                            <span class="font-mono text-sm text-white">$20,000,000</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Field 3: Workers Comp -->
+                                    <div class="flex items-center justify-between p-3 rounded bg-white/5 border border-white/5 fade-in-up delay-300">
+                                        <div class="flex items-center gap-3">
+                                            <div class="h-2 w-2 rounded-full bg-brand-success"></div>
+                                            <span class="text-sm text-slate-400">Workers Comp</span>
+                                        </div>
+                                        <div class="font-mono text-sm text-white">icare NSW (Valid)</div>
+                                    </div>
+
+                                    <!-- Field 4: The Catch (Subtle) -->
+                                    <div class="flex items-center justify-between p-3 rounded bg-brand-warning/10 border border-brand-warning/20 fade-in-up delay-400">
+                                        <div class="flex items-center gap-3">
+                                            <div class="h-2 w-2 rounded-full bg-brand-warning"></div>
+                                            <span class="text-sm text-brand-warning">Principal Indemnity</span>
+                                        </div>
+                                        <div class="text-xs text-brand-warning font-mono text-right">
+                                            MISSING CLAUSE<br>
+                                            <span class="opacity-70">Auto-emailing Broker...</span>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                            
+                            <!-- Progress Bar -->
+                            <div class="h-1 bg-brand-800 w-full">
+                                <div class="h-full bg-brand-accent w-3/4 shimmer"></div>
+                            </div>
+                        </div>
+
+                        <!-- Notification Toast (Floating) -->
+                        <div class="absolute -right-12 bottom-8 glass-card p-4 rounded-lg shadow-xl border-l-4 border-l-brand-accent fade-in-up delay-400 max-w-xs hidden lg:block">
+                            <div class="flex gap-3">
+                                <div class="h-8 w-8 rounded-full bg-brand-accent/20 flex items-center justify-center shrink-0">
+                                    <i data-lucide="mail" class="h-4 w-4 text-brand-accent"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-white">Email Sent to Broker</div>
+                                    <div class="text-xs text-slate-400 mt-1">"Please add Principal Indemnity clause to policy #9982..."</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROBLEM / SOLUTION -->
+    <section class="py-24 bg-brand-800/50 border-y border-white/5">
+        <div class="container mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-3xl font-bold text-white mb-4">The "Administrative Gap" is where liability hides.</h2>
+                <p class="text-slate-400">Manual verification is slow, boring, and error-prone. RiskShield closes the gap.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Card 1 -->
+                <div class="glass-card p-8 rounded-xl hover:bg-white/5 transition-colors">
+                    <div class="h-12 w-12 bg-brand-900 rounded-lg flex items-center justify-center mb-6 border border-white/10">
+                        <i data-lucide="clock" class="h-6 w-6 text-brand-accent"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-3">Eliminate the Chase</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Your PAs spend hours emailing brokers for updated docs. We automate the entire follow-up sequence until a compliant certificate is received.
+                    </p>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="glass-card p-8 rounded-xl hover:bg-white/5 transition-colors">
+                    <div class="h-12 w-12 bg-brand-900 rounded-lg flex items-center justify-center mb-6 border border-white/10">
+                        <i data-lucide="scan-eye" class="h-6 w-6 text-brand-accent"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-3">Verify, Don't Just File</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Most systems just store the PDF. We read it. Our AI validates coverage amounts, expiry dates, and specific clauses against your project rules.
+                    </p>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="glass-card p-8 rounded-xl hover:bg-white/5 transition-colors">
+                    <div class="h-12 w-12 bg-brand-900 rounded-lg flex items-center justify-center mb-6 border border-white/10">
+                        <i data-lucide="layout-dashboard" class="h-6 w-6 text-brand-accent"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-3">The Morning Brief</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Site managers get a simple daily digest: "These 2 subcontractors have expired insurance today." Stop them at the gate before risk enters the site.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TRUST / FEATURES -->
+    <section class="py-24 relative">
+        <div class="container mx-auto px-6 flex flex-col lg:flex-row gap-16 items-center">
+            <div class="lg:w-1/2">
+                <div class="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                    <!-- Placeholder for app screenshot - using CSS mockup instead -->
+                    <div class="bg-brand-900 aspect-video relative p-6">
+                        <div class="absolute inset-0 bg-gradient-to-br from-brand-800 to-brand-900"></div>
+                        <div class="relative z-10 space-y-4">
+                            <!-- Dashboard Rows -->
+                            <div class="flex items-center gap-4 p-3 bg-white/5 rounded border border-white/5">
+                                <div class="h-8 w-8 rounded-full bg-brand-success/20 flex items-center justify-center text-brand-success text-xs font-bold">98%</div>
+                                <div class="flex-1">
+                                    <div class="h-2 w-24 bg-slate-600 rounded mb-1"></div>
+                                    <div class="h-1.5 w-16 bg-slate-700 rounded"></div>
+                                </div>
+                                <div class="h-6 w-20 bg-brand-success/10 rounded border border-brand-success/20"></div>
+                            </div>
+                            <div class="flex items-center gap-4 p-3 bg-white/5 rounded border border-white/5">
+                                <div class="h-8 w-8 rounded-full bg-brand-warning/20 flex items-center justify-center text-brand-warning text-xs font-bold">!</div>
+                                <div class="flex-1">
+                                    <div class="h-2 w-32 bg-slate-600 rounded mb-1"></div>
+                                    <div class="h-1.5 w-20 bg-slate-700 rounded"></div>
+                                </div>
+                                <div class="h-6 w-20 bg-brand-warning/10 rounded border border-brand-warning/20"></div>
+                            </div>
+                            <div class="flex items-center gap-4 p-3 bg-white/5 rounded border border-white/5">
+                                <div class="h-8 w-8 rounded-full bg-brand-accent/20 flex items-center justify-center text-brand-accent text-xs font-bold">@</div>
+                                <div class="flex-1">
+                                    <div class="h-2 w-28 bg-slate-600 rounded mb-1"></div>
+                                    <div class="h-1.5 w-24 bg-slate-700 rounded"></div>
+                                </div>
+                                <div class="h-6 w-24 bg-white/5 rounded border border-white/10"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="lg:w-1/2 space-y-8">
+                <h2 class="text-3xl font-bold text-white">Built for Australian Compliance</h2>
+                
+                <div class="space-y-6">
+                    <div class="flex gap-4">
+                        <div class="h-6 w-6 rounded-full bg-brand-accent/20 flex items-center justify-center shrink-0 mt-1">
+                            <i data-lucide="check" class="h-3 w-3 text-brand-accent"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-white">Workers Comp State Matching</h4>
+                            <p class="text-sm text-slate-400 mt-1">We verify the policy matches the project location (e.g. NSW icare for Sydney projects, WorkSafe for Melbourne).</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        <div class="h-6 w-6 rounded-full bg-brand-accent/20 flex items-center justify-center shrink-0 mt-1">
+                            <i data-lucide="check" class="h-3 w-3 text-brand-accent"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-white">Public Liability Limits</h4>
+                            <p class="text-sm text-slate-400 mt-1">Ensure every sub meets your $10M or $20M minimum. We flag low limits instantly.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="h-6 w-6 rounded-full bg-brand-accent/20 flex items-center justify-center shrink-0 mt-1">
+                            <i data-lucide="check" class="h-3 w-3 text-brand-accent"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-white">Procore Integration</h4>
+                            <p class="text-sm text-slate-400 mt-1">Status syncs directly to your Procore Vendor Directory. No double handling.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CLOSER -->
+    <section class="py-24 border-t border-white/5 bg-brand-900 text-center">
+        <div class="container mx-auto px-6 max-w-2xl">
+            <h2 class="text-4xl font-bold text-white mb-6">Secure your jobsite today.</h2>
+            <p class="text-slate-400 mb-10 text-lg">
+                Start with a free audit of your current projects. <br>
+                Setup takes less than 15 minutes.
+            </p>
+            <a href="#" class="inline-flex h-14 px-8 bg-brand-accent hover:bg-blue-600 text-white rounded-lg font-semibold text-lg items-center justify-center transition-all">
+                Start Free Audit
+            </a>
+            <p class="mt-6 text-sm text-slate-500">No credit card required. Cancel anytime.</p>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="py-12 border-t border-white/5 bg-brand-900">
+        <div class="container mx-auto px-6 flex justify-between items-center text-sm text-slate-500">
+            <div>&copy; 2026 RiskShield AI</div>
+            <div class="flex gap-6">
+                <a href="#" class="hover:text-white">Privacy</a>
+                <a href="#" class="hover:text-white">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

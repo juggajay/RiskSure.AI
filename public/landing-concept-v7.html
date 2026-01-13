@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskShield AI | The Compliance Firewall</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Space Mono', 'monospace'],
+                    },
+                    colors: {
+                        void: '#030304',
+                        panel: '#0A0A0C',
+                        risk: '#FF2E2E',
+                        safe: '#00FFA3',
+                        proc: '#3B82F6',
+                    },
+                    backgroundImage: {
+                        'noise': "url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22 opacity=%220.05%22/%3E%3C/svg%3E')",
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #030304;
+            color: #ffffff;
+            overflow-x: hidden;
+            cursor: crosshair;
+        }
+
+        /* --- THE FORENSIC CURSOR --- */
+        #cursor-light {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: screen;
+        }
+
+        /* --- TYPOGRAPHY & FX --- */
+        .text-glow {
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        .risk-text {
+            color: transparent;
+            -webkit-text-stroke: 1px rgba(255, 46, 46, 0.3);
+            font-family: 'Space Mono', monospace;
+            position: absolute;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .risk-text.revealed {
+            opacity: 1;
+        }
+
+        /* --- THE RISK LINE (Scroll Drawing) --- */
+        .risk-line-container {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .risk-line-active {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0%; /* JS will animate this */
+            background: linear-gradient(to bottom, 
+                #FF2E2E 0%,    /* Hero (Risk) */
+                #FF2E2E 20%,   /* Problem */
+                #3B82F6 50%,   /* Process */
+                #00FFA3 100%   /* Solution */
+            );
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        /* --- GLASSMORMISM 2.0 --- */
+        .ultra-glass {
+            background: rgba(10, 10, 12, 0.6);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes float-scan {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 46, 46, 0); }
+            50% { box-shadow: 0 0 20px 0 rgba(255, 46, 46, 0.3); }
+        }
+
+        .animate-float { animation: float-scan 6s ease-in-out infinite; }
+        .animate-pulse-red { animation: pulse-red 2s infinite; }
+
+        /* Hide scrollbar for clean look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #030304; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-noise">
+
+    <div id="cursor-light"></div>
+
+    <!-- CENTRAL NERVOUS SYSTEM (The Line) -->
+    <div class="risk-line-container hidden lg:block">
+        <div class="risk-line-active" id="progress-line"></div>
+    </div>
+
+    <!-- BACKGROUND HIDDEN TEXT (Revealed by Cursor) -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="risk-text text-6xl top-[10%] left-[5%] rotate-[-5deg]">EXCLUSION_DETECTED</div>
+        <div class="risk-text text-8xl top-[20%] right-[10%] rotate-[10deg]">LIABILITY</div>
+        <div class="risk-text text-4xl bottom-[30%] left-[15%]">UNINSURED</div>
+        <div class="risk-text text-9xl bottom-[10%] right-[5%] opacity-10">RISK</div>
+    </div>
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-void/80 backdrop-blur-xl">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 relative z-50">
+                <i data-lucide="shield" class="h-6 w-6 text-white"></i>
+                <span class="font-bold text-lg tracking-widest uppercase">RiskShield</span>
+            </div>
+            <div class="flex items-center gap-6 relative z-50">
+                <span class="hidden md:flex items-center gap-2 text-[10px] font-mono text-gray-500">
+                    <span class="h-1.5 w-1.5 rounded-full bg-safe animate-pulse"></span>
+                    SYSTEM_ONLINE
+                </span>
+                <a href="#" class="bg-white text-void hover:bg-gray-200 px-6 py-2 text-xs font-bold uppercase tracking-wide transition-all hover:scale-105">
+                    Start Scan
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- SECTION 1: THE HOOK (Risk) -->
+    <section class="relative min-h-screen flex items-center justify-center pt-20">
+        <div class="container mx-auto px-6 relative z-10 text-center">
+            
+            <div class="inline-block mb-8">
+                <div class="border border-risk/30 bg-risk/5 text-risk px-4 py-1.5 text-[10px] font-mono tracking-[0.2em] uppercase backdrop-blur-md animate-pulse-red">
+                    /// Warning: Admin Gap Detected
+                </div>
+            </div>
+
+            <h1 class="text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-[0.9]">
+                THE FINE PRINT <br>
+                IS <span class="text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-600">LETHAL.</span>
+            </h1>
+
+            <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+                Your admin team checks the date. <span class="text-white font-medium">Our AI checks the liability.</span><br>
+                Stop uninsured subcontractors at the gate before they cost you everything.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6">
+                <a href="#" class="group relative h-16 px-10 bg-white text-void flex items-center justify-center gap-3 font-bold tracking-tight overflow-hidden transition-all hover:scale-105">
+                    <div class="absolute inset-0 bg-gray-200 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                    <span class="relative z-10">ELIMINATE RISK</span>
+                    <i data-lucide="arrow-right" class="relative z-10 h-4 w-4"></i>
+                </a>
+                <div class="flex items-center gap-4 text-xs font-mono text-gray-500">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="check" class="h-3 w-3 text-safe"></i> PROCORE_SYNC
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="check" class="h-3 w-3 text-safe"></i> AS_4000
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION 2: THE EVIDENCE (The Problem) -->
+    <section class="py-32 relative border-t border-white/5 bg-panel">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col lg:flex-row gap-20 items-center">
+                
+                <div class="lg:w-1/2">
+                    <h2 class="text-4xl font-bold mb-8">The "Corporate Veil" is thinner than you think.</h2>
+                    <div class="space-y-8">
+                        <div class="group cursor-default">
+                            <div class="flex items-start gap-6 p-6 border border-white/5 bg-void/50 hover:border-risk/50 transition-colors duration-500">
+                                <div class="text-risk font-mono text-xl">01</div>
+                                <div>
+                                    <h3 class="text-lg font-bold mb-2 group-hover:text-risk transition-colors">Deemed Employer Liability</h3>
+                                    <p class="text-gray-400 text-sm">If a sub hasn't paid WorkCover, <span class="text-white">you become the employer</span>. We validate payment status directly with state schemes.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="group cursor-default">
+                            <div class="flex items-start gap-6 p-6 border border-white/5 bg-void/50 hover:border-risk/50 transition-colors duration-500">
+                                <div class="text-risk font-mono text-xl">02</div>
+                                <div>
+                                    <h3 class="text-lg font-bold mb-2 group-hover:text-risk transition-colors">The "Welding" Exclusion</h3>
+                                    <p class="text-gray-400 text-sm">A $20M policy is worthless if it excludes "Hot Work." Our AI reads the 40-page PDS to find specific exclusions.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="group cursor-default">
+                            <div class="flex items-start gap-6 p-6 border border-white/5 bg-void/50 hover:border-risk/50 transition-colors duration-500">
+                                <div class="text-risk font-mono text-xl">03</div>
+                                <div>
+                                    <h3 class="text-lg font-bold mb-2 group-hover:text-risk transition-colors">Industrial Manslaughter</h3>
+                                    <p class="text-gray-400 text-sm">Legislation in QLD/VIC targets directors. An auditable, AI-verified paper trail is your only defense.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D CARD VISUAL -->
+                <div class="lg:w-1/2 perspective-1000">
+                    <div id="risk-card" class="relative ultra-glass p-8 rounded-none transform transition-transform duration-100 duration-100 ease-out border-l-4 border-l-risk">
+                        <!-- Header -->
+                        <div class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+                            <div class="text-xs font-mono text-risk flex items-center gap-2">
+                                <i data-lucide="siren" class="h-4 w-4"></i>
+                                CRITICAL_RISK_DETECTED
+                            </div>
+                            <div class="text-xs font-mono text-gray-500">ID: #9928-AX</div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="space-y-4 font-mono text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">INSURED:</span>
+                                <span class="text-white">APEX CONCRETING PTY LTD</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">POLICY:</span>
+                                <span class="text-white">PUBLIC LIABILITY</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">LIMIT:</span>
+                                <span class="text-white">$20,000,000</span>
+                            </div>
+                            
+                            <!-- The Glitch/Error -->
+                            <div class="mt-6 p-4 bg-risk/10 border border-risk/30 relative overflow-hidden">
+                                <div class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+                                <div class="relative z-10">
+                                    <div class="text-risk font-bold mb-1">>> EXCLUSION FOUND</div>
+                                    <p class="text-white opacity-80">"This policy does not cover liability arising from excavation below 2 meters."</p>
+                                    <div class="mt-2 text-[10px] text-risk uppercase border-t border-risk/20 pt-2">
+                                        Conflict: Project is Civil Works
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: THE MACHINE (How it Works) -->
+    <section class="py-32 bg-void relative overflow-hidden">
+        <!-- Connecting Line Logic (Middle Section = Blue) -->
+        
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold mb-20 text-proc">autonomous_processing.exe</h2>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Step 1 -->
+                <div class="relative group">
+                    <div class="h-px w-full bg-white/10 absolute top-8 left-1/2 hidden md:block"></div>
+                    <div class="relative z-10 h-16 w-16 mx-auto bg-void border border-white/20 flex items-center justify-center mb-6 group-hover:border-proc group-hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all duration-500">
+                        <i data-lucide="mail" class="h-6 w-6 text-gray-400 group-hover:text-proc transition-colors"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">1. Ingestion</h3>
+                    <p class="text-xs text-gray-500 max-w-xs mx-auto">Brokers email the COC directly to the project address. No manual upload required.</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="relative group">
+                    <div class="h-px w-full bg-white/10 absolute top-8 left-1/2 hidden md:block"></div>
+                    <div class="relative z-10 h-16 w-16 mx-auto bg-void border border-white/20 flex items-center justify-center mb-6 group-hover:border-proc group-hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all duration-500">
+                        <i data-lucide="scan-line" class="h-6 w-6 text-gray-400 group-hover:text-proc transition-colors"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">2. Forensic Audit</h3>
+                    <p class="text-xs text-gray-500 max-w-xs mx-auto">AI verifies 25+ data points including Principal Indemnity and State-specific schemes.</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="relative group">
+                    <div class="relative z-10 h-16 w-16 mx-auto bg-void border border-white/20 flex items-center justify-center mb-6 group-hover:border-proc group-hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all duration-500">
+                        <i data-lucide="shield-check" class="h-6 w-6 text-gray-400 group-hover:text-proc transition-colors"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">3. The Gatekeeper</h3>
+                    <p class="text-xs text-gray-500 max-w-xs mx-auto">Site managers get a 6AM "Stop Work" list. Everyone else is green-lit.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 4: THE SOLUTION (Portal & Trust) -->
+    <section class="py-32 relative bg-panel border-t border-white/5">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col-reverse lg:flex-row items-center gap-24">
+                
+                <!-- PORTAL MOCKUP (Sliding Up) -->
+                <div class="w-full lg:w-1/2 flex justify-center">
+                    <div class="relative w-[300px] h-[600px] border-8 border-gray-800 rounded-[3rem] bg-void overflow-hidden shadow-2xl ring-1 ring-white/10 group">
+                        <!-- Dynamic Screen -->
+                        <div class="absolute inset-0 bg-white flex flex-col p-6 pt-14 transition-colors">
+                            <div class="flex justify-between items-center mb-8">
+                                <span class="font-bold text-black text-lg">RiskShield</span>
+                                <div class="h-8 w-8 bg-gray-100 rounded-full"></div>
+                            </div>
+                            
+                            <div class="mb-auto">
+                                <h3 class="text-2xl font-bold text-black mb-2">Upload Req.</h3>
+                                <p class="text-gray-500 text-sm">Sydney Metro Project</p>
+                                
+                                <div class="mt-8 border-2 border-dashed border-gray-200 rounded-xl h-48 flex flex-col items-center justify-center gap-2 bg-gray-50 group-hover:bg-green-50 group-hover:border-green-300 transition-colors duration-700">
+                                    <i data-lucide="upload-cloud" class="h-8 w-8 text-gray-400 group-hover:text-green-500 transition-colors"></i>
+                                    <span class="text-xs text-gray-400 font-bold group-hover:text-green-600">TAP TO UPLOAD</span>
+                                </div>
+                            </div>
+
+                            <div class="w-full h-12 bg-black text-white rounded-xl flex items-center justify-center font-bold text-sm group-hover:bg-green-500 transition-colors">
+                                SUBMIT
+                            </div>
+                        </div>
+                        
+                        <!-- Notch -->
+                        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-gray-800 rounded-b-xl"></div>
+                    </div>
+                </div>
+
+                <div class="lg:w-1/2">
+                    <div class="text-safe font-mono text-xs mb-4">/// ZERO FRICTION</div>
+                    <h2 class="text-5xl font-bold mb-8">No logins.<br>No passwords.<br>Just compliant.</h2>
+                    <p class="text-gray-400 text-lg mb-10 leading-relaxed">
+                        Subcontractors hate new software. That's why we didn't build an app. We send a secure "Magic Link" to their phone. They tap, upload, and get verified in 30 seconds.
+                    </p>
+                    
+                    <div class="grid grid-cols-2 gap-8 font-mono text-xs text-gray-500">
+                        <div class="border-l border-white/10 pl-4">
+                            <div class="text-white text-2xl font-bold mb-1">15s</div>
+                            <div>UPLOAD TIME</div>
+                        </div>
+                        <div class="border-l border-white/10 pl-4">
+                            <div class="text-white text-2xl font-bold mb-1">0</div>
+                            <div>PASSWORDS</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER / CTA -->
+    <section class="py-40 bg-void relative overflow-hidden text-center">
+        <!-- The Final Green Line -->
+        <div class="absolute inset-0 flex justify-center pointer-events-none">
+            <div class="w-px h-full bg-gradient-to-b from-transparent via-safe/20 to-transparent"></div>
+        </div>
+
+        <div class="container mx-auto px-6 relative z-10">
+            <h2 class="text-6xl md:text-9xl font-black text-white mb-8 tracking-tighter opacity-100 mix-blend-normal">
+                SECURE<span class="text-safe">.</span>
+            </h2>
+            
+            <p class="text-gray-400 text-xl mb-12">
+                Your first 3 projects are free. Setup takes 15 minutes.
+            </p>
+
+            <a href="#" class="inline-flex h-20 px-16 bg-safe text-void text-xl font-bold uppercase tracking-widest items-center justify-center hover:bg-white transition-all hover:scale-105 shadow-[0_0_50px_rgba(0,255,163,0.4)]">
+                Start Audit
+            </a>
+        </div>
+    </section>
+
+    <footer class="py-8 bg-void border-t border-white/5 text-center">
+        <div class="text-[10px] font-mono text-gray-600 uppercase tracking-widest">
+            RiskShield AI © 2026 // Sydney // Engineered for AS 4000
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // CURSOR FLASHLIGHT EFFECT
+        const cursor = document.getElementById('cursor-light');
+        const riskTexts = document.querySelectorAll('.risk-text');
+
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+
+            // Reveal hidden text based on distance
+            riskTexts.forEach(text => {
+                const rect = text.getBoundingClientRect();
+                const textX = rect.left + rect.width / 2;
+                const textY = rect.top + rect.height / 2;
+                const dist = Math.hypot(e.clientX - textX, e.clientY - textY);
+                
+                if (dist < 250) {
+                    text.style.opacity = Math.max(0, 1 - dist / 250);
+                } else {
+                    text.style.opacity = 0;
+                }
+            });
+
+            // 3D Tilt Effect for Cards
+            const card = document.getElementById('risk-card');
+            if(card) {
+                const x = (window.innerWidth - e.pageX * 2) / 100;
+                const y = (window.innerHeight - e.pageY * 2) / 100;
+                card.style.transform = `perspective(1000px) rotateX(${y}deg) rotateY(${x}deg)`;
+            }
+        });
+
+        // SCROLL PROGRESS LINE
+        const line = document.getElementById('progress-line');
+        window.addEventListener('scroll', () => {
+            const scrollPercent = (window.scrollY) / (document.body.scrollHeight - window.innerHeight);
+            line.style.height = (scrollPercent * 100) + '%';
+        });
+    </script>
+</body>
+</html>

@@ -31,6 +31,8 @@ const API_PUBLIC_PATHS = [
   '/api/broker/auth/magic-link',
   '/api/broker/auth/verify',
   '/api/webhooks/sendgrid',
+  '/api/stripe/webhook',
+  '/api/stripe/test', // Temporary for debugging
 ]
 
 /**

@@ -524,7 +524,7 @@ export default function DataMigrationPage() {
                     <div className="flex flex-wrap gap-2">
                       {coc.data.coverages.map((coverage, cidx) => (
                         <span key={cidx} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                          {coverage.type.replace(/_/g, ' ')}: {formatCurrency(coverage.limit)}
+                          {(coverage.type || 'unknown').replace(/_/g, ' ')}: {formatCurrency(coverage.limit)}
                         </span>
                       ))}
                     </div>

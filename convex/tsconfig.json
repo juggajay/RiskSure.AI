@@ -6,8 +6,9 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true
   },
-  "include": ["./**/*"],
-  "exclude": ["./_generated"]
+  "include": ["./**/*.ts", "./**/*.tsx"],
+  "exclude": ["./_generated", "./**/*.js"]
 }
