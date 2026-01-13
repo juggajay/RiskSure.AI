@@ -93,22 +93,28 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'contracts')
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true })
-    }
-
-    // Generate unique filename
-    const fileExt = path.extname(file.name)
-    const uniqueFilename = `${uuidv4()}${fileExt}`
-    const filePath = path.join(uploadDir, uniqueFilename)
-    const fileUrl = `/uploads/contracts/${uniqueFilename}`
-
-    // Save file to disk
+    // Get file buffer for processing
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    fs.writeFileSync(filePath, buffer)
+
+    // Generate unique filename for reference (don't save to disk in serverless)
+    const fileExt = path.extname(file.name)
+    const uniqueFilename = `${uuidv4()}${fileExt}`
+    let fileUrl = `/uploads/contracts/${uniqueFilename}`
+
+    // Try to save file to disk (works in local dev, skipped in serverless production)
+    try {
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'contracts')
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true })
+      }
+      const filePath = path.join(uploadDir, uniqueFilename)
+      fs.writeFileSync(filePath, buffer)
+    } catch (fsError) {
+      // In serverless environments (Vercel), file system writes fail - this is expected
+      console.log('[Contract Parse] Skipping file save (serverless environment)')
+      fileUrl = `memory://${uniqueFilename}` // Mark as memory-only for audit log
+    }
 
     // Determine mime type
     let mimeType = file.type

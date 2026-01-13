@@ -628,17 +628,23 @@ export interface ContractExtractionResult {
 
 const CONTRACT_EXTRACTION_PROMPT = `You are an expert construction contract analyst specializing in Australian construction contracts and insurance requirements.
 
-Analyze the provided construction contract document and extract all insurance requirements that subcontractors must meet.
+Analyze the provided construction contract document and extract the PRIMARY/MAIN insurance requirements for the Contractor.
+
+CRITICAL: Extract the MAIN CONTRACTOR requirements (typically in the main Insurance clause like Clause 15, or Schedule B), NOT the subcontractor flow-down requirements (which are typically lower amounts in clauses like Clause 17 "Subcontractor Insurance").
+
+The main contractor requirements are always the HIGHER amounts that set the project standard. These are what subcontractors will ultimately need to meet or verify against.
 
 IMPORTANT EXTRACTION RULES:
-1. Look for insurance clauses, typically in sections titled "Insurance", "Risk and Insurance", "Contractor's Insurance", or similar
-2. Extract specific coverage requirements including:
+1. Look for the MAIN insurance clauses titled "Insurance", "Risk and Insurance", "Contractor's Insurance", or Schedule/Annexure with insurance requirements
+2. IGNORE sections specifically titled "Subcontractor Insurance" or "Subcontractor Requirements" - these contain lower flow-down amounts
+3. If you see BOTH main requirements (e.g., $20M Public Liability) and subcontractor requirements (e.g., $10M), extract the MAIN/HIGHER amounts
+4. Extract specific coverage requirements including:
    - Minimum coverage limits (convert to AUD numbers without $ or commas)
    - Maximum excess/deductible amounts
    - Required endorsements (Principal Indemnity, Cross Liability, Waiver of Subrogation)
-3. Identify the clause numbers and exact text where requirements are stated
-4. Note any special conditions or trade-specific requirements
-5. Provide confidence scores based on how clearly requirements were stated
+5. Identify the clause numbers and exact text where requirements are stated
+6. Note any special conditions or trade-specific requirements
+7. Provide confidence scores based on how clearly requirements were stated
 
 COVERAGE TYPE MAPPING:
 - "Public Liability", "General Liability", "Third Party Liability" → public_liability
