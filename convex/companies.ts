@@ -379,48 +379,45 @@ export const updateSubscriptionStatus = mutation({
   },
 })
 
-// Vendor limit configuration by tier
-const VENDOR_LIMITS: Record<string, number | null> = {
+// Subcontractor limit configuration by tier
+const SUBCONTRACTOR_LIMITS: Record<string, number | null> = {
   trial: 50,
-  velocity: 50,
-  compliance: 200,
-  business: 500,
-  enterprise: null, // Unlimited
+  starter: 75,
+  professional: 250,
+  business: null, // Unlimited - contact sales
   subcontractor: 0,
 }
 
 // User limit configuration by tier
 const USER_LIMITS: Record<string, number | null> = {
   trial: 3,
-  velocity: 3,
-  compliance: null, // Unlimited
+  starter: 3,
+  professional: null, // Unlimited
   business: null,
-  enterprise: null,
   subcontractor: 1,
 }
 
 // Project limit configuration by tier
 const PROJECT_LIMITS: Record<string, number | null> = {
   trial: 5,
-  velocity: 5,
-  compliance: null, // Unlimited
+  starter: 5,
+  professional: null, // Unlimited
   business: null,
-  enterprise: null,
   subcontractor: 0,
 }
 
-// Get vendor limit info for a company
-// Uses high water mark (vendorsAddedThisPeriod) to prevent gaming by delete/add cycles
-export const getVendorLimitInfo = query({
+// Get subcontractor limit info for a company
+// Uses high water mark (subcontractorsAddedThisPeriod) to prevent gaming by delete/add cycles
+export const getSubcontractorLimitInfo = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
     const company = await ctx.db.get(args.companyId)
     if (!company) return null
 
     const tier = company.subscriptionTier || 'trial'
-    const limit = VENDOR_LIMITS[tier] ?? null
+    const limit = SUBCONTRACTOR_LIMITS[tier] ?? null
 
-    // Count current active vendors
+    // Count current active subcontractors
     const subcontractors = await ctx.db
       .query("subcontractors")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -428,7 +425,7 @@ export const getVendorLimitInfo = query({
     const activeCount = subcontractors.length
 
     // Use high water mark for billing purposes (prevents gaming)
-    // High water mark = max vendors added this billing period
+    // High water mark = max subcontractors added this billing period
     const highWaterMark = company.vendorsAddedThisPeriod ?? activeCount
     const effectiveCount = Math.max(activeCount, highWaterMark)
 
@@ -442,7 +439,7 @@ export const getVendorLimitInfo = query({
         percentUsed: 0,
         isAtLimit: false,
         isNearLimit: false,
-        canAddVendor: true,
+        canAddSubcontractor: true,
       }
     }
 
@@ -458,10 +455,13 @@ export const getVendorLimitInfo = query({
       percentUsed,
       isAtLimit: effectiveCount >= limit,
       isNearLimit: percentUsed >= 80,
-      canAddVendor: effectiveCount < limit,
+      canAddSubcontractor: effectiveCount < limit,
     }
   },
 })
+
+// Alias for backward compatibility
+export const getVendorLimitInfo = getSubcontractorLimitInfo
 
 // Get all usage limits for a company
 export const getUsageLimits = query({
@@ -473,12 +473,12 @@ export const getUsageLimits = query({
     const tier = company.subscriptionTier || 'trial'
 
     // Get limits for this tier
-    const vendorLimit = VENDOR_LIMITS[tier] ?? null
+    const subcontractorLimit = SUBCONTRACTOR_LIMITS[tier] ?? null
     const userLimit = USER_LIMITS[tier] ?? null
     const projectLimit = PROJECT_LIMITS[tier] ?? null
 
     // Count current usage
-    const [subcontractors, users, projects] = await Promise.all([
+    const [subcontractorsList, users, projects] = await Promise.all([
       ctx.db
         .query("subcontractors")
         .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -493,21 +493,24 @@ export const getUsageLimits = query({
         .collect(),
     ])
 
-    const vendorCount = subcontractors.length
+    const subcontractorCount = subcontractorsList.length
     const userCount = users.length
     const projectCount = projects.length
+
+    const subcontractorData = {
+      limit: subcontractorLimit,
+      current: subcontractorCount,
+      remaining: subcontractorLimit !== null ? Math.max(0, subcontractorLimit - subcontractorCount) : null,
+      percentUsed: subcontractorLimit !== null && subcontractorLimit > 0 ? Math.round((subcontractorCount / subcontractorLimit) * 100) : 0,
+      isAtLimit: subcontractorLimit !== null && subcontractorCount >= subcontractorLimit,
+      isNearLimit: subcontractorLimit !== null && subcontractorLimit > 0 && (subcontractorCount / subcontractorLimit) >= 0.8,
+    }
 
     return {
       tier,
       subscriptionStatus: company.subscriptionStatus,
-      vendors: {
-        limit: vendorLimit,
-        current: vendorCount,
-        remaining: vendorLimit !== null ? Math.max(0, vendorLimit - vendorCount) : null,
-        percentUsed: vendorLimit !== null && vendorLimit > 0 ? Math.round((vendorCount / vendorLimit) * 100) : 0,
-        isAtLimit: vendorLimit !== null && vendorCount >= vendorLimit,
-        isNearLimit: vendorLimit !== null && vendorLimit > 0 && (vendorCount / vendorLimit) >= 0.8,
-      },
+      subcontractors: subcontractorData,
+      vendors: subcontractorData, // Alias for backward compatibility
       users: {
         limit: userLimit,
         current: userCount,
@@ -528,8 +531,8 @@ export const getUsageLimits = query({
   },
 })
 
-// Check if a company can add a vendor (pre-check before creation)
-export const canAddVendor = query({
+// Check if a company can add a subcontractor (pre-check before creation)
+export const canAddSubcontractor = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
     const company = await ctx.db.get(args.companyId)
@@ -539,7 +542,7 @@ export const canAddVendor = query({
 
     // Check subscription status
     if (company.subscriptionStatus === 'cancelled') {
-      return { allowed: false, reason: "Subscription is cancelled. Please reactivate to add vendors." }
+      return { allowed: false, reason: "Subscription is cancelled. Please reactivate to add subcontractors." }
     }
 
     if (company.subscriptionStatus === 'past_due') {
@@ -547,14 +550,14 @@ export const canAddVendor = query({
     }
 
     const tier = company.subscriptionTier || 'trial'
-    const limit = VENDOR_LIMITS[tier] ?? null
+    const limit = SUBCONTRACTOR_LIMITS[tier] ?? null
 
     // Unlimited tier
     if (limit === null) {
       return { allowed: true }
     }
 
-    // Count current vendors
+    // Count current subcontractors
     const subcontractors = await ctx.db
       .query("subcontractors")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -568,7 +571,7 @@ export const canAddVendor = query({
     if (effectiveCount >= limit) {
       return {
         allowed: false,
-        reason: `You've reached your vendor limit of ${limit}. Upgrade your plan to add more vendors.`,
+        reason: `You've reached your subcontractor limit of ${limit}. Upgrade your plan to add more subcontractors.`,
         currentCount: activeCount,
         highWaterMark,
         limit,
@@ -580,14 +583,16 @@ export const canAddVendor = query({
   },
 })
 
+// Alias for backward compatibility
+export const canAddVendor = canAddSubcontractor
+
 // Helper function to get suggested upgrade tier
 function getSuggestedUpgradeTier(currentTier: string): string | null {
   const upgradeMap: Record<string, string | null> = {
-    trial: 'velocity',
-    velocity: 'compliance',
-    compliance: 'business',
-    business: 'enterprise',
-    enterprise: null,
+    trial: 'starter',
+    starter: 'professional',
+    professional: 'business',
+    business: null,
   }
   return upgradeMap[currentTier] ?? null
 }

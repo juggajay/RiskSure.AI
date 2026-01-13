@@ -198,12 +198,12 @@ function BillingContent() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <UsageCard
                   icon={<Users className="h-5 w-5 text-blue-500" />}
-                  label="Active Vendors"
-                  current={usageLimits.vendors.current}
-                  limit={usageLimits.vendors.limit}
-                  percentUsed={usageLimits.vendors.percentUsed}
-                  isNearLimit={usageLimits.vendors.isNearLimit}
-                  isAtLimit={usageLimits.vendors.isAtLimit}
+                  label="Active Subcontractors"
+                  current={usageLimits.subcontractors?.current ?? usageLimits.vendors?.current ?? 0}
+                  limit={usageLimits.subcontractors?.limit ?? usageLimits.vendors?.limit ?? null}
+                  percentUsed={usageLimits.subcontractors?.percentUsed ?? usageLimits.vendors?.percentUsed ?? 0}
+                  isNearLimit={usageLimits.subcontractors?.isNearLimit ?? usageLimits.vendors?.isNearLimit ?? false}
+                  isAtLimit={usageLimits.subcontractors?.isAtLimit ?? usageLimits.vendors?.isAtLimit ?? false}
                 />
                 <UsageCard
                   icon={<Briefcase className="h-5 w-5 text-purple-500" />}
@@ -267,7 +267,7 @@ function BillingContent() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {(Object.keys(PRICING_PLANS) as Array<keyof typeof PRICING_PLANS>).map((tier) => {
             const plan = PRICING_PLANS[tier]
             const isCurrentPlan = currentTier === tier
@@ -283,12 +283,12 @@ function BillingContent() {
                 priceAnnual={plan.priceAnnual}
                 billingInterval={billingInterval}
                 features={plan.features}
-                vendorLimit={plan.vendorLimit}
+                subcontractorLimit={plan.subcontractorLimit}
                 userLimit={plan.userLimit}
                 projectLimit={plan.projectLimit}
                 isCurrent={isCurrentPlan}
                 isRecommended={plan.recommended}
-                isEnterprise={tier === 'enterprise'}
+                isBusiness={tier === 'business'}
                 savings={savings}
                 isLoading={isLoading === tier}
                 onSelect={() => handleSelectPlan(tier)}
@@ -310,16 +310,16 @@ function BillingContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h4 className="font-medium">What counts as an "active vendor"?</h4>
-              <p className="text-sm text-slate-500">An active vendor is any subcontractor with at least one active project assignment. Vendors without project assignments don't count toward your limit.</p>
+              <h4 className="font-medium">What counts as an "active subcontractor"?</h4>
+              <p className="text-sm text-slate-500">An active subcontractor is any subcontractor with at least one active project assignment. Subcontractors without project assignments don't count toward your limit.</p>
             </div>
             <div>
               <h4 className="font-medium">Can I change plans anytime?</h4>
               <p className="text-sm text-slate-500">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and you'll be prorated accordingly.</p>
             </div>
             <div>
-              <h4 className="font-medium">What happens if I exceed my vendor limit?</h4>
-              <p className="text-sm text-slate-500">You'll receive a warning when approaching your limit. Once reached, you'll need to upgrade to add more vendors or remove inactive ones.</p>
+              <h4 className="font-medium">What happens if I exceed my subcontractor limit?</h4>
+              <p className="text-sm text-slate-500">You'll receive a warning when approaching your limit. Once reached, you'll need to upgrade to add more subcontractors or remove inactive ones.</p>
             </div>
           </CardContent>
         </Card>
@@ -381,12 +381,12 @@ function PlanCard({
   priceAnnual,
   billingInterval,
   features,
-  vendorLimit,
+  subcontractorLimit,
   userLimit,
   projectLimit,
   isCurrent,
   isRecommended,
-  isEnterprise,
+  isBusiness,
   savings,
   isLoading,
   onSelect,
@@ -398,12 +398,12 @@ function PlanCard({
   priceAnnual: number
   billingInterval: BillingInterval
   features: string[]
-  vendorLimit: number | null
+  subcontractorLimit: number | null
   userLimit: number | null
   projectLimit: number | null
   isCurrent: boolean
   isRecommended?: boolean
-  isEnterprise?: boolean
+  isBusiness?: boolean
   savings: number
   isLoading: boolean
   onSelect: () => void
@@ -413,10 +413,9 @@ function PlanCard({
 
   const getIcon = () => {
     switch (tier) {
-      case 'velocity': return <Rocket className="h-5 w-5 text-blue-500" />
-      case 'compliance': return <Check className="h-5 w-5 text-green-500" />
+      case 'starter': return <Rocket className="h-5 w-5 text-blue-500" />
+      case 'professional': return <Check className="h-5 w-5 text-green-500" />
       case 'business': return <Building2 className="h-5 w-5 text-purple-500" />
-      case 'enterprise': return <Briefcase className="h-5 w-5 text-orange-500" />
       default: return null
     }
   }
@@ -437,7 +436,7 @@ function PlanCard({
         </div>
         <CardDescription className="text-sm">{description}</CardDescription>
         <div className="mt-4">
-          {isEnterprise ? (
+          {isBusiness ? (
             <div>
               <span className="text-3xl font-bold">Custom</span>
               <p className="text-sm text-slate-500 mt-1">Contact sales for pricing</p>
@@ -464,7 +463,7 @@ function PlanCard({
         <div className="space-y-2 mb-4 text-sm">
           <div className="flex items-center gap-2 text-slate-600">
             <Users className="h-4 w-4" />
-            <span>{vendorLimit === null ? 'Unlimited' : `Up to ${vendorLimit}`} vendors</span>
+            <span>{subcontractorLimit === null ? 'Unlimited' : `Up to ${subcontractorLimit}`} subcontractors</span>
           </div>
           <div className="flex items-center gap-2 text-slate-600">
             <Briefcase className="h-4 w-4" />
@@ -496,7 +495,7 @@ function PlanCard({
             </>
           ) : isCurrent ? (
             'Current Plan'
-          ) : isEnterprise ? (
+          ) : isBusiness ? (
             <>
               Contact Sales
               <ArrowRight className="h-4 w-4 ml-2" />

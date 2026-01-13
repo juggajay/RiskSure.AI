@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { useUser } from "@/lib/hooks/use-api"
 
-interface VendorLimitWarningProps {
+interface SubcontractorLimitWarningProps {
   /**
    * Where to show the warning
    * - "banner" - Full-width banner at top of page
@@ -21,26 +21,26 @@ interface VendorLimitWarningProps {
   className?: string
 }
 
-export function VendorLimitWarning({ variant = "banner", className = "" }: VendorLimitWarningProps) {
+export function SubcontractorLimitWarning({ variant = "banner", className = "" }: SubcontractorLimitWarningProps) {
   const { data: user } = useUser()
   const companyId = user?.company?.id
 
-  const vendorLimitInfo = useQuery(
-    api.companies.getVendorLimitInfo,
+  const limitInfo = useQuery(
+    api.companies.getSubcontractorLimitInfo,
     companyId ? { companyId: companyId as any } : "skip"
   )
 
   // Don't show anything if loading or no limit info
-  if (!vendorLimitInfo) return null
+  if (!limitInfo) return null
 
   // Don't show if unlimited tier
-  if (vendorLimitInfo.limit === null) return null
+  if (limitInfo.limit === null) return null
 
   // Don't show if not near limit (< 80%)
-  if (!vendorLimitInfo.isNearLimit && !vendorLimitInfo.isAtLimit) return null
+  if (!limitInfo.isNearLimit && !limitInfo.isAtLimit) return null
 
-  const isAtLimit = vendorLimitInfo.isAtLimit
-  const isNearLimit = vendorLimitInfo.isNearLimit && !isAtLimit
+  const isAtLimit = limitInfo.isAtLimit
+  const isNearLimit = limitInfo.isNearLimit && !isAtLimit
 
   if (variant === "compact") {
     return (
@@ -56,8 +56,8 @@ export function VendorLimitWarning({ variant = "banner", className = "" }: Vendo
         )}
         <span>
           {isAtLimit
-            ? `Vendor limit reached (${vendorLimitInfo.current}/${vendorLimitInfo.limit})`
-            : `${vendorLimitInfo.remaining} vendor${vendorLimitInfo.remaining !== 1 ? "s" : ""} remaining`}
+            ? `Subcontractor limit reached (${limitInfo.current}/${limitInfo.limit})`
+            : `${limitInfo.remaining} subcontractor${limitInfo.remaining !== 1 ? "s" : ""} remaining`}
         </span>
         <Link
           href="/dashboard/settings/billing"
@@ -100,8 +100,8 @@ export function VendorLimitWarning({ variant = "banner", className = "" }: Vendo
                 }`}
               >
                 {isAtLimit
-                  ? "Vendor Limit Reached"
-                  : "Approaching Vendor Limit"}
+                  ? "Subcontractor Limit Reached"
+                  : "Approaching Subcontractor Limit"}
               </h3>
               <p
                 className={`text-sm mt-1 ${
@@ -109,8 +109,8 @@ export function VendorLimitWarning({ variant = "banner", className = "" }: Vendo
                 }`}
               >
                 {isAtLimit
-                  ? `You've reached your limit of ${vendorLimitInfo.limit} vendors. Upgrade your plan to add more vendors.`
-                  : `You're using ${vendorLimitInfo.current} of ${vendorLimitInfo.limit} vendors (${vendorLimitInfo.percentUsed}%). Consider upgrading soon.`}
+                  ? `You've reached your limit of ${limitInfo.limit} subcontractors. Upgrade your plan to add more subcontractors.`
+                  : `You're using ${limitInfo.current} of ${limitInfo.limit} subcontractors (${limitInfo.percentUsed}%). Consider upgrading soon.`}
               </p>
             </div>
 
@@ -137,16 +137,16 @@ export function VendorLimitWarning({ variant = "banner", className = "" }: Vendo
               <span
                 className={isAtLimit ? "text-red-600" : "text-amber-600"}
               >
-                {vendorLimitInfo.current} of {vendorLimitInfo.limit} vendors
+                {limitInfo.current} of {limitInfo.limit} subcontractors
               </span>
               <span
                 className={isAtLimit ? "text-red-600" : "text-amber-600"}
               >
-                {vendorLimitInfo.percentUsed}%
+                {limitInfo.percentUsed}%
               </span>
             </div>
             <Progress
-              value={vendorLimitInfo.percentUsed}
+              value={limitInfo.percentUsed}
               className={`h-2 ${
                 isAtLimit
                   ? "[&>div]:bg-red-500"
@@ -160,16 +160,19 @@ export function VendorLimitWarning({ variant = "banner", className = "" }: Vendo
   )
 }
 
+// Alias for backward compatibility
+export const VendorLimitWarning = SubcontractorLimitWarning
+
 /**
- * Hook to check vendor limit before adding a vendor
+ * Hook to check subcontractor limit before adding a subcontractor
  * Returns an object with canAdd boolean and optional error message
  */
-export function useVendorLimitCheck() {
+export function useSubcontractorLimitCheck() {
   const { data: user } = useUser()
   const companyId = user?.company?.id
 
   const canAddResult = useQuery(
-    api.companies.canAddVendor,
+    api.companies.canAddSubcontractor,
     companyId ? { companyId: companyId as any } : "skip"
   )
 
@@ -183,3 +186,6 @@ export function useVendorLimitCheck() {
     isLoading: canAddResult === undefined,
   }
 }
+
+// Alias for backward compatibility
+export const useVendorLimitCheck = useSubcontractorLimitCheck

@@ -77,11 +77,11 @@ export async function GET(request: NextRequest) {
       currentPlan = {
         id: 'trial',
         name: 'Free Trial',
-        description: 'Full access to Compliance features during trial',
+        description: 'Full access to Professional features during trial',
         priceMonthly: 0,
         priceAnnual: 0,
         features: TRIAL_CONFIG.features,
-        vendorLimit: TRIAL_CONFIG.vendorLimit,
+        subcontractorLimit: TRIAL_CONFIG.subcontractorLimit,
       }
     } else if (tier in PRICING_PLANS) {
       currentPlan = PRICING_PLANS[tier as Exclude<SubscriptionTier, 'trial' | 'subcontractor'>]

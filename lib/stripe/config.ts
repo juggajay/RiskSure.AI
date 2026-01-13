@@ -2,22 +2,20 @@
  * Stripe Configuration - RiskShield AI Pricing
  *
  * Pricing Structure (AUD, GST inclusive):
- * - Velocity: $349/mo | $3,490/yr - Small teams (50 vendors)
- * - Compliance: $799/mo | $7,990/yr - Growing companies (200 vendors)
- * - Business: $1,499/mo | $14,990/yr - Large builders (500 vendors)
- * - Enterprise: Custom - Unlimited everything
+ * - Starter: $349/mo (annual) | $399/mo (monthly) - 75 subcontractors
+ * - Professional: $999/mo (annual) | $1,199/mo (monthly) - 250 subcontractors
+ * - Business: Contact Sales - Unlimited subcontractors
  *
  * Stripe Products (Live Mode):
- * - prod_Tlm198CbMwPXPf: RiskShield AI - Velocity
- * - prod_Tlm6oFkgwxbHQD: RiskShield AI - Compliance
+ * - prod_Tlm198CbMwPXPf: RiskShield AI - Starter
+ * - prod_Tlm6oFkgwxbHQD: RiskShield AI - Professional
  * - prod_TlmBj7BuzNLQS3: RiskShield AI - Business
- * - prod_TlmEGOkUtoOeoU: RiskShield AI - Enterprise
  *
  * Coupon:
  * - FOUNDER50: 50% off for 6 months (20 redemptions max)
  */
 
-export type SubscriptionTier = 'trial' | 'velocity' | 'compliance' | 'business' | 'enterprise' | 'subcontractor'
+export type SubscriptionTier = 'trial' | 'starter' | 'professional' | 'business' | 'subcontractor'
 
 export interface PricingPlan {
   id: SubscriptionTier
@@ -26,7 +24,7 @@ export interface PricingPlan {
   priceMonthly: number // Monthly price in cents (AUD)
   priceAnnual: number // Annual price in cents (AUD)
   features: string[]
-  vendorLimit: number | null // null = unlimited
+  subcontractorLimit: number | null // null = unlimited
   userLimit: number | null // null = unlimited
   projectLimit: number | null // null = unlimited
   recommended?: boolean
@@ -37,109 +35,83 @@ export interface PricingPlan {
 }
 
 export const PRICING_PLANS: Record<Exclude<SubscriptionTier, 'trial' | 'subcontractor'>, PricingPlan> = {
-  velocity: {
-    id: 'velocity',
-    name: 'Velocity',
+  starter: {
+    id: 'starter',
+    name: 'Starter',
     description: 'Perfect for small teams getting started with compliance automation',
-    priceMonthly: 34900, // $349/month
-    priceAnnual: 349000, // $3,490/year (save $698)
+    priceMonthly: 39900, // $399/month
+    priceAnnual: 418800, // $349/month billed annually ($4,188/year)
     features: [
-      'Up to 50 active vendors',
+      'Up to 75 active subcontractors',
       'Up to 3 team members',
       'Up to 5 projects',
-      'AI-powered verification',
-      'Broker chasing automation',
+      'AI-powered document verification',
+      'Automated broker chasing',
+      'Real-time compliance dashboard',
       'Expiry monitoring & alerts',
       'Email support',
     ],
-    vendorLimit: 50,
+    subcontractorLimit: 75,
     userLimit: 3,
     projectLimit: 5,
     trialDays: 14,
-    stripePriceIdMonthly: 'velocity_monthly',
-    stripePriceIdAnnual: 'velocity_annual',
+    stripePriceIdMonthly: 'starter_monthly',
+    stripePriceIdAnnual: 'starter_annual',
     stripeProductId: 'prod_Tlm198CbMwPXPf',
   },
-  compliance: {
-    id: 'compliance',
-    name: 'Compliance',
-    description: 'For growing companies scaling their vendor network',
-    priceMonthly: 79900, // $799/month
-    priceAnnual: 799000, // $7,990/year (save $1,598)
+  professional: {
+    id: 'professional',
+    name: 'Professional',
+    description: 'For growing companies scaling their subcontractor network',
+    priceMonthly: 119900, // $1,199/month
+    priceAnnual: 1198800, // $999/month billed annually ($11,988/year)
     features: [
-      'Up to 200 active vendors',
+      'Up to 250 active subcontractors',
       'Unlimited team members',
       'Unlimited projects',
-      'AI-powered verification',
-      'Broker chasing automation',
+      'AI-powered document verification',
+      'Automated broker chasing',
+      'Real-time compliance dashboard',
       'Expiry monitoring & alerts',
+      'Custom compliance rules',
       'Principal indemnity detection',
       'Fraud detection',
       'Procore integration',
       'Priority support',
     ],
-    vendorLimit: 200,
+    subcontractorLimit: 250,
     userLimit: null,
     projectLimit: null,
     recommended: true,
     trialDays: 14,
-    stripePriceIdMonthly: 'compliance_monthly',
-    stripePriceIdAnnual: 'compliance_annual',
+    stripePriceIdMonthly: 'professional_monthly',
+    stripePriceIdAnnual: 'professional_annual',
     stripeProductId: 'prod_Tlm6oFkgwxbHQD',
   },
   business: {
     id: 'business',
     name: 'Business',
     description: 'Enterprise-grade compliance for large builders',
-    priceMonthly: 149900, // $1,499/month
-    priceAnnual: 1499000, // $14,990/year (save $2,998)
+    priceMonthly: 0, // Contact sales
+    priceAnnual: 0, // Contact sales
     features: [
-      'Up to 500 active vendors',
+      'Unlimited subcontractors',
       'Unlimited team members',
       'Unlimited projects',
-      'AI-powered verification',
-      'Broker chasing automation',
-      'Expiry monitoring & alerts',
-      'Principal indemnity detection',
-      'Fraud detection',
-      'Procore integration',
-      'Advanced reporting',
-      'State regulator APIs',
-      'Custom compliance rules',
-      'Dedicated CSM',
+      'All Professional features',
+      'Dedicated account manager',
+      'Custom integrations',
+      'SLA guarantee',
+      'Volume discounts',
+      'White-glove onboarding',
     ],
-    vendorLimit: 500,
+    subcontractorLimit: null,
     userLimit: null,
     projectLimit: null,
     trialDays: 14,
     stripePriceIdMonthly: 'business_monthly',
     stripePriceIdAnnual: 'business_annual',
     stripeProductId: 'prod_TlmBj7BuzNLQS3',
-  },
-  enterprise: {
-    id: 'enterprise',
-    name: 'Enterprise',
-    description: 'Custom solutions with unlimited capabilities',
-    priceMonthly: 0, // Custom pricing
-    priceAnnual: 0, // Custom pricing
-    features: [
-      'Unlimited vendors',
-      'Unlimited team members',
-      'Unlimited projects',
-      'All Business features',
-      'SLA guarantee',
-      'Custom integrations',
-      'On-premise option',
-      'White-glove onboarding',
-      'Dedicated support team',
-    ],
-    vendorLimit: null,
-    userLimit: null,
-    projectLimit: null,
-    trialDays: 14,
-    stripePriceIdMonthly: 'enterprise_monthly',
-    stripePriceIdAnnual: 'enterprise_annual',
-    stripeProductId: 'prod_TlmEGOkUtoOeoU',
   },
 }
 
@@ -161,11 +133,11 @@ export const SUBCONTRACTOR_PLAN = {
 // Trial configuration
 export const TRIAL_CONFIG = {
   durationDays: 14,
-  tier: 'compliance' as const, // Trial gets Compliance tier features
-  vendorLimit: 50, // But limited to 50 vendors during trial
+  tier: 'professional' as const, // Trial gets Professional tier features
+  subcontractorLimit: 50, // But limited to 50 subcontractors during trial
   features: [
-    'Full access to Compliance features',
-    'Up to 50 vendors during trial',
+    'Full access to Professional features',
+    'Up to 50 subcontractors during trial',
     'No credit card required to start',
   ],
 }
@@ -193,17 +165,17 @@ export function getPlanByTier(tier: SubscriptionTier): PricingPlan | typeof SUBC
 }
 
 /**
- * Get vendor limit for a subscription tier
+ * Get subcontractor limit for a subscription tier
  */
-export function getVendorLimit(tier: SubscriptionTier): number | null {
+export function getSubcontractorLimit(tier: SubscriptionTier): number | null {
   if (tier === 'trial') {
-    return TRIAL_CONFIG.vendorLimit
+    return TRIAL_CONFIG.subcontractorLimit
   }
   if (tier === 'subcontractor') {
-    return 0 // Subcontractors don't have vendors
+    return 0 // Subcontractors don't have subcontractors
   }
   const plan = PRICING_PLANS[tier as keyof typeof PRICING_PLANS]
-  return plan?.vendorLimit ?? null
+  return plan?.subcontractorLimit ?? null
 }
 
 /**
@@ -232,18 +204,18 @@ export function getProjectLimit(tier: SubscriptionTier): number | null {
 }
 
 /**
- * Check if vendor limit is exceeded
+ * Check if subcontractor limit is exceeded
  */
-export function isVendorLimitExceeded(tier: SubscriptionTier, currentCount: number): boolean {
-  const limit = getVendorLimit(tier)
+export function isSubcontractorLimitExceeded(tier: SubscriptionTier, currentCount: number): boolean {
+  const limit = getSubcontractorLimit(tier)
   if (limit === null) return false // Unlimited
   return currentCount >= limit
 }
 
 /**
- * Get vendor limit usage info
+ * Get subcontractor limit usage info
  */
-export function getVendorLimitInfo(tier: SubscriptionTier, currentCount: number): {
+export function getSubcontractorLimitInfo(tier: SubscriptionTier, currentCount: number): {
   limit: number | null
   current: number
   remaining: number | null
@@ -251,7 +223,7 @@ export function getVendorLimitInfo(tier: SubscriptionTier, currentCount: number)
   isAtLimit: boolean
   isNearLimit: boolean // 80% or more used
 } {
-  const limit = getVendorLimit(tier)
+  const limit = getSubcontractorLimit(tier)
 
   if (limit === null) {
     return {
@@ -303,21 +275,17 @@ export function getAnnualSavings(tier: Exclude<SubscriptionTier, 'trial' | 'subc
  * These are used to fetch prices dynamically from Stripe
  */
 export const STRIPE_LOOKUP_KEYS = {
-  velocity: {
-    monthly: 'velocity_monthly',
-    annual: 'velocity_annual',
+  starter: {
+    monthly: 'starter_monthly',
+    annual: 'starter_annual',
   },
-  compliance: {
-    monthly: 'compliance_monthly',
-    annual: 'compliance_annual',
+  professional: {
+    monthly: 'professional_monthly',
+    annual: 'professional_annual',
   },
   business: {
     monthly: 'business_monthly',
     annual: 'business_annual',
-  },
-  enterprise: {
-    monthly: 'enterprise_monthly',
-    annual: 'enterprise_annual',
   },
 }
 
@@ -336,11 +304,11 @@ export function getStripeLookupKey(
  */
 export function getSuggestedUpgrade(
   currentTier: SubscriptionTier,
-  vendorCount: number,
+  subcontractorCount: number,
   userCount: number,
   projectCount: number
 ): SubscriptionTier | null {
-  const tiers: Array<Exclude<SubscriptionTier, 'trial' | 'subcontractor'>> = ['velocity', 'compliance', 'business', 'enterprise']
+  const tiers: Array<Exclude<SubscriptionTier, 'trial' | 'subcontractor'>> = ['starter', 'professional', 'business']
   const currentIndex = tiers.indexOf(currentTier as typeof tiers[number])
 
   // Check each tier from current+1 onwards
@@ -348,14 +316,14 @@ export function getSuggestedUpgrade(
     const tier = tiers[i]
     const plan = PRICING_PLANS[tier]
 
-    const vendorOk = plan.vendorLimit === null || vendorCount <= plan.vendorLimit
+    const subcontractorOk = plan.subcontractorLimit === null || subcontractorCount <= plan.subcontractorLimit
     const userOk = plan.userLimit === null || userCount <= plan.userLimit
     const projectOk = plan.projectLimit === null || projectCount <= plan.projectLimit
 
-    if (vendorOk && userOk && projectOk) {
+    if (subcontractorOk && userOk && projectOk) {
       return tier
     }
   }
 
-  return 'enterprise' // Default to enterprise if nothing else fits
+  return 'business' // Default to business if nothing else fits
 }
