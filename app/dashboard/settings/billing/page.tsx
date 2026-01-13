@@ -46,12 +46,6 @@ function BillingContent() {
   const [error, setError] = useState<string | null>(null)
 
   const handleSelectPlan = async (tier: string) => {
-    if (tier === 'enterprise') {
-      // Open email to sales
-      window.location.href = 'mailto:sales@risksure.ai?subject=Enterprise%20Plan%20Inquiry'
-      return
-    }
-
     setIsLoading(tier)
     setError(null)
     try {
@@ -288,7 +282,6 @@ function BillingContent() {
                 projectLimit={plan.projectLimit}
                 isCurrent={isCurrentPlan}
                 isRecommended={plan.recommended}
-                isBusiness={tier === 'business'}
                 savings={savings}
                 isLoading={isLoading === tier}
                 onSelect={() => handleSelectPlan(tier)}
@@ -386,7 +379,6 @@ function PlanCard({
   projectLimit,
   isCurrent,
   isRecommended,
-  isBusiness,
   savings,
   isLoading,
   onSelect,
@@ -403,7 +395,6 @@ function PlanCard({
   projectLimit: number | null
   isCurrent: boolean
   isRecommended?: boolean
-  isBusiness?: boolean
   savings: number
   isLoading: boolean
   onSelect: () => void
@@ -436,27 +427,20 @@ function PlanCard({
         </div>
         <CardDescription className="text-sm">{description}</CardDescription>
         <div className="mt-4">
-          {isBusiness ? (
-            <div>
-              <span className="text-3xl font-bold">Custom</span>
-              <p className="text-sm text-slate-500 mt-1">Contact sales for pricing</p>
-            </div>
-          ) : (
-            <div>
-              <span className="text-3xl font-bold">{formatPrice(perMonth)}</span>
-              <span className="text-slate-500">/month</span>
-              {billingInterval === 'annual' && (
-                <p className="text-sm text-slate-500 mt-1">
-                  {formatPrice(price)} billed annually
-                </p>
-              )}
-              {billingInterval === 'annual' && savings > 0 && (
-                <Badge variant="secondary" className="mt-2 bg-green-100 text-green-700">
-                  Save {formatPrice(savings)}/year
-                </Badge>
-              )}
-            </div>
-          )}
+          <div>
+            <span className="text-3xl font-bold">{formatPrice(perMonth)}</span>
+            <span className="text-slate-500">/month</span>
+            {billingInterval === 'annual' && (
+              <p className="text-sm text-slate-500 mt-1">
+                {formatPrice(price)} billed annually
+              </p>
+            )}
+            {billingInterval === 'annual' && savings > 0 && (
+              <Badge variant="secondary" className="mt-2 bg-green-100 text-green-700">
+                Save {formatPrice(savings)}/year
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
@@ -495,11 +479,6 @@ function PlanCard({
             </>
           ) : isCurrent ? (
             'Current Plan'
-          ) : isBusiness ? (
-            <>
-              Contact Sales
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </>
           ) : (
             <>
               Select Plan
