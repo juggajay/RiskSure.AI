@@ -2,20 +2,20 @@
  * Stripe Configuration - RiskShield AI Pricing
  *
  * Pricing Structure (AUD, GST inclusive):
- * - Starter: $349/mo (annual) | $399/mo (monthly) - 75 subcontractors
- * - Professional: $999/mo (annual) | $1,199/mo (monthly) - 250 subcontractors
- * - Business: Contact Sales - Unlimited subcontractors
+ * - Velocity: $349/mo | $3,490/yr - 75 subcontractors
+ * - Compliance: $799/mo | $7,990/yr - 250 subcontractors
+ * - Business: $1,499/mo | $14,990/yr - 500 subcontractors
  *
  * Stripe Products (Live Mode):
- * - prod_Tlm198CbMwPXPf: RiskShield AI - Starter
- * - prod_Tlm6oFkgwxbHQD: RiskShield AI - Professional
+ * - prod_Tlm198CbMwPXPf: RiskShield AI - Velocity
+ * - prod_Tlm6oFkgwxbHQD: RiskShield AI - Compliance
  * - prod_TlmBj7BuzNLQS3: RiskShield AI - Business
  *
  * Coupon:
  * - FOUNDER50: 50% off for 6 months (20 redemptions max)
  */
 
-export type SubscriptionTier = 'trial' | 'starter' | 'professional' | 'business' | 'subcontractor'
+export type SubscriptionTier = 'trial' | 'velocity' | 'compliance' | 'business' | 'subcontractor'
 
 export interface PricingPlan {
   id: SubscriptionTier
@@ -35,48 +35,52 @@ export interface PricingPlan {
 }
 
 export const PRICING_PLANS: Record<Exclude<SubscriptionTier, 'trial' | 'subcontractor'>, PricingPlan> = {
-  starter: {
-    id: 'starter',
-    name: 'Starter',
-    description: 'Perfect for small teams getting started with compliance automation',
-    priceMonthly: 39900, // $399/month
-    priceAnnual: 418800, // $349/month billed annually ($4,188/year)
+  velocity: {
+    id: 'velocity',
+    name: 'Velocity',
+    description: 'Perfect for small builders getting started with compliance automation',
+    priceMonthly: 34900, // $349/month
+    priceAnnual: 349000, // $3,490/year (save $698)
     features: [
       'Up to 75 active subcontractors',
       'Up to 3 team members',
       'Up to 5 projects',
       'AI-powered document verification',
-      'Automated broker chasing',
-      'Real-time compliance dashboard',
       'Expiry monitoring & alerts',
+      'Real-time compliance dashboard',
+      'Subcontractor self-service portal',
+      'Fraud detection (ABN & policy validation)',
+      'Exception management',
       'Email support',
     ],
     subcontractorLimit: 75,
     userLimit: 3,
     projectLimit: 5,
     trialDays: 14,
-    stripePriceIdMonthly: 'starter_monthly',
-    stripePriceIdAnnual: 'starter_annual',
+    stripePriceIdMonthly: 'velocity_monthly',
+    stripePriceIdAnnual: 'velocity_annual',
     stripeProductId: 'prod_Tlm198CbMwPXPf',
   },
-  professional: {
-    id: 'professional',
-    name: 'Professional',
+  compliance: {
+    id: 'compliance',
+    name: 'Compliance',
     description: 'For growing companies scaling their subcontractor network',
-    priceMonthly: 119900, // $1,199/month
-    priceAnnual: 1198800, // $999/month billed annually ($11,988/year)
+    priceMonthly: 79900, // $799/month
+    priceAnnual: 799000, // $7,990/year (save $1,598)
     features: [
       'Up to 250 active subcontractors',
       'Unlimited team members',
       'Unlimited projects',
-      'AI-powered document verification',
-      'Automated broker chasing',
-      'Real-time compliance dashboard',
-      'Expiry monitoring & alerts',
-      'Custom compliance rules',
-      'Principal indemnity detection',
-      'Fraud detection',
+      'Everything in Velocity, plus:',
       'Procore integration',
+      'Automated follow-up sequences',
+      'Principal indemnity detection',
+      'Cross liability detection',
+      'Waiver of subrogation detection',
+      'Workers comp state matching',
+      'APRA insurer validation',
+      'SMS stop-work alerts',
+      'Morning brief dashboard',
       'Priority support',
     ],
     subcontractorLimit: 250,
@@ -84,28 +88,26 @@ export const PRICING_PLANS: Record<Exclude<SubscriptionTier, 'trial' | 'subcontr
     projectLimit: null,
     recommended: true,
     trialDays: 14,
-    stripePriceIdMonthly: 'professional_monthly',
-    stripePriceIdAnnual: 'professional_annual',
+    stripePriceIdMonthly: 'compliance_monthly',
+    stripePriceIdAnnual: 'compliance_annual',
     stripeProductId: 'prod_Tlm6oFkgwxbHQD',
   },
   business: {
     id: 'business',
     name: 'Business',
-    description: 'Enterprise-grade compliance for large builders',
-    priceMonthly: 0, // Contact sales
-    priceAnnual: 0, // Contact sales
+    description: 'For large builders with extensive subcontractor networks',
+    priceMonthly: 149900, // $1,499/month
+    priceAnnual: 1499000, // $14,990/year (save $2,998)
     features: [
-      'Unlimited subcontractors',
+      'Up to 500 active subcontractors',
       'Unlimited team members',
       'Unlimited projects',
-      'All Professional features',
-      'Dedicated account manager',
-      'Custom integrations',
-      'SLA guarantee',
-      'Volume discounts',
-      'White-glove onboarding',
+      'Everything in Compliance, plus:',
+      'Dedicated onboarding session',
+      'Quarterly business reviews',
+      'Priority support SLA',
     ],
-    subcontractorLimit: null,
+    subcontractorLimit: 500,
     userLimit: null,
     projectLimit: null,
     trialDays: 14,
@@ -133,10 +135,10 @@ export const SUBCONTRACTOR_PLAN = {
 // Trial configuration
 export const TRIAL_CONFIG = {
   durationDays: 14,
-  tier: 'professional' as const, // Trial gets Professional tier features
+  tier: 'compliance' as const, // Trial gets Compliance tier features
   subcontractorLimit: 50, // But limited to 50 subcontractors during trial
   features: [
-    'Full access to Professional features',
+    'Full access to Compliance features',
     'Up to 50 subcontractors during trial',
     'No credit card required to start',
   ],
@@ -156,7 +158,7 @@ export const FOUNDER_COUPON = {
  */
 export function getPlanByTier(tier: SubscriptionTier): PricingPlan | typeof SUBCONTRACTOR_PLAN | null {
   if (tier === 'trial') {
-    return null // Trial uses Compliance features with limited vendors
+    return null // Trial uses Compliance features with limited subcontractors
   }
   if (tier === 'subcontractor') {
     return SUBCONTRACTOR_PLAN
@@ -275,13 +277,13 @@ export function getAnnualSavings(tier: Exclude<SubscriptionTier, 'trial' | 'subc
  * These are used to fetch prices dynamically from Stripe
  */
 export const STRIPE_LOOKUP_KEYS = {
-  starter: {
-    monthly: 'starter_monthly',
-    annual: 'starter_annual',
+  velocity: {
+    monthly: 'velocity_monthly',
+    annual: 'velocity_annual',
   },
-  professional: {
-    monthly: 'professional_monthly',
-    annual: 'professional_annual',
+  compliance: {
+    monthly: 'compliance_monthly',
+    annual: 'compliance_annual',
   },
   business: {
     monthly: 'business_monthly',
@@ -308,7 +310,7 @@ export function getSuggestedUpgrade(
   userCount: number,
   projectCount: number
 ): SubscriptionTier | null {
-  const tiers: Array<Exclude<SubscriptionTier, 'trial' | 'subcontractor'>> = ['starter', 'professional', 'business']
+  const tiers: Array<Exclude<SubscriptionTier, 'trial' | 'subcontractor'>> = ['velocity', 'compliance', 'business']
   const currentIndex = tiers.indexOf(currentTier as typeof tiers[number])
 
   // Check each tier from current+1 onwards

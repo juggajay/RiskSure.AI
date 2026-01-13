@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, X, Zap, Shield, Building2, ArrowRight, MessageSquare } from 'lucide-react';
+import { Check, Zap, Shield, Building2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 type BillingCycle = 'monthly' | 'annual';
@@ -10,11 +10,11 @@ interface PricingTier {
   name: string;
   tagline: string;
   icon: React.ReactNode;
-  monthlyPrice: number | null;
-  annualMonthlyPrice: number | null;
-  annualTotal: number | null;
+  monthlyPrice: number;
+  annualPrice: number;
+  annualSavings: number;
   features: {
-    vendors: string;
+    subcontractors: string;
     team: string;
     projects: string;
   };
@@ -22,47 +22,49 @@ interface PricingTier {
   cta: string;
   ctaLink: string;
   popular?: boolean;
-  isContactSales?: boolean;
+  stripeTier: string;
 }
 
 const tiers: PricingTier[] = [
   {
-    name: 'Starter',
-    tagline: 'For growing builders',
+    name: 'Velocity',
+    tagline: 'Perfect for small builders getting started with compliance automation',
     icon: <Zap className="h-6 w-6" />,
-    monthlyPrice: 399,
-    annualMonthlyPrice: 349,
-    annualTotal: 4188,
+    monthlyPrice: 349,
+    annualPrice: 3490,
+    annualSavings: 698,
     features: {
-      vendors: 'Up to 75 active subcontractors',
-      team: '3 team members',
-      projects: '5 projects',
+      subcontractors: 'Up to 75 subcontractors',
+      team: 'Up to 3 team members',
+      projects: 'Up to 5 projects',
     },
     highlights: [
-      'AI-powered certificate verification',
+      'AI-powered document verification',
       'Expiry monitoring & alerts',
-      'Deficiency notifications to subcontractors',
+      'Real-time compliance dashboard',
       'Subcontractor self-service portal',
-      'Fraud detection (ABN, policy validation)',
+      'Fraud detection (ABN & policy validation)',
+      'Exception management',
       'Email support',
     ],
     cta: 'Start Free Trial',
-    ctaLink: '/signup?plan=starter',
+    ctaLink: '/signup?plan=velocity',
+    stripeTier: 'velocity',
   },
   {
-    name: 'Professional',
-    tagline: 'For established builders',
+    name: 'Compliance',
+    tagline: 'For growing companies scaling their subcontractor network',
     icon: <Shield className="h-6 w-6" />,
-    monthlyPrice: 1199,
-    annualMonthlyPrice: 999,
-    annualTotal: 11988,
+    monthlyPrice: 799,
+    annualPrice: 7990,
+    annualSavings: 1598,
     features: {
-      vendors: 'Up to 250 active subcontractors',
+      subcontractors: 'Up to 250 subcontractors',
       team: 'Unlimited team members',
       projects: 'Unlimited projects',
     },
     highlights: [
-      'Everything in Starter, plus:',
+      'Everything in Velocity, plus:',
       'Procore integration',
       'Automated follow-up sequences',
       'Principal indemnity detection',
@@ -72,35 +74,34 @@ const tiers: PricingTier[] = [
       'APRA insurer validation',
       'SMS stop-work alerts',
       'Morning brief dashboard',
-      'Exception management',
       'Priority support',
     ],
     cta: 'Start Free Trial',
-    ctaLink: '/signup?plan=professional',
+    ctaLink: '/signup?plan=compliance',
     popular: true,
+    stripeTier: 'compliance',
   },
   {
     name: 'Business',
-    tagline: 'For large builders',
+    tagline: 'For large builders with extensive subcontractor networks',
     icon: <Building2 className="h-6 w-6" />,
-    monthlyPrice: null,
-    annualMonthlyPrice: null,
-    annualTotal: null,
+    monthlyPrice: 1499,
+    annualPrice: 14990,
+    annualSavings: 2998,
     features: {
-      vendors: 'Unlimited subcontractors',
+      subcontractors: 'Up to 500 subcontractors',
       team: 'Unlimited team members',
       projects: 'Unlimited projects',
     },
     highlights: [
-      'Everything in Professional, plus:',
-      'Dedicated onboarding',
-      'Custom training session',
-      'Priority support SLA',
+      'Everything in Compliance, plus:',
+      'Dedicated onboarding session',
       'Quarterly business reviews',
+      'Priority support SLA',
     ],
-    cta: 'Contact Sales',
-    ctaLink: '/contact?plan=business',
-    isContactSales: true,
+    cta: 'Start Free Trial',
+    ctaLink: '/signup?plan=business',
+    stripeTier: 'business',
   },
 ];
 
@@ -108,67 +109,68 @@ const comparisonFeatures = [
   {
     category: 'Subcontractors & Team',
     features: [
-      { name: 'Active subcontractors', starter: '75', professional: '250', business: 'Unlimited' },
-      { name: 'Team members', starter: '3', professional: 'Unlimited', business: 'Unlimited' },
-      { name: 'Projects', starter: '5', professional: 'Unlimited', business: 'Unlimited' },
+      { name: 'Active subcontractors', velocity: '75', compliance: '250', business: '500' },
+      { name: 'Team members', velocity: '3', compliance: 'Unlimited', business: 'Unlimited' },
+      { name: 'Projects', velocity: '5', compliance: 'Unlimited', business: 'Unlimited' },
     ]
   },
   {
     category: 'AI Verification',
     features: [
-      { name: 'Certificate verification', starter: true, professional: true, business: true },
-      { name: 'Principal indemnity detection', starter: false, professional: true, business: true },
-      { name: 'Cross liability detection', starter: false, professional: true, business: true },
-      { name: 'Waiver of subrogation detection', starter: false, professional: true, business: true },
-      { name: 'Workers comp state matching', starter: false, professional: true, business: true },
-      { name: 'APRA insurer validation', starter: true, professional: true, business: true },
+      { name: 'Certificate verification', velocity: true, compliance: true, business: true },
+      { name: 'Principal indemnity detection', velocity: false, compliance: true, business: true },
+      { name: 'Cross liability detection', velocity: false, compliance: true, business: true },
+      { name: 'Waiver of subrogation detection', velocity: false, compliance: true, business: true },
+      { name: 'Workers comp state matching', velocity: false, compliance: true, business: true },
+      { name: 'APRA insurer validation', velocity: true, compliance: true, business: true },
     ]
   },
   {
     category: 'Fraud Detection',
     features: [
-      { name: 'ABN checksum validation', starter: true, professional: true, business: true },
-      { name: 'Policy number format check', starter: true, professional: true, business: true },
-      { name: 'Duplicate document detection', starter: true, professional: true, business: true },
+      { name: 'ABN checksum validation', velocity: true, compliance: true, business: true },
+      { name: 'Policy number format check', velocity: true, compliance: true, business: true },
+      { name: 'Duplicate document detection', velocity: true, compliance: true, business: true },
     ]
   },
   {
     category: 'Automation',
     features: [
-      { name: 'Expiry monitoring', starter: true, professional: true, business: true },
-      { name: 'Automated follow-up sequences', starter: false, professional: true, business: true },
-      { name: 'Morning brief email', starter: false, professional: true, business: true },
-      { name: 'Stop-work SMS alerts', starter: false, professional: true, business: true },
+      { name: 'Expiry monitoring', velocity: true, compliance: true, business: true },
+      { name: 'Automated follow-up sequences', velocity: false, compliance: true, business: true },
+      { name: 'Morning brief email', velocity: false, compliance: true, business: true },
+      { name: 'Stop-work SMS alerts', velocity: false, compliance: true, business: true },
     ]
   },
   {
     category: 'Portals',
     features: [
-      { name: 'Subcontractor portal', starter: true, professional: true, business: true },
-      { name: 'Broker portal', starter: true, professional: true, business: true },
+      { name: 'Subcontractor portal', velocity: true, compliance: true, business: true },
+      { name: 'Broker portal', velocity: true, compliance: true, business: true },
     ]
   },
   {
     category: 'Integrations',
     features: [
-      { name: 'Procore', starter: false, professional: true, business: true },
+      { name: 'Procore', velocity: false, compliance: true, business: true },
     ]
   },
   {
     category: 'Compliance',
     features: [
-      { name: 'Exception management', starter: true, professional: true, business: true },
-      { name: 'Review queue', starter: true, professional: true, business: true },
-      { name: 'Audit trail', starter: true, professional: true, business: true },
+      { name: 'Exception management', velocity: true, compliance: true, business: true },
+      { name: 'Review queue', velocity: true, compliance: true, business: true },
+      { name: 'Audit trail', velocity: true, compliance: true, business: true },
     ]
   },
   {
     category: 'Support',
     features: [
-      { name: 'Email support', starter: true, professional: true, business: true },
-      { name: 'Priority support', starter: false, professional: true, business: true },
-      { name: 'Dedicated onboarding', starter: false, professional: false, business: true },
-      { name: 'Quarterly reviews', starter: false, professional: false, business: true },
+      { name: 'Email support', velocity: true, compliance: true, business: true },
+      { name: 'Priority support', velocity: false, compliance: true, business: true },
+      { name: 'Priority support SLA', velocity: false, compliance: false, business: true },
+      { name: 'Dedicated onboarding session', velocity: false, compliance: false, business: true },
+      { name: 'Quarterly business reviews', velocity: false, compliance: false, business: true },
     ]
   },
 ];
@@ -177,10 +179,6 @@ const faqs = [
   {
     question: 'Is it really free for subcontractors?',
     answer: 'Yes. Your subcontractors access the portal, upload certificates, and track their compliance status at no cost. You pay, they benefit.',
-  },
-  {
-    question: 'What happens when a certificate has issues?',
-    answer: "RiskSure automatically emails your subcontractor explaining exactly what's wrong in plain English. They contact their broker, get it fixed, and upload the new certificate. You don't have to chase anyone.",
   },
   {
     question: 'How fast is the AI verification?',
@@ -196,18 +194,9 @@ const faqs = [
   },
   {
     question: 'Do you integrate with Procore?',
-    answer: 'Yes. Professional and Business plans include full Procore integration — sync projects, subcontractors, and push compliance status back to Procore.',
-  },
-  {
-    question: 'What if I need more than 250 subcontractors?',
-    answer: "Contact us for Business pricing. We'll set up unlimited subcontractors with dedicated onboarding.",
+    answer: 'Yes. Compliance and Business plans include full Procore integration — sync projects, subcontractors, and push compliance status back to Procore.',
   },
 ];
-
-function formatPrice(price: number | null): string {
-  if (price === null) return 'Custom';
-  return `$${price.toLocaleString()}`;
-}
 
 function FeatureCheck({ value }: { value: boolean | string }) {
   if (typeof value === 'string') {
@@ -240,7 +229,7 @@ export default function PricingPage() {
             {/* Free for Subs Banner */}
             <div className="mt-8 inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
               <Check className="h-4 w-4" />
-              All plans include unlimited subcontractor portal access — your subs never pay
+              Free for your subcontractors — they never pay
             </div>
 
             {/* Billing Toggle */}
@@ -265,7 +254,7 @@ export default function PricingPage() {
               </span>
               {billingCycle === 'annual' && (
                 <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                  Save ~17%
+                  Save up to 17%
                 </span>
               )}
             </div>
@@ -304,38 +293,21 @@ export default function PricingPage() {
               </div>
 
               <div className="mb-6">
-                {tier.isContactSales ? (
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className={`h-8 w-8 ${tier.popular ? 'text-white' : 'text-gray-900'}`} />
-                    <span className={`text-3xl font-bold tracking-tight ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
-                      Contact Us
-                    </span>
-                  </div>
+                <div className="flex items-baseline">
+                  <span className={`text-4xl font-bold tracking-tight ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
+                    ${billingCycle === 'annual' ? tier.monthlyPrice : tier.monthlyPrice}
+                  </span>
+                  <span className={`ml-1 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
+                    /month
+                  </span>
+                </div>
+                {billingCycle === 'annual' ? (
+                  <p className={`mt-1 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Billed annually (${tier.annualPrice.toLocaleString()}/year — save ${tier.annualSavings})
+                  </p>
                 ) : (
-                  <>
-                    <div className="flex items-baseline">
-                      <span className={`text-4xl font-bold tracking-tight ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
-                        {formatPrice(billingCycle === 'annual' ? tier.annualMonthlyPrice : tier.monthlyPrice)}
-                      </span>
-                      <span className={`ml-1 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
-                        /month
-                      </span>
-                    </div>
-                    {billingCycle === 'annual' && tier.annualTotal && (
-                      <p className={`mt-1 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Billed annually (${tier.annualTotal.toLocaleString()}/year)
-                      </p>
-                    )}
-                    {billingCycle === 'monthly' && tier.monthlyPrice && (
-                      <p className={`mt-1 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Or ${tier.annualMonthlyPrice}/mo billed annually
-                      </p>
-                    )}
-                  </>
-                )}
-                {tier.isContactSales && (
-                  <p className={`mt-2 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
-                    For teams managing 500+ subcontractors across multiple regions
+                  <p className={`mt-1 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Or ${tier.annualPrice.toLocaleString()}/year (save ${tier.annualSavings})
                   </p>
                 )}
               </div>
@@ -343,7 +315,7 @@ export default function PricingPage() {
               {/* Features summary */}
               <div className={`mb-6 p-4 rounded-lg ${tier.popular ? 'bg-gray-800' : 'bg-gray-50'}`}>
                 <div className={`text-sm space-y-1 ${tier.popular ? 'text-gray-300' : 'text-gray-600'}`}>
-                  <p>{tier.features.vendors}</p>
+                  <p>{tier.features.subcontractors}</p>
                   <p>{tier.features.team}</p>
                   <p>{tier.features.projects}</p>
                 </div>
@@ -371,9 +343,7 @@ export default function PricingPage() {
                 className={`block w-full rounded-lg py-3 px-4 text-center text-sm font-semibold transition ${
                   tier.popular
                     ? 'bg-blue-600 text-white hover:bg-blue-500'
-                    : tier.isContactSales
-                    ? 'bg-white text-gray-900 ring-1 ring-gray-300 hover:bg-gray-50'
-                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                    : 'bg-white text-gray-900 ring-1 ring-gray-300 hover:bg-gray-50'
                 }`}
               >
                 {tier.cta}
@@ -382,10 +352,21 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* 14-day trial note */}
-        <p className="mt-8 text-center text-sm text-gray-500">
-          All plans include a 14-day free trial. No credit card required.
-        </p>
+        {/* Footer note */}
+        <div className="mt-12 text-center space-y-2">
+          <p className="text-sm text-gray-500">
+            All plans include AI-powered document verification, automated expiry monitoring, and email notifications.
+          </p>
+          <p className="text-sm text-gray-500">
+            Free for your subcontractors — they never pay.
+          </p>
+          <p className="text-sm text-gray-600">
+            Need help choosing?{' '}
+            <Link href="/contact" className="text-blue-600 hover:text-blue-500 font-medium">
+              Contact our team
+            </Link>
+          </p>
+        </div>
       </div>
 
       {/* Feature Comparison Table */}
@@ -410,16 +391,16 @@ export default function PricingPage() {
                   <tr className="border-b border-gray-200">
                     <th className="py-4 px-6 text-sm font-semibold text-gray-900"></th>
                     <th className="py-4 px-4 text-sm font-semibold text-gray-900 text-center">
-                      <div>Starter</div>
+                      <div>Velocity</div>
                       <div className="text-xs font-normal text-gray-500">$349/mo</div>
                     </th>
                     <th className="py-4 px-4 text-sm font-semibold text-gray-900 text-center bg-blue-50">
-                      <div>Professional</div>
-                      <div className="text-xs font-normal text-gray-500">$999/mo</div>
+                      <div>Compliance</div>
+                      <div className="text-xs font-normal text-gray-500">$799/mo</div>
                     </th>
                     <th className="py-4 px-4 text-sm font-semibold text-gray-900 text-center">
                       <div>Business</div>
-                      <div className="text-xs font-normal text-gray-500">Custom</div>
+                      <div className="text-xs font-normal text-gray-500">$1,499/mo</div>
                     </th>
                   </tr>
                 </thead>
@@ -435,10 +416,10 @@ export default function PricingPage() {
                         <tr key={feature.name} className="border-b border-gray-100">
                           <td className="py-3 px-6 text-sm text-gray-600">{feature.name}</td>
                           <td className="py-3 px-4 text-center">
-                            <FeatureCheck value={feature.starter} />
+                            <FeatureCheck value={feature.velocity} />
                           </td>
                           <td className="py-3 px-4 text-center bg-blue-50/50">
-                            <FeatureCheck value={feature.professional} />
+                            <FeatureCheck value={feature.compliance} />
                           </td>
                           <td className="py-3 px-4 text-center">
                             <FeatureCheck value={feature.business} />
@@ -513,7 +494,7 @@ export default function PricingPage() {
             offers: [
               {
                 '@type': 'Offer',
-                name: 'Starter',
+                name: 'Velocity',
                 price: '349',
                 priceCurrency: 'AUD',
                 priceSpecification: {
@@ -526,12 +507,25 @@ export default function PricingPage() {
               },
               {
                 '@type': 'Offer',
-                name: 'Professional',
-                price: '999',
+                name: 'Compliance',
+                price: '799',
                 priceCurrency: 'AUD',
                 priceSpecification: {
                   '@type': 'UnitPriceSpecification',
-                  price: '999',
+                  price: '799',
+                  priceCurrency: 'AUD',
+                  billingDuration: 'P1M',
+                },
+                availability: 'https://schema.org/InStock',
+              },
+              {
+                '@type': 'Offer',
+                name: 'Business',
+                price: '1499',
+                priceCurrency: 'AUD',
+                priceSpecification: {
+                  '@type': 'UnitPriceSpecification',
+                  price: '1499',
                   priceCurrency: 'AUD',
                   billingDuration: 'P1M',
                 },

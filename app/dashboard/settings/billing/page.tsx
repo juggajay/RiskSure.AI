@@ -413,8 +413,8 @@ function PlanCard({
 
   const getIcon = () => {
     switch (tier) {
-      case 'starter': return <Rocket className="h-5 w-5 text-blue-500" />
-      case 'professional': return <Check className="h-5 w-5 text-green-500" />
+      case 'velocity': return <Rocket className="h-5 w-5 text-blue-500" />
+      case 'compliance': return <Check className="h-5 w-5 text-green-500" />
       case 'business': return <Building2 className="h-5 w-5 text-purple-500" />
       default: return null
     }

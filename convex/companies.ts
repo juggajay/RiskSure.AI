@@ -382,17 +382,17 @@ export const updateSubscriptionStatus = mutation({
 // Subcontractor limit configuration by tier
 const SUBCONTRACTOR_LIMITS: Record<string, number | null> = {
   trial: 50,
-  starter: 75,
-  professional: 250,
-  business: null, // Unlimited - contact sales
+  velocity: 75,
+  compliance: 250,
+  business: 500,
   subcontractor: 0,
 }
 
 // User limit configuration by tier
 const USER_LIMITS: Record<string, number | null> = {
   trial: 3,
-  starter: 3,
-  professional: null, // Unlimited
+  velocity: 3,
+  compliance: null, // Unlimited
   business: null,
   subcontractor: 1,
 }
@@ -400,8 +400,8 @@ const USER_LIMITS: Record<string, number | null> = {
 // Project limit configuration by tier
 const PROJECT_LIMITS: Record<string, number | null> = {
   trial: 5,
-  starter: 5,
-  professional: null, // Unlimited
+  velocity: 5,
+  compliance: null, // Unlimited
   business: null,
   subcontractor: 0,
 }
@@ -589,9 +589,9 @@ export const canAddVendor = canAddSubcontractor
 // Helper function to get suggested upgrade tier
 function getSuggestedUpgradeTier(currentTier: string): string | null {
   const upgradeMap: Record<string, string | null> = {
-    trial: 'starter',
-    starter: 'professional',
-    professional: 'business',
+    trial: 'velocity',
+    velocity: 'compliance',
+    compliance: 'business',
     business: null,
   }
   return upgradeMap[currentTier] ?? null

@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       currentPlan = {
         id: 'trial',
         name: 'Free Trial',
-        description: 'Full access to Professional features during trial',
+        description: 'Full access to Compliance features during trial',
         priceMonthly: 0,
         priceAnnual: 0,
         features: TRIAL_CONFIG.features,
