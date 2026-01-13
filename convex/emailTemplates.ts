@@ -205,7 +205,7 @@ You can upload the updated certificate here: {{upload_link}}
 If you have any questions or need clarification on the requirements, please don't hesitate to contact us.
 
 Best regards,
-RiskShield AI Compliance Team`,
+RiskSure.AI Compliance Team`,
       },
       {
         type: "confirmation" as const,
@@ -223,7 +223,7 @@ VERIFICATION RESULT: APPROVED
 Thank you for ensuring compliance with our insurance requirements. If you have any questions or need to update your certificate in the future, please don't hesitate to contact us.
 
 Best regards,
-RiskShield AI Compliance Team`,
+RiskSure.AI Compliance Team`,
       },
       {
         type: "expiration_reminder" as const,
@@ -245,7 +245,7 @@ You can upload the updated certificate here: {{upload_link}}
 If you have any questions, please contact us.
 
 Best regards,
-RiskShield AI Compliance Team`,
+RiskSure.AI Compliance Team`,
       },
       {
         type: "follow_up_1" as const,
@@ -264,7 +264,7 @@ Please provide the required documentation as soon as possible to maintain compli
 Upload link: {{upload_link}}
 
 Best regards,
-RiskShield AI Compliance Team`,
+RiskSure.AI Compliance Team`,
       },
       {
         type: "follow_up_2" as const,
@@ -283,7 +283,7 @@ Please address this matter immediately to avoid any impact on site access.
 Upload link: {{upload_link}}
 
 Best regards,
-RiskShield AI Compliance Team`,
+RiskSure.AI Compliance Team`,
       },
       {
         type: "follow_up_3" as const,
@@ -304,7 +304,7 @@ This matter requires immediate attention. Failure to provide compliant documenta
 Upload link: {{upload_link}}
 
 Best regards,
-RiskShield AI Compliance Team`,
+RiskSure.AI Compliance Team`,
       },
     ]
 

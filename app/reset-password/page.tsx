@@ -224,7 +224,7 @@ function ResetPasswordContent() {
           <div className="flex justify-center mb-4">
             <Link href="/" className="flex items-center gap-2">
               <Shield className="h-10 w-10 text-primary" />
-              <span className="text-2xl font-bold">RiskShield AI</span>
+              <span className="text-2xl font-bold">RiskSure.AI</span>
             </Link>
           </div>
           <CardTitle>Reset your password</CardTitle>

@@ -1,5 +1,5 @@
 /**
- * Stripe Configuration - RiskShield AI Pricing
+ * Stripe Configuration - RiskSure.AI Pricing
  *
  * Pricing Structure (AUD, GST inclusive):
  * - Velocity: $349/mo | $3,490/yr - 75 subcontractors
@@ -7,9 +7,9 @@
  * - Business: $1,499/mo | $14,990/yr - 500 subcontractors
  *
  * Stripe Products (Live Mode):
- * - prod_Tlm198CbMwPXPf: RiskShield AI - Velocity
- * - prod_Tlm6oFkgwxbHQD: RiskShield AI - Compliance
- * - prod_TlmBj7BuzNLQS3: RiskShield AI - Business
+ * - prod_Tlm198CbMwPXPf: RiskSure.AI - Velocity
+ * - prod_Tlm6oFkgwxbHQD: RiskSure.AI - Compliance
+ * - prod_TlmBj7BuzNLQS3: RiskSure.AI - Business
  *
  * Coupon:
  * - FOUNDER50: 50% off for 6 months (20 redemptions max)

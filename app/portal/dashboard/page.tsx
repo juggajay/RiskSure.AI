@@ -146,7 +146,7 @@ export default function PortalDashboardPage() {
           <div className="flex items-center gap-2">
             <Shield className="h-8 w-8 text-primary" />
             <div>
-              <span className="text-lg font-semibold">RiskShield AI</span>
+              <span className="text-lg font-semibold">RiskSure.AI</span>
               <span className="text-sm text-slate-500 ml-2">Subcontractor Portal</span>
             </div>
           </div>

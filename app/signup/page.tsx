@@ -95,7 +95,7 @@ export default function SignupPage() {
 
       toast({
         title: "Account created!",
-        description: "Welcome to RiskShield AI. Redirecting to dashboard...",
+        description: "Welcome to RiskSure.AI. Redirecting to dashboard...",
       })
 
       // Redirect to dashboard
@@ -149,7 +149,7 @@ export default function SignupPage() {
           <div className="flex justify-center mb-4">
             <Link href="/" className="flex items-center gap-2">
               <Shield className="h-10 w-10 text-primary" />
-              <span className="text-2xl font-bold">RiskShield AI</span>
+              <span className="text-2xl font-bold">RiskSure.AI</span>
             </Link>
           </div>
           <CardTitle>Create your account</CardTitle>

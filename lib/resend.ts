@@ -63,14 +63,14 @@ function getResendClient(): Resend | null {
  * Get the configured from email address
  */
 export function getFromEmail(): string {
-  return process.env.RESEND_FROM_EMAIL || 'noreply@riskshield.ai'
+  return process.env.RESEND_FROM_EMAIL || 'noreply@risksure.ai'
 }
 
 /**
  * Get the from name for emails
  */
 export function getFromName(): string {
-  return process.env.RESEND_FROM_NAME || 'RiskShield AI'
+  return process.env.RESEND_FROM_NAME || 'RiskSure.AI'
 }
 
 /**
@@ -149,7 +149,7 @@ export function textToHtml(text: string): string {
     <body>
       ${withBreaks}
       <div class="footer">
-        <p>This email was sent by RiskShield AI - Insurance Compliance Management</p>
+        <p>This email was sent by RiskSure.AI - Insurance Compliance Management</p>
       </div>
     </body>
     </html>
@@ -666,7 +666,7 @@ ${builderName} Compliance Team`
   <p>Thanks,<br>${escapeHtml(builderName)} Compliance Team</p>
 
   <div class="footer">
-    <p>Powered by RiskShield AI - Automated Insurance Compliance</p>
+    <p>Powered by RiskSure.AI - Automated Insurance Compliance</p>
   </div>
 </body>
 </html>`
@@ -711,7 +711,7 @@ ${subcontractorName} is now approved to work on the ${projectName} project. All 
 Thank you for ensuring compliance with our insurance requirements. If you have any questions or need to update your certificate in the future, please don't hesitate to contact us.
 
 Best regards,
-RiskShield AI Compliance Team`
+RiskSure.AI Compliance Team`
 
   return sendEmail({
     to: recipientEmail,
@@ -737,11 +737,11 @@ export async function sendPasswordResetEmail(params: {
     expiresInMinutes = 60
   } = params
 
-  const subject = 'Reset Your RiskShield AI Password'
+  const subject = 'Reset Your RiskSure.AI Password'
 
   const body = `Dear ${recipientName},
 
-We received a request to reset the password for your RiskShield AI account.
+We received a request to reset the password for your RiskSure.AI account.
 
 Click the link below to reset your password:
 ${resetLink}
@@ -751,7 +751,7 @@ This link will expire in ${expiresInMinutes} minutes.
 If you didn't request a password reset, you can safely ignore this email. Your password will not be changed.
 
 Best regards,
-RiskShield AI Team`
+RiskSure.AI Team`
 
   return sendEmail({
     to: recipientEmail,
@@ -871,7 +871,7 @@ This secure link expires in ${expiresInDays} days. If you need a new link, visit
 Questions? Contact ${builderName} directly for assistance.
 
 Best regards,
-RiskShield AI Compliance Team`
+RiskSure.AI Compliance Team`
 
   // Create HTML version with styled button
   const htmlBody = `
@@ -1007,7 +1007,7 @@ RiskShield AI Compliance Team`
     <p class="expiry-note">This secure link expires in ${expiresInDays} days.</p>
 
     <div class="footer">
-      <p>RiskShield AI - Automated Insurance Compliance Verification</p>
+      <p>RiskSure.AI - Automated Insurance Compliance Verification</p>
       <p>Questions? Contact ${escapeHtml(builderName)} directly for assistance.</p>
     </div>
   </div>

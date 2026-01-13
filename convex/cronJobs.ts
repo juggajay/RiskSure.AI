@@ -122,7 +122,7 @@ export const runExpirationCheck = internalAction({
                   projectName: expiration.project_name,
                   expiryDate: expiration.expiry_date,
                   daysUntilExpiry: days,
-                  uploadLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://riskshield.ai"}/portal`,
+                  uploadLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://risksure.ai"}/portal`,
                 })
               }
 
@@ -234,7 +234,7 @@ export const runMorningBrief = internalAction({
               const { sendEmail } = await import("../lib/resend")
               await sendEmail({
                 to: admin.email,
-                subject: `[RiskShield] Morning Compliance Brief - ${new Date().toLocaleDateString("en-AU")}`,
+                subject: `[RiskSure.AI] Morning Compliance Brief - ${new Date().toLocaleDateString("en-AU")}`,
                 html: emailBody,
               })
             }
@@ -331,8 +331,8 @@ function formatMorningBriefEmail(companyName: string, data: any): string {
         ` : ""}
 
         <p style="color: #718096; font-size: 12px; margin-top: 30px;">
-          This is an automated email from RiskShield AI.
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://riskshield.ai"}/dashboard">View Dashboard</a>
+          This is an automated email from RiskSure.AI.
+          <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://risksure.ai"}/dashboard">View Dashboard</a>
         </p>
       </body>
     </html>
@@ -460,7 +460,7 @@ export const runFollowUpSequence = internalAction({
                   deficiencies: verification?.deficiencies || [],
                   daysWaiting,
                   followUpNumber,
-                  uploadLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://riskshield.ai"}/portal`,
+                  uploadLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://risksure.ai"}/portal`,
                   ccEmails: adminEmails.length > 0 ? adminEmails : undefined,
                 })
               }

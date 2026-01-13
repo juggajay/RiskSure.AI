@@ -127,7 +127,7 @@ export async function sendCriticalAlert(params: {
 }): Promise<SmsResult> {
   const { phoneNumber, subcontractorName, projectName, issue } = params
 
-  const message = `CRITICAL ALERT - RiskShield AI
+  const message = `CRITICAL ALERT - RiskSure.AI
 
 Subcontractor: ${subcontractorName}
 Project: ${projectName}
@@ -156,7 +156,7 @@ export async function sendExpirationWarningSms(params: {
 
   const urgency = daysRemaining <= 7 ? 'URGENT' : 'REMINDER'
 
-  const message = `${urgency}: ${subcontractorName}'s COC for ${projectName} expires ${expiryDate} (${daysRemaining} days). Please update immediately. - RiskShield AI`
+  const message = `${urgency}: ${subcontractorName}'s COC for ${projectName} expires ${expiryDate} (${daysRemaining} days). Please update immediately. - RiskSure.AI`
 
   return sendSms({
     to: phoneNumber,
@@ -175,7 +175,7 @@ export async function sendStopWorkRiskSms(params: {
 }): Promise<SmsResult> {
   const { phoneNumber, subcontractorName, projectName, reason } = params
 
-  const message = `STOP WORK RISK - ${subcontractorName} on ${projectName}: ${reason}. Immediate action required. - RiskShield AI`
+  const message = `STOP WORK RISK - ${subcontractorName} on ${projectName}: ${reason}. Immediate action required. - RiskSure.AI`
 
   return sendSms({
     to: phoneNumber,

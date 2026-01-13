@@ -1,8 +1,8 @@
-# RiskShield AI
+# RiskSure.AI
 
 **Autonomous Certificate of Currency (COC) Compliance Platform for the Australian Construction Industry**
 
-RiskShield AI transforms manual insurance document verification from a time-consuming administrative burden into an automated system that reads insurance certificates via AI, verifies them against project-specific requirements, communicates deficiencies directly to brokers, and provides real-time portfolio risk visibility.
+RiskSure.AI transforms manual insurance document verification from a time-consuming administrative burden into an automated system that reads insurance certificates via AI, verifies them against project-specific requirements, communicates deficiencies directly to brokers, and provides real-time portfolio risk visibility.
 
 ## Overview
 
@@ -14,7 +14,7 @@ Head contractors in the Australian construction industry must verify that every 
 - Following up with brokers when certificates are non-compliant
 - Managing exceptions and tracking expiring coverage
 
-RiskShield AI automates this entire process using AI-powered document verification.
+RiskSure.AI automates this entire process using AI-powered document verification.
 
 ## Key Features
 
