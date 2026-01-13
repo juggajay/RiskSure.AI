@@ -34,7 +34,7 @@ const tiers: PricingTier[] = [
     annualMonthlyPrice: 349,
     annualTotal: 4188,
     features: {
-      vendors: 'Up to 75 active vendors',
+      vendors: 'Up to 75 active subcontractors',
       team: '3 team members',
       projects: '5 projects',
     },
@@ -57,7 +57,7 @@ const tiers: PricingTier[] = [
     annualMonthlyPrice: 999,
     annualTotal: 11988,
     features: {
-      vendors: 'Up to 250 active vendors',
+      vendors: 'Up to 250 active subcontractors',
       team: 'Unlimited team members',
       projects: 'Unlimited projects',
     },
@@ -87,7 +87,7 @@ const tiers: PricingTier[] = [
     annualMonthlyPrice: null,
     annualTotal: null,
     features: {
-      vendors: 'Unlimited vendors',
+      vendors: 'Unlimited subcontractors',
       team: 'Unlimited team members',
       projects: 'Unlimited projects',
     },
@@ -106,9 +106,9 @@ const tiers: PricingTier[] = [
 
 const comparisonFeatures = [
   {
-    category: 'Vendors & Team',
+    category: 'Subcontractors & Team',
     features: [
-      { name: 'Active vendors', starter: '75', professional: '250', business: 'Unlimited' },
+      { name: 'Active subcontractors', starter: '75', professional: '250', business: 'Unlimited' },
       { name: 'Team members', starter: '3', professional: 'Unlimited', business: 'Unlimited' },
       { name: 'Projects', starter: '5', professional: 'Unlimited', business: 'Unlimited' },
     ]
@@ -191,16 +191,16 @@ const faqs = [
     answer: 'Yes. All plans include a 14-day free trial with full access. No credit card required to start.',
   },
   {
-    question: 'What\'s an "active vendor"?',
-    answer: "A vendor is active if they have a certificate uploaded or monitored within your billing period. Dormant vendors don't count against your limit.",
+    question: 'What\'s an "active subcontractor"?',
+    answer: "A subcontractor is active if they have a certificate uploaded or monitored within your billing period. Dormant subcontractors don't count against your limit.",
   },
   {
     question: 'Do you integrate with Procore?',
-    answer: 'Yes. Professional and Business plans include full Procore integration — sync projects, vendors, and push compliance status back to Procore.',
+    answer: 'Yes. Professional and Business plans include full Procore integration — sync projects, subcontractors, and push compliance status back to Procore.',
   },
   {
-    question: 'What if I need more than 250 vendors?',
-    answer: "Contact us for Business pricing. We'll set up unlimited vendors with dedicated onboarding.",
+    question: 'What if I need more than 250 subcontractors?',
+    answer: "Contact us for Business pricing. We'll set up unlimited subcontractors with dedicated onboarding.",
   },
 ];
 
@@ -335,7 +335,7 @@ export default function PricingPage() {
                 )}
                 {tier.isContactSales && (
                   <p className={`mt-2 text-sm ${tier.popular ? 'text-gray-400' : 'text-gray-500'}`}>
-                    For teams managing 500+ vendors across multiple regions
+                    For teams managing 500+ subcontractors across multiple regions
                   </p>
                 )}
               </div>
