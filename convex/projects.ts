@@ -351,12 +351,24 @@ export const getByIdWithDetails = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.id))
       .collect()
 
+    // Transform requirements to snake_case for frontend
+    const transformedRequirements = requirements.map(r => ({
+      id: r._id,
+      coverage_type: r.coverageType,
+      minimum_limit: r.minimumLimit ?? null,
+      maximum_excess: r.maximumExcess ?? null,
+      limit_type: r.limitType ?? 'per_occurrence',
+      principal_indemnity_required: r.principalIndemnityRequired ?? false,
+      cross_liability_required: r.crossLiabilityRequired ?? false,
+      other_requirements: r.otherRequirements ?? null,
+    }))
+
     return {
       project: {
         ...project,
         project_manager: projectManager,
         counts,
-        requirements,
+        requirements: transformedRequirements,
       },
     }
   },
