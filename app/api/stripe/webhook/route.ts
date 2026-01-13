@@ -8,6 +8,35 @@ import { constructWebhookEvent, isStripeConfigured, getStripe } from '@/lib/stri
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 /**
+ * IDEMPOTENCY: Check if event was already processed
+ * Returns true if we should skip processing (already handled)
+ */
+async function checkAndMarkEventProcessed(eventId: string, eventType: string): Promise<boolean> {
+  // First check if already processed
+  const isProcessed = await convex.query(api.integrations.isStripeEventProcessed, {
+    eventId,
+  })
+
+  if (isProcessed) {
+    console.log(`Stripe webhook: Event ${eventId} already processed, skipping`)
+    return true
+  }
+
+  // Mark as processed (with double-check inside mutation)
+  const result = await convex.mutation(api.integrations.markStripeEventProcessed, {
+    eventId,
+    eventType,
+  })
+
+  if (result.alreadyProcessed) {
+    console.log(`Stripe webhook: Event ${eventId} was processed by concurrent request, skipping`)
+    return true
+  }
+
+  return false
+}
+
+/**
  * POST /api/stripe/webhook
  *
  * Handle Stripe webhook events for subscription lifecycle management.
@@ -40,6 +69,13 @@ export async function POST(request: NextRequest) {
   console.log(`Stripe webhook received: ${event.type}`)
 
   try {
+    // IDEMPOTENCY: Check if event was already processed
+    const alreadyProcessed = await checkAndMarkEventProcessed(event.id, event.type)
+    if (alreadyProcessed) {
+      // Return 200 to acknowledge - Stripe considers this successful
+      return NextResponse.json({ received: true, skipped: true })
+    }
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session

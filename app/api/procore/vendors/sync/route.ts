@@ -5,6 +5,7 @@ import type { Id } from '@/convex/_generated/dataModel'
 import { getUserByToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { createProcoreClient } from '@/lib/procore'
+import { decryptToken, encryptToken } from '@/lib/encryption'
 import { syncVendorsFromProcoreConvex } from '@/lib/procore/sync-convex'
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
@@ -95,17 +96,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Procore client with token refresh handler
+    // SECURITY: Decrypt tokens from storage before use
     const client = createProcoreClient({
       companyId: connection.procoreCompanyId,
-      accessToken: connection.accessToken,
-      refreshToken: connection.refreshToken || '',
+      accessToken: decryptToken(connection.accessToken),
+      refreshToken: decryptToken(connection.refreshToken || ''),
       onTokenRefresh: async (tokens) => {
+        // SECURITY: Encrypt tokens before storage
         const tokenExpiresAt = Date.now() + (tokens.expires_in || 7200) * 1000
         await convex.mutation(api.integrations.updateConnectionTokens, {
           companyId: user.company_id as Id<"companies">,
           provider: 'procore',
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
+          accessToken: encryptToken(tokens.access_token),
+          refreshToken: encryptToken(tokens.refresh_token),
           tokenExpiresAt,
         })
       },

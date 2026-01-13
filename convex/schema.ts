@@ -408,6 +408,8 @@ export default defineSchema({
     createdByUserId: v.id("users"),
     approvedByUserId: v.optional(v.id("users")),
     approvedAt: v.optional(v.number()),
+    rejectedByUserId: v.optional(v.id("users")),
+    rejectedAt: v.optional(v.number()),
     expiresAt: v.optional(v.number()),
     expirationType: expirationType,
     status: exceptionStatus,
@@ -603,4 +605,13 @@ export default defineSchema({
     .index("by_job_name", ["jobName"])
     .index("by_started_at", ["startedAt"])
     .index("by_job_status", ["jobName", "status"]),
+
+  // Processed Stripe webhook events - For idempotency
+  processedStripeEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    processedAt: v.number(),
+  })
+    .index("by_event_id", ["eventId"])
+    .index("by_processed_at", ["processedAt"]),
 });

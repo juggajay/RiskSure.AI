@@ -8,6 +8,7 @@ import {
   MOCK_PROCORE_COMPANIES,
   createMockOAuthTokens,
 } from '@/lib/procore'
+import { encryptToken } from '@/lib/encryption'
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
@@ -159,11 +160,12 @@ export async function GET(request: NextRequest) {
       // Store tokens with pending_company_selection flag
       console.log(`[Procore] Storing connection with pending company selection...`)
       try {
+        // SECURITY FIX: Encrypt tokens before storage
         await convex.mutation(api.integrations.upsertConnection, {
           companyId: stateRecord.companyId as Id<"companies">,
           provider: 'procore',
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
+          accessToken: encryptToken(tokens.access_token),
+          refreshToken: encryptToken(tokens.refresh_token),
           tokenExpiresAt: tokenExpiresAt,
           pendingCompanySelection: true,
         })
@@ -187,11 +189,12 @@ export async function GET(request: NextRequest) {
 
       console.log(`[Procore] Storing connection for company ${procoreCompany.name}...`)
       try {
+        // SECURITY FIX: Encrypt tokens before storage
         await convex.mutation(api.integrations.upsertConnection, {
           companyId: stateRecord.companyId as Id<"companies">,
           provider: 'procore',
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
+          accessToken: encryptToken(tokens.access_token),
+          refreshToken: encryptToken(tokens.refresh_token),
           tokenExpiresAt: tokenExpiresAt,
           procoreCompanyId: procoreCompany.id,
           procoreCompanyName: procoreCompany.name,

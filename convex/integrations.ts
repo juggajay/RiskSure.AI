@@ -524,3 +524,66 @@ export const getRecentSyncLogs = query({
       .take(args.limit || 20)
   },
 })
+
+// ========== Stripe Webhook Idempotency ==========
+
+// Check if a Stripe event has already been processed
+export const isStripeEventProcessed = query({
+  args: { eventId: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("processedStripeEvents")
+      .withIndex("by_event_id", (q) => q.eq("eventId", args.eventId))
+      .first()
+    return existing !== null
+  },
+})
+
+// Mark a Stripe event as processed
+export const markStripeEventProcessed = mutation({
+  args: {
+    eventId: v.string(),
+    eventType: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if already processed (double-check in mutation for safety)
+    const existing = await ctx.db
+      .query("processedStripeEvents")
+      .withIndex("by_event_id", (q) => q.eq("eventId", args.eventId))
+      .first()
+
+    if (existing) {
+      return { alreadyProcessed: true }
+    }
+
+    await ctx.db.insert("processedStripeEvents", {
+      eventId: args.eventId,
+      eventType: args.eventType,
+      processedAt: Date.now(),
+    })
+
+    return { alreadyProcessed: false }
+  },
+})
+
+// Clean up old processed events (run periodically to prevent table bloat)
+export const cleanupOldStripeEvents = mutation({
+  args: {
+    olderThanDays: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const daysToKeep = args.olderThanDays || 30
+    const cutoff = Date.now() - daysToKeep * 24 * 60 * 60 * 1000
+
+    const oldEvents = await ctx.db
+      .query("processedStripeEvents")
+      .withIndex("by_processed_at", (q) => q.lt("processedAt", cutoff))
+      .collect()
+
+    for (const event of oldEvents) {
+      await ctx.db.delete(event._id)
+    }
+
+    return { deletedCount: oldEvents.length }
+  },
+})

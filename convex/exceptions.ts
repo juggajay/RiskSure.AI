@@ -491,8 +491,8 @@ export const reject = mutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, {
       status: "closed",
-      approvedByUserId: args.rejectedByUserId,
-      approvedAt: Date.now(),
+      rejectedByUserId: args.rejectedByUserId,
+      rejectedAt: Date.now(),
       updatedAt: Date.now(),
     })
   },

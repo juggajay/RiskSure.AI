@@ -38,34 +38,36 @@ export async function POST(request: NextRequest) {
 
     const convex = getConvex()
 
-    // Validate the reset token
-    const tokenDoc = await convex.query(api.auth.getPasswordResetToken, { token })
-    if (!tokenDoc) {
+    // Security: Atomically validate and mark the token as used in one operation
+    // This prevents race conditions where two requests could both validate the same token
+    const markResult = await convex.mutation(api.auth.markPasswordResetTokenUsed, { token })
+
+    if (!markResult.success || !markResult.userId) {
+      // Token was invalid, already used, or expired
       return NextResponse.json(
         { error: 'Invalid or expired reset link' },
         { status: 400 }
       )
     }
 
-    // Security: Mark the token as used BEFORE updating password to prevent race condition
-    await convex.mutation(api.auth.markPasswordResetTokenUsed, { token })
+    const userId = markResult.userId
 
     // Hash and update the password
     const passwordHash = await hashPassword(password)
     await convex.mutation(api.users.updatePassword, {
-      id: tokenDoc.userId,
+      id: userId,
       passwordHash,
     })
 
     // Delete all existing sessions for this user (security measure)
-    await convex.mutation(api.auth.deleteUserSessions, { userId: tokenDoc.userId })
+    await convex.mutation(api.auth.deleteUserSessions, { userId })
 
     // Security: Only log sensitive operations in development
     if (process.env.NODE_ENV !== 'production') {
       console.log('\n========================================')
       console.log('PASSWORD RESET SUCCESSFUL')
       console.log('========================================')
-      console.log(`User ID: ${tokenDoc.userId}`)
+      console.log(`User ID: ${userId}`)
       console.log('Password has been updated and all sessions invalidated.')
       console.log('========================================\n')
     }

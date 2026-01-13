@@ -3,6 +3,8 @@ import { getConvex, api } from '@/lib/convex'
 import type { Id } from '@/convex/_generated/dataModel'
 import { downloadFile } from '@/lib/storage'
 import { extractDocumentData, convertToLegacyFormat, shouldSkipFraudDetection } from '@/lib/gemini'
+import { sendDeficiencyEmail, sendConfirmationEmail } from '@/lib/resend'
+import { apiLimiter, rateLimitResponse } from '@/lib/rate-limit'
 
 // Type for extracted data from Gemini (legacy format)
 interface ExtractedData {
@@ -43,6 +45,7 @@ interface InsuranceRequirement {
   maximumExcess: number | null
   principalIndemnityRequired: boolean
   crossLiabilityRequired: boolean
+  waiverOfSubrogationRequired?: boolean
 }
 
 // Verify extracted data against project requirements
@@ -238,6 +241,23 @@ function verifyAgainstRequirements(
       })
     }
 
+    // Check waiver of subrogation
+    if (requirement.waiverOfSubrogationRequired && 'waiver_of_subrogation' in coverage && !coverage.waiver_of_subrogation) {
+      checks.push({
+        check_type: `waiver_of_subrogation_${requirement.coverageType}`,
+        description: `${formatCoverageType(requirement.coverageType)} waiver of subrogation`,
+        status: 'fail',
+        details: 'Waiver of subrogation clause required but not present'
+      })
+      deficiencies.push({
+        type: 'missing_endorsement',
+        severity: 'major',
+        description: `Waiver of subrogation clause not found or not confirmed`,
+        required_value: 'Yes',
+        actual_value: 'No'
+      })
+    }
+
     // Check Workers Comp state matches project state
     if (requirement.coverageType === 'workers_comp' && projectState && 'state' in coverage) {
       const wcState = (coverage as { state?: string }).state
@@ -320,6 +340,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Security: Rate limiting to prevent DoS via AI processing
+  const rateLimitResult = apiLimiter.check(request, 'document-process')
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult)
+  }
+
   try {
     const token = request.cookies.get('auth_token')?.value
 
@@ -480,10 +506,13 @@ export async function POST(
       }
     })
 
-    // If verification failed, auto-send deficiency notification email to broker
+    // If verification failed, auto-send deficiency notification email to subcontractor (CC broker)
     if (verification.status === 'fail' && verification.deficiencies.length > 0 && subcontractor) {
-      const recipientEmail = subcontractor.brokerEmail || subcontractor.contactEmail
-      const recipientName = subcontractor.brokerName || subcontractor.contactName || 'Insurance Contact'
+      // Send to subcontractor first - they need to chase their broker
+      const recipientEmail = subcontractor.contactEmail
+      const recipientName = subcontractor.contactName || 'Subcontractor Contact'
+      // CC the broker if we have their email
+      const ccEmails = subcontractor.brokerEmail || undefined
 
       if (recipientEmail) {
         // Generate the upload link for the subcontractor portal
@@ -549,7 +578,22 @@ RiskShield AI Compliance Team`
           cocDocumentId: documentId as Id<"cocDocuments">,
         })
 
-        // Queue the deficiency email
+        // CRITICAL FIX: Actually send the deficiency email via Resend
+        const emailResult = await sendDeficiencyEmail({
+          recipientEmail,
+          recipientName,
+          ccEmails: ccEmails ? [ccEmails] : undefined,
+          subcontractorName: subcontractor.name,
+          subcontractorAbn: subcontractor.abn,
+          projectName: project.name,
+          deficiencies: verification.deficiencies,
+          dueDate: dueDateStr,
+          uploadLink,
+          templateSubject: emailSubject,
+          templateBody: emailBody,
+        })
+
+        // Record communication with actual status from email send
         await convex.mutation(api.communications.create, {
           subcontractorId: document.subcontractorId as Id<"subcontractors">,
           projectId: document.projectId as Id<"projects">,
@@ -557,9 +601,10 @@ RiskShield AI Compliance Team`
           type: 'deficiency',
           channel: 'email',
           recipientEmail: recipientEmail,
+          ccEmails: ccEmails,
           subject: emailSubject,
           body: emailBody,
-          status: 'sent',
+          status: emailResult.success ? 'sent' : 'failed',
         })
 
         // Log the email action
@@ -568,12 +613,16 @@ RiskShield AI Compliance Team`
           userId: user._id,
           entityType: 'communication',
           entityId: 'deficiency_email',
-          action: 'deficiency_email_sent',
+          action: emailResult.success ? 'deficiency_email_sent' : 'deficiency_email_failed',
           details: {
             recipient: recipientEmail,
+            cc: ccEmails || null,
             subcontractor_name: subcontractor.name,
             project_name: project.name,
-            deficiency_count: verification.deficiencies.length
+            deficiency_count: verification.deficiencies.length,
+            email_success: emailResult.success,
+            email_error: emailResult.error || null,
+            message_id: emailResult.messageId || null,
           }
         })
       }
@@ -626,7 +675,16 @@ RiskShield AI Compliance Team`
           cocDocumentId: documentId as Id<"cocDocuments">,
         })
 
-        // Queue the confirmation email
+        // CRITICAL FIX: Actually send the confirmation email via Resend
+        const confirmEmailResult = await sendConfirmationEmail({
+          recipientEmail,
+          recipientName,
+          subcontractorName: subcontractor.name,
+          subcontractorAbn: subcontractor.abn,
+          projectName: project.name,
+        })
+
+        // Record communication with actual status from email send
         await convex.mutation(api.communications.create, {
           subcontractorId: document.subcontractorId as Id<"subcontractors">,
           projectId: document.projectId as Id<"projects">,
@@ -636,7 +694,7 @@ RiskShield AI Compliance Team`
           recipientEmail: recipientEmail,
           subject: emailSubject,
           body: emailBody,
-          status: 'sent',
+          status: confirmEmailResult.success ? 'sent' : 'failed',
         })
 
         // Log the email action
@@ -645,11 +703,14 @@ RiskShield AI Compliance Team`
           userId: user._id,
           entityType: 'communication',
           entityId: 'confirmation_email',
-          action: 'confirmation_email_sent',
+          action: confirmEmailResult.success ? 'confirmation_email_sent' : 'confirmation_email_failed',
           details: {
             recipient: recipientEmail,
             subcontractor_name: subcontractor.name,
-            project_name: project.name
+            project_name: project.name,
+            email_success: confirmEmailResult.success,
+            email_error: confirmEmailResult.error || null,
+            message_id: confirmEmailResult.messageId || null,
           }
         })
       }

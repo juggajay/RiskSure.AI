@@ -5,6 +5,24 @@ import { sendInvitationEmail } from '@/lib/resend'
 // Invitation token expiry: 7 days
 const INVITATION_EXPIRY_DAYS = 7
 
+// Human-readable coverage type names
+const COVERAGE_TYPE_NAMES: Record<string, string> = {
+  'public_liability': 'Public Liability',
+  'products_liability': 'Products Liability',
+  'workers_comp': 'Workers Compensation',
+  'professional_indemnity': 'Professional Indemnity',
+  'motor_vehicle': 'Motor Vehicle',
+  'contract_works': 'Contract Works',
+  'cyber_liability': 'Cyber Liability',
+}
+
+/**
+ * Convert coverage type code to human-readable name
+ */
+function formatCoverageType(coverageType: string): string {
+  return COVERAGE_TYPE_NAMES[coverageType] || coverageType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
 interface InvitationResult {
   success: boolean
   invitationId?: string
@@ -76,13 +94,14 @@ export async function sendSubcontractorInvitation(
     })
 
     const requirementsList = requirements.map((r: any) => {
+      const coverageName = formatCoverageType(r.coverageType)
       if (r.minimumLimit == null) {
-        return `${r.coverageType}: Required`
+        return `${coverageName}: Required`
       }
       const limit = r.minimumLimit >= 1000000
         ? `$${(r.minimumLimit / 1000000).toFixed(0)}M`
         : `$${r.minimumLimit.toLocaleString()}`
-      return `${r.coverageType}: ${limit} minimum`
+      return `${coverageName}: ${limit} minimum`
     })
 
     // Generate invitation token

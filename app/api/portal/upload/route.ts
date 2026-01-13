@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getConvex, api } from '@/lib/convex'
 import type { Id } from '@/convex/_generated/dataModel'
 import { uploadFile, getStorageInfo } from '@/lib/storage'
+import { extractDocumentData, convertToLegacyFormat } from '@/lib/gemini'
 
 // Security: Allowed file types for COC uploads
 const ALLOWED_MIME_TYPES = [
@@ -82,96 +83,43 @@ interface Subcontractor {
   abn: string
 }
 
-// Simulated AI extraction of policy details from COC document
-function extractPolicyDetails(fileName: string, subcontractor: Subcontractor) {
-  const insurers = [
-    'QBE Insurance (Australia) Limited',
-    'Allianz Australia Insurance Limited',
-    'Suncorp Group Limited',
-    'CGU Insurance Limited'
-  ]
-
-  const randomInsurer = insurers[Math.floor(Math.random() * insurers.length)]
-  const policyNumber = `POL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`
-
-  // Check for test scenarios based on filename
-  const isFullCompliance = fileName.toLowerCase().includes('compliant') ||
-                           fileName.toLowerCase().includes('full_compliance') ||
-                           fileName.toLowerCase().includes('pass')
-  const isNoPrincipalIndemnity = fileName.toLowerCase().includes('no_pi')
-  const isNoCrossLiability = fileName.toLowerCase().includes('no_cl')
-  const isLowLimit = fileName.toLowerCase().includes('low_limit')
-
-  // Generate dates
-  const now = new Date()
-  const startDate = new Date(now)
-  startDate.setMonth(startDate.getMonth() - 2)
-  const endDate = new Date(startDate)
-  endDate.setFullYear(endDate.getFullYear() + 1)
-
-  // Generate coverage limits
-  const publicLiabilityLimit = isLowLimit ? 5000000 : (isFullCompliance ? 20000000 : 10000000)
-  const productsLiabilityLimit = isLowLimit ? 5000000 : (isFullCompliance ? 20000000 : 10000000)
-  const workersCompLimit = isFullCompliance ? 2000000 : 1000000
-  const professionalIndemnityLimit = isFullCompliance ? 5000000 : 2000000
-
-  return {
-    insured_party_name: subcontractor.name,
-    insured_party_abn: subcontractor.abn,
-    insured_party_address: '123 Construction Way, Sydney NSW 2000',
-    insurer_name: randomInsurer,
-    insurer_abn: '28008770864',
-    policy_number: policyNumber,
-    period_of_insurance_start: startDate.toISOString().split('T')[0],
-    period_of_insurance_end: endDate.toISOString().split('T')[0],
-    coverages: [
-      {
-        type: 'public_liability',
-        limit: publicLiabilityLimit,
-        limit_type: 'per_occurrence',
-        excess: 1000,
-        principal_indemnity: !isNoPrincipalIndemnity,
-        cross_liability: !isNoCrossLiability
-      },
-      {
-        type: 'products_liability',
-        limit: productsLiabilityLimit,
-        limit_type: 'aggregate',
-        excess: 1000,
-        principal_indemnity: !isNoPrincipalIndemnity,
-        cross_liability: !isNoCrossLiability
-      },
-      {
-        type: 'workers_comp',
-        limit: workersCompLimit,
-        limit_type: 'statutory',
-        excess: 0,
-        state: 'NSW',
-        employer_indemnity: true
-      },
-      {
-        type: 'professional_indemnity',
-        limit: professionalIndemnityLimit,
-        limit_type: 'per_claim',
-        excess: 5000,
-        retroactive_date: '2020-01-01'
-      }
-    ],
-    broker_name: 'ABC Insurance Brokers Pty Ltd',
-    broker_contact: 'John Smith',
-    broker_phone: '02 9999 8888',
-    broker_email: 'john@abcbrokers.com.au',
-    currency: 'AUD',
-    territory: 'Australia and New Zealand',
-    extraction_timestamp: new Date().toISOString(),
-    extraction_model: 'gpt-4-vision-preview',
-    extraction_confidence: 0.92 + Math.random() * 0.07
-  }
+// Type for extracted data in legacy format
+interface LegacyExtractedData {
+  insured_party_name: string
+  insured_party_abn: string
+  insured_party_address: string
+  insurer_name: string
+  insurer_abn: string
+  policy_number: string
+  period_of_insurance_start: string
+  period_of_insurance_end: string
+  coverages: Array<{
+    type: string
+    limit: number
+    limit_type: string
+    excess: number
+    principal_indemnity?: boolean
+    cross_liability?: boolean
+    waiver_of_subrogation?: boolean
+    state?: string
+    employer_indemnity?: boolean
+    retroactive_date?: string
+  }>
+  broker_name?: string
+  broker_contact?: string
+  broker_phone?: string
+  broker_email?: string
+  currency: string
+  territory: string
+  extraction_timestamp: string
+  extraction_model: string
+  extraction_confidence: number
+  field_confidences?: Record<string, number>
 }
 
 // Verify extracted data against requirements
 function verifyAgainstRequirements(
-  extractedData: ReturnType<typeof extractPolicyDetails>,
+  extractedData: LegacyExtractedData,
   requirements: InsuranceRequirement[],
   projectEndDate?: number | null
 ) {
@@ -461,11 +409,37 @@ export async function POST(request: NextRequest) {
       crossLiabilityRequired: r.crossLiabilityRequired,
     }))
 
-    // Extract policy details (simulated AI)
-    const extractedData = extractPolicyDetails(file.name, {
+    // Extract policy details using Gemini AI
+    const extractionResult = await extractDocumentData(
+      buffer,
+      file.type,
+      file.name
+    )
+
+    // Handle extraction failure
+    if (!extractionResult.success || !extractionResult.data) {
+      // Update document status to failed
+      await convex.mutation(api.documents.updateProcessingStatus, {
+        id: docId,
+        processingStatus: 'failed',
+      })
+
+      return NextResponse.json({
+        success: false,
+        status: 'extraction_failed',
+        error: {
+          code: extractionResult.error?.code || 'EXTRACTION_FAILED',
+          message: extractionResult.error?.message || 'Could not extract policy details from the document',
+          actions: ['upload_new']
+        }
+      }, { status: 422 })
+    }
+
+    // Convert to legacy format for verification
+    const extractedData = convertToLegacyFormat(extractionResult.data, {
       name: subcontractor.name,
       abn: subcontractor.abn,
-    })
+    }) as unknown as LegacyExtractedData
 
     // Verify against requirements
     const verification = verifyAgainstRequirements(extractedData, formattedRequirements, project?.endDate)

@@ -797,6 +797,70 @@ export const getPendingReviews = query({
   },
 })
 
+// ============================================
+// RENEWED CERTIFICATE CHECK
+// ============================================
+
+// Check if a subcontractor has a newer compliant certificate for a project
+// Used by expiration check cron to avoid sending alerts for renewed certs
+export const hasNewerCompliantCert = internalQuery({
+  args: {
+    subcontractorId: v.id("subcontractors"),
+    projectId: v.id("projects"),
+    expiringVerificationId: v.id("verifications"),
+  },
+  handler: async (ctx, args) => {
+    // Get the expiring verification's creation time as baseline
+    const expiringVerification = await ctx.db.get(args.expiringVerificationId)
+    if (!expiringVerification) {
+      return { hasNewer: false }
+    }
+
+    // Get all documents for this subcontractor + project
+    const documents = await ctx.db
+      .query("cocDocuments")
+      .withIndex("by_subcontractor_project", (q) =>
+        q.eq("subcontractorId", args.subcontractorId).eq("projectId", args.projectId)
+      )
+      .collect()
+
+    if (documents.length === 0) {
+      return { hasNewer: false }
+    }
+
+    // Get verifications for these documents
+    const verificationPromises = documents.map((doc) =>
+      ctx.db
+        .query("verifications")
+        .withIndex("by_document", (q) => q.eq("cocDocumentId", doc._id))
+        .first()
+    )
+    const verifications = await Promise.all(verificationPromises)
+
+    // Check if any verification is:
+    // 1. Newer than the expiring one
+    // 2. Has status "pass"
+    // 3. Has a policy end date in the future
+    for (const verification of verifications) {
+      if (!verification) continue
+      if (verification._id === args.expiringVerificationId) continue
+      if (verification._creationTime <= expiringVerification._creationTime) continue
+      if (verification.status !== "pass") continue
+
+      // Check if the new certificate is still valid
+      const extractedData = verification.extractedData as Record<string, unknown> | null
+      if (extractedData?.period_of_insurance_end) {
+        const endDate = new Date(extractedData.period_of_insurance_end as string).getTime()
+        if (endDate > Date.now()) {
+          return { hasNewer: true, newVerificationId: verification._id }
+        }
+      }
+    }
+
+    return { hasNewer: false }
+  },
+})
+
 // Get full verification details for review (detail page)
 export const getVerificationForReview = query({
   args: { id: v.id("verifications") },

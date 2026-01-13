@@ -82,6 +82,20 @@ export const runExpirationCheck = internalAction({
               )
               if (alreadySent) continue
 
+              // FIX: Check if there's a newer compliant certificate (don't alert for renewed certs)
+              const renewedCheck = await ctx.runQuery(
+                internal.verifications.hasNewerCompliantCert,
+                {
+                  subcontractorId: expiration.subcontractor_id as Id<"subcontractors">,
+                  projectId: expiration.project_id as Id<"projects">,
+                  expiringVerificationId: expiration.id as Id<"verifications">,
+                }
+              )
+              if (renewedCheck.hasNewer) {
+                console.log(`[CRON] Skipping expiration alert for ${expiration.subcontractor_name} - has newer compliant cert`)
+                continue
+              }
+
               // Get subcontractor details for email
               const subcontractor = await ctx.runQuery(internal.subcontractors.getByIdInternal, {
                 id: expiration.subcontractor_id as Id<"subcontractors">,
@@ -605,6 +619,18 @@ export const runStopWorkAlerts = internalAction({
                   })
                 }
               }
+
+              // Record communication for duplicate prevention (CRITICAL FIX)
+              await ctx.runMutation(internal.communications.createInternal, {
+                subcontractorId: risk.subcontractor_id as Id<"subcontractors">,
+                projectId: risk.project_id as Id<"projects">,
+                type: "critical_alert",
+                channel: "email",
+                recipientEmail: projectManager?.email || admins[0]?.email || "unknown",
+                subject: `[URGENT] Stop Work Risk - ${risk.subcontractor_name}`,
+                status: "sent",
+                sentAt: Date.now(),
+              })
 
               processed++
             } catch (e) {

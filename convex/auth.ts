@@ -156,7 +156,7 @@ export const getPasswordResetToken = query({
   },
 })
 
-// Mark password reset token as used
+// Mark password reset token as used (atomic check-and-mark to prevent race condition)
 export const markPasswordResetTokenUsed = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
@@ -165,8 +165,27 @@ export const markPasswordResetTokenUsed = mutation({
       .withIndex("by_token", (q) => q.eq("token", args.token))
       .first()
 
-    if (tokenDoc) {
-      await ctx.db.patch(tokenDoc._id, { used: true })
+    // Token not found
+    if (!tokenDoc) {
+      return { success: false, reason: "token_not_found" }
+    }
+
+    // Token already used (race condition detected)
+    if (tokenDoc.used) {
+      return { success: false, reason: "already_used" }
+    }
+
+    // Token expired
+    if (tokenDoc.expiresAt < Date.now()) {
+      return { success: false, reason: "expired" }
+    }
+
+    // Mark as used
+    await ctx.db.patch(tokenDoc._id, { used: true })
+
+    return {
+      success: true,
+      userId: tokenDoc.userId,
     }
   },
 })
