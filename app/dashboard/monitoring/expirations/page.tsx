@@ -242,7 +242,7 @@ export default function ExpirationsCalendarPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Tracked</CardTitle>
@@ -316,17 +316,59 @@ export default function ExpirationsCalendarPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {dayNames.map(day => (
-              <div key={day} className="text-center text-sm font-medium text-slate-500 py-2">
-                {day}
-              </div>
-            ))}
+          {/* Mobile List View */}
+          <div className="md:hidden space-y-3">
+            {expirations.length === 0 ? (
+              <p className="text-center text-slate-500 py-8">No expirations in this period</p>
+            ) : (
+              expirations
+                .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
+                .slice(0, 20)
+                .map(exp => (
+                  <div
+                    key={exp.id}
+                    className={`p-3 rounded-lg border ${
+                      exp.status === 'expired' ? 'bg-red-50 border-red-200' :
+                      exp.status === 'expiring_soon' ? 'bg-amber-50 border-amber-200' :
+                      'bg-white border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-slate-900 truncate">{exp.subcontractor_name}</p>
+                        <p className="text-sm text-slate-500 truncate">{exp.project_name}</p>
+                      </div>
+                      <div className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
+                        exp.status === 'expired' ? 'bg-red-100 text-red-700' :
+                        exp.status === 'expiring_soon' ? 'bg-amber-100 text-amber-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {exp.status === 'expired' ? 'Expired' :
+                         exp.status === 'expiring_soon' ? `${exp.days_until_expiry}d` :
+                         'Valid'}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Expires: {new Date(exp.expiry_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))
+            )}
           </div>
 
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1">
+          {/* Desktop Calendar View */}
+          <div className="hidden md:block">
+            {/* Day Headers */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {dayNames.map(day => (
+                <div key={day} className="text-center text-sm font-medium text-slate-500 py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((day, index) => {
               const hasExpirations = day.expirations.length > 0
               const hasExpired = day.expirations.some(e => e.status === 'expired')
@@ -381,10 +423,11 @@ export default function ExpirationsCalendarPage() {
                 </div>
               )
             })}
+            </div>
           </div>
 
           {/* Legend */}
-          <div className="mt-4 flex items-center gap-6 text-sm">
+          <div className="mt-4 hidden md:flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${STATUS_COLORS.expired.bg}`} />
               <span>Expired</span>

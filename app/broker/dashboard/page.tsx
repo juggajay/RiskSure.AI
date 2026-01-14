@@ -79,11 +79,11 @@ export default function BrokerDashboardPage() {
               <span className="text-sm text-slate-500 ml-2">Broker Portal</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-600">{user?.email}</span>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-sm text-slate-600 hidden sm:inline truncate max-w-[200px]">{user?.email}</span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function BrokerDashboardPage() {
         </div>
 
         {/* Status Overview */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
@@ -145,7 +145,7 @@ export default function BrokerDashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
           <Card className="cursor-pointer hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -183,7 +183,7 @@ export default function CommunicationsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>

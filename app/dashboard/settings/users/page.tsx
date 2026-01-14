@@ -364,63 +364,107 @@ export default function UserManagementPage() {
                 <p className="text-sm">Click "Invite User" to add team members</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">User</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Role</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Last Active</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-slate-500">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id} className="border-b hover:bg-slate-50">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                              {user.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-medium text-slate-900">{user.name}</p>
-                              <p className="text-sm text-slate-500">{user.email}</p>
-                            </div>
+              <>
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-3">
+                  {filteredUsers.map((user) => (
+                    <div key={user.id} className="p-4 bg-slate-50 rounded-lg border">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium shrink-0">
+                            {user.name.charAt(0).toUpperCase()}
                           </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${ROLE_LABELS[user.role]?.color || 'bg-slate-100 text-slate-700'}`}>
-                            {ROLE_LABELS[user.role]?.label || user.role}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-green-500" />
-                            <span className="text-sm text-slate-600">Active</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-slate-900 truncate">{user.name}</p>
+                            <p className="text-sm text-slate-500 truncate">{user.email}</p>
                           </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2 text-sm text-slate-500">
-                            <Clock className="h-4 w-4" />
-                            {formatDate(user.last_login_at)}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(user)}
-                            title="Edit user"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </td>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(user)}
+                          title="Edit user"
+                          className="shrink-0"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="mt-3 pt-3 border-t flex flex-wrap items-center gap-3 text-sm">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${ROLE_LABELS[user.role]?.color || 'bg-slate-100 text-slate-700'}`}>
+                          {ROLE_LABELS[user.role]?.label || user.role}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          <span className="text-slate-600">Active</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-500">
+                          <Clock className="h-3 w-3" />
+                          {formatDate(user.last_login_at)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">User</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Role</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Status</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Last Active</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-slate-500">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((user) => (
+                        <tr key={user.id} className="border-b hover:bg-slate-50">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+                                {user.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-medium text-slate-900">{user.name}</p>
+                                <p className="text-sm text-slate-500">{user.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${ROLE_LABELS[user.role]?.color || 'bg-slate-100 text-slate-700'}`}>
+                              {ROLE_LABELS[user.role]?.label || user.role}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-green-500" />
+                              <span className="text-sm text-slate-600">Active</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2 text-sm text-slate-500">
+                              <Clock className="h-4 w-4" />
+                              {formatDate(user.last_login_at)}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditModal(user)}
+                              title="Edit user"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

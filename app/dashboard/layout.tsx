@@ -206,7 +206,7 @@ export default function DashboardLayout({
       {/* Mobile menu button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-slate-900 text-white rounded-md shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-40 p-3 bg-slate-900 text-white rounded-md shadow-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
         aria-label="Open menu"
       >
         <Menu className="h-6 w-6" />
@@ -245,7 +245,7 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
           {/* Close button for mobile */}
           <button
             onClick={onToggle}
-            className="lg:hidden p-1 hover:bg-slate-800 rounded"
+            className="lg:hidden p-2 hover:bg-slate-800 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
@@ -359,7 +359,7 @@ function NavItem({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+      className={`flex items-center gap-3 px-3 py-3 min-h-[44px] rounded-md transition-colors ${
         active
           ? "bg-primary text-white"
           : "text-slate-400 hover:text-white hover:bg-slate-800"
