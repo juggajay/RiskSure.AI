@@ -411,51 +411,56 @@ const PROJECT_LIMITS: Record<string, number | null> = {
 export const getSubcontractorLimitInfo = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
-    const company = await ctx.db.get(args.companyId)
-    if (!company) return null
+    try {
+      const company = await ctx.db.get(args.companyId)
+      if (!company) return null
 
-    const tier = company.subscriptionTier || 'trial'
-    const limit = SUBCONTRACTOR_LIMITS[tier] ?? null
+      const tier = company.subscriptionTier || 'trial'
+      const limit = SUBCONTRACTOR_LIMITS[tier] ?? null
 
-    // Count current active subcontractors
-    const subcontractors = await ctx.db
-      .query("subcontractors")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
-      .collect()
-    const activeCount = subcontractors.length
+      // Count current active subcontractors
+      const subcontractors = await ctx.db
+        .query("subcontractors")
+        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+        .collect()
+      const activeCount = subcontractors.length
 
-    // Use high water mark for billing purposes (prevents gaming)
-    // High water mark = max subcontractors added this billing period
-    const highWaterMark = company.vendorsAddedThisPeriod ?? activeCount
-    const effectiveCount = Math.max(activeCount, highWaterMark)
+      // Use high water mark for billing purposes (prevents gaming)
+      // High water mark = max subcontractors added this billing period
+      const highWaterMark = company.vendorsAddedThisPeriod ?? activeCount
+      const effectiveCount = Math.max(activeCount, highWaterMark)
 
-    if (limit === null) {
+      if (limit === null) {
+        return {
+          tier,
+          limit: null,
+          current: activeCount,
+          highWaterMark,
+          remaining: null,
+          percentUsed: 0,
+          isAtLimit: false,
+          isNearLimit: false,
+          canAddSubcontractor: true,
+        }
+      }
+
+      const remaining = Math.max(0, limit - effectiveCount)
+      const percentUsed = limit > 0 ? Math.round((effectiveCount / limit) * 100) : 0
+
       return {
         tier,
-        limit: null,
+        limit,
         current: activeCount,
         highWaterMark,
-        remaining: null,
-        percentUsed: 0,
-        isAtLimit: false,
-        isNearLimit: false,
-        canAddSubcontractor: true,
+        remaining,
+        percentUsed,
+        isAtLimit: effectiveCount >= limit,
+        isNearLimit: percentUsed >= 80,
+        canAddSubcontractor: effectiveCount < limit,
       }
-    }
-
-    const remaining = Math.max(0, limit - effectiveCount)
-    const percentUsed = limit > 0 ? Math.round((effectiveCount / limit) * 100) : 0
-
-    return {
-      tier,
-      limit,
-      current: activeCount,
-      highWaterMark,
-      remaining,
-      percentUsed,
-      isAtLimit: effectiveCount >= limit,
-      isNearLimit: percentUsed >= 80,
-      canAddSubcontractor: effectiveCount < limit,
+    } catch (error) {
+      console.error("getSubcontractorLimitInfo error:", error)
+      return null
     }
   },
 })
@@ -535,51 +540,58 @@ export const getUsageLimits = query({
 export const canAddSubcontractor = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
-    const company = await ctx.db.get(args.companyId)
-    if (!company) {
-      return { allowed: false, reason: "Company not found" }
-    }
-
-    // Check subscription status
-    if (company.subscriptionStatus === 'cancelled') {
-      return { allowed: false, reason: "Subscription is cancelled. Please reactivate to add subcontractors." }
-    }
-
-    if (company.subscriptionStatus === 'past_due') {
-      return { allowed: false, reason: "Payment is past due. Please update your payment method." }
-    }
-
-    const tier = company.subscriptionTier || 'trial'
-    const limit = SUBCONTRACTOR_LIMITS[tier] ?? null
-
-    // Unlimited tier
-    if (limit === null) {
-      return { allowed: true }
-    }
-
-    // Count current subcontractors
-    const subcontractors = await ctx.db
-      .query("subcontractors")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
-      .collect()
-    const activeCount = subcontractors.length
-
-    // Use high water mark to prevent gaming by delete/add cycles
-    const highWaterMark = company.vendorsAddedThisPeriod ?? activeCount
-    const effectiveCount = Math.max(activeCount, highWaterMark)
-
-    if (effectiveCount >= limit) {
-      return {
-        allowed: false,
-        reason: `You've reached your subcontractor limit of ${limit}. Upgrade your plan to add more subcontractors.`,
-        currentCount: activeCount,
-        highWaterMark,
-        limit,
-        suggestedUpgrade: getSuggestedUpgradeTier(tier),
+    try {
+      const company = await ctx.db.get(args.companyId)
+      if (!company) {
+        return { allowed: false, reason: "Company not found" }
       }
-    }
 
-    return { allowed: true, currentCount: activeCount, highWaterMark, limit, remaining: limit - effectiveCount }
+      // Check subscription status
+      const subscriptionStatus = company.subscriptionStatus || 'active'
+      if (subscriptionStatus === 'cancelled') {
+        return { allowed: false, reason: "Subscription is cancelled. Please reactivate to add subcontractors." }
+      }
+
+      if (subscriptionStatus === 'past_due') {
+        return { allowed: false, reason: "Payment is past due. Please update your payment method." }
+      }
+
+      const tier = company.subscriptionTier || 'trial'
+      const limit = SUBCONTRACTOR_LIMITS[tier] ?? null
+
+      // Unlimited tier
+      if (limit === null) {
+        return { allowed: true }
+      }
+
+      // Count current subcontractors
+      const subcontractors = await ctx.db
+        .query("subcontractors")
+        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+        .collect()
+      const activeCount = subcontractors.length
+
+      // Use high water mark to prevent gaming by delete/add cycles
+      const highWaterMark = company.vendorsAddedThisPeriod ?? activeCount
+      const effectiveCount = Math.max(activeCount, highWaterMark)
+
+      if (effectiveCount >= limit) {
+        return {
+          allowed: false,
+          reason: `You've reached your subcontractor limit of ${limit}. Upgrade your plan to add more subcontractors.`,
+          currentCount: activeCount,
+          highWaterMark,
+          limit,
+          suggestedUpgrade: getSuggestedUpgradeTier(tier),
+        }
+      }
+
+      return { allowed: true, currentCount: activeCount, highWaterMark, limit, remaining: limit - effectiveCount }
+    } catch (error) {
+      console.error("canAddSubcontractor error:", error)
+      // Return a safe default that allows operation but signals an error
+      return { allowed: true, reason: "Unable to check limit - defaulting to allowed" }
+    }
   },
 })
 

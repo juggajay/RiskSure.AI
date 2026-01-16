@@ -21,17 +21,27 @@ interface SubcontractorLimitWarningProps {
   className?: string
 }
 
+// Helper to validate Convex ID format (basic check)
+function isValidConvexId(id: string | undefined | null): id is string {
+  if (!id || typeof id !== 'string') return false
+  // Convex IDs are typically 20+ characters, alphanumeric with some special chars
+  return id.length >= 10 && /^[a-zA-Z0-9_-]+$/.test(id)
+}
+
 export function SubcontractorLimitWarning({ variant = "banner", className = "" }: SubcontractorLimitWarningProps) {
-  const { data: user } = useUser()
+  const { data: user, isLoading: userLoading } = useUser()
   const companyId = user?.company?.id
+
+  // Only pass companyId to query if it looks like a valid Convex ID
+  const validCompanyId = isValidConvexId(companyId) ? companyId : null
 
   const limitInfo = useQuery(
     api.companies.getSubcontractorLimitInfo,
-    companyId ? { companyId: companyId as any } : "skip"
+    validCompanyId ? { companyId: validCompanyId as any } : "skip"
   )
 
-  // Don't show anything if loading or no limit info
-  if (!limitInfo) return null
+  // Don't show anything if loading, no limit info, or user still loading
+  if (userLoading || !limitInfo) return null
 
   // Don't show if unlimited tier
   if (limitInfo.limit === null) return null
@@ -168,22 +178,31 @@ export const VendorLimitWarning = SubcontractorLimitWarning
  * Returns an object with canAdd boolean and optional error message
  */
 export function useSubcontractorLimitCheck() {
-  const { data: user } = useUser()
+  const { data: user, isLoading: userLoading } = useUser()
   const companyId = user?.company?.id
 
+  // Only pass companyId to query if it looks like a valid Convex ID
+  const validCompanyId = isValidConvexId(companyId) ? companyId : null
+
+  // Only run the query if we have a valid company ID
   const canAddResult = useQuery(
     api.companies.canAddSubcontractor,
-    companyId ? { companyId: companyId as any } : "skip"
+    validCompanyId ? { companyId: validCompanyId as any } : "skip"
   )
 
+  // Handle error state - if query returns undefined but user is loaded with company
+  // it might indicate an error, so default to allowing operations
+  const hasError = !userLoading && validCompanyId && canAddResult === undefined
+
   return {
-    canAdd: canAddResult?.allowed ?? true,
+    canAdd: hasError ? true : (canAddResult?.allowed ?? true),
     reason: canAddResult?.reason ?? null,
     currentCount: canAddResult?.currentCount ?? 0,
     limit: canAddResult?.limit ?? null,
     remaining: canAddResult?.remaining ?? null,
     suggestedUpgrade: canAddResult?.suggestedUpgrade ?? null,
-    isLoading: canAddResult === undefined,
+    isLoading: userLoading || (validCompanyId ? canAddResult === undefined : false),
+    hasError,
   }
 }
 
