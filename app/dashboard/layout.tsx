@@ -256,19 +256,6 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
         </div>
       </div>
 
-      {/* Organization */}
-      <div className="px-4 py-4 border-b border-slate-800">
-        <div className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-left cursor-pointer">
-          <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-medium text-slate-300">
-            {user.company?.name?.substring(0, 2).toUpperCase() || 'CO'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-slate-500">Organization</p>
-            <p className="text-sm font-medium truncate">{user.company?.name || 'No company'}</p>
-          </div>
-        </div>
-      </div>
-
       <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Main navigation">
         <div className="space-y-1">
         <NavItem
@@ -342,7 +329,7 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
         </div>
       </nav>
 
-      {/* User section */}
+      {/* User & Organization section */}
       <div className="px-3 py-4 border-t border-slate-800">
         <button
           onClick={onLogout}
@@ -358,6 +345,16 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.name}</p>
             <p className="text-xs text-slate-500 truncate">{user.role.replace('_', ' ')}</p>
+          </div>
+        </div>
+        {/* Organization */}
+        <div className="flex items-center gap-3 px-3 py-2 mt-2">
+          <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-medium text-slate-300">
+            {user.company?.name?.substring(0, 2).toUpperCase() || 'CO'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-500">Organization</p>
+            <p className="text-sm font-medium truncate">{user.company?.name || 'No company'}</p>
           </div>
         </div>
       </div>

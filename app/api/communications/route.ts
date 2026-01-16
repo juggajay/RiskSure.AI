@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ConvexHttpClient } from 'convex/browser'
-import { api } from '@/convex/_generated/api'
+import { getConvex, api } from '@/lib/convex'
 import type { Id } from '@/convex/_generated/dataModel'
-import { getUserByToken } from '@/lib/auth'
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 // GET /api/communications - List all communications
 export async function GET(request: NextRequest) {
@@ -15,18 +11,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
-    if (!user) {
+    const convex = getConvex()
+
+    // Get user session from Convex
+    const sessionData = await convex.query(api.auth.getUserWithSession, { token })
+    if (!sessionData) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
-    if (!user.company_id) {
+    const { user, company } = sessionData
+    if (!company) {
       return NextResponse.json({ error: 'No company associated with user' }, { status: 404 })
     }
 
     // Get communications for this company's projects
     const comms = await convex.query(api.communications.listByCompany, {
-      companyId: user.company_id as Id<"companies">,
+      companyId: company._id as Id<"companies">,
       limit: 100,
     })
 
