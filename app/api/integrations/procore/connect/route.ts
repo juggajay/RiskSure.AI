@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     console.log(`[Procore] Storing OAuth state in Convex: ${state.substring(0, 8)}...`)
     try {
       await convex.mutation(api.integrations.createOAuthState, {
-        userId: user.id as Id<"users">,
+        userId: user._id as Id<"users">,
         companyId: user.company_id as Id<"companies">,
         provider: 'procore',
         state,

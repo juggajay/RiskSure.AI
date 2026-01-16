@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const currentUser = getUserByToken(token)
+    const currentUser = await getUserByToken(token)
     if (!currentUser) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -62,7 +62,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const currentUser = getUserByToken(token)
+    const currentUser = await getUserByToken(token)
     if (!currentUser) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -188,7 +188,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const currentUser = getUserByToken(token)
+    const currentUser = await getUserByToken(token)
     if (!currentUser) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }

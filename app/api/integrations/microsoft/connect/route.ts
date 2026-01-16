@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     // Store state in Convex for verification
     await convex.mutation(api.integrations.createOAuthState, {
-      userId: user.id as Id<"users">,
+      userId: user._id as Id<"users">,
       companyId: user.company_id as Id<"companies">,
       provider: 'microsoft',
       state,

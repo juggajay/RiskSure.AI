@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const authStart = Date.now()
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     console.log(`[PERF] morning-brief auth: ${Date.now() - authStart}ms`)
 
     if (!user) {

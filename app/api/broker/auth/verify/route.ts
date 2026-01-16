@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     }
 
     // Validate the magic link token
-    const validation = validateMagicLinkToken(token)
+    const validation = await validateMagicLinkToken(token)
 
     if (!validation.valid || !validation.email) {
       return NextResponse.json(
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     // Validate the magic link token
-    const validation = validateMagicLinkToken(token)
+    const validation = await validateMagicLinkToken(token)
 
     if (!validation.valid || !validation.email) {
       return NextResponse.json(
@@ -55,26 +55,26 @@ export async function POST(request: Request) {
     }
 
     // Get or create the broker user (role = 'broker')
-    const user = getOrCreatePortalUser(validation.email, 'broker')
+    const user = await getOrCreatePortalUser(validation.email, 'broker')
 
     // Create a session
-    const { token: sessionToken } = createPortalSession(user.id)
+    const { token: sessionToken } = await createPortalSession(user._id)
 
     // Mark the magic link token as used
-    useMagicLinkToken(token)
+    await useMagicLinkToken(token)
 
     console.log('\n========================================')
     console.log('BROKER LOGIN SUCCESSFUL')
     console.log('========================================')
     console.log(`Email: ${validation.email}`)
-    console.log(`User ID: ${user.id}`)
+    console.log(`User ID: ${user._id}`)
     console.log('========================================\n')
 
     // Create response with session cookie
     const response = NextResponse.json({
       success: true,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         name: user.name,
         role: user.role

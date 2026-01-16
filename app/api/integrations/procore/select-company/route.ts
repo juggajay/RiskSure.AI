@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Create audit log entry
     await convex.mutation(api.auditLogs.create, {
       companyId: user.company_id as Id<"companies">,
-      userId: user.id as Id<"users">,
+      userId: user._id as Id<"users">,
       entityType: 'integration',
       entityId: 'procore',
       action: 'select_company',

@@ -649,7 +649,7 @@ describe('User Functions', () => {
       const { token } = createSession('user-id')
       mockDb.get.mockReturnValue(undefined)
 
-      const result = getUserByToken(token)
+      const result = await getUserByToken(token)
       expect(result).toBeNull()
     })
 
@@ -670,7 +670,7 @@ describe('User Functions', () => {
         })
         .mockReturnValueOnce(mockUser)
 
-      const result = getUserByToken(token)
+      const result = await getUserByToken(token)
       expect(result).toEqual(mockUser)
     })
   })

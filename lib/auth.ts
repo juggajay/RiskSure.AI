@@ -1,23 +1,33 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
-// Import types only (doesn't load the module at runtime)
-import type { User, Session } from './db'
-// Import Supabase client from its dedicated file (doesn't load SQLite)
-import { getSupabase, useSupabase } from './db/supabase-db'
+import { ConvexHttpClient } from 'convex/browser'
+import { api } from '@/convex/_generated/api'
 
-/**
- * Helper to get SQLite database - throws in production
- * SQLite functions should only be used in development
- */
-function getSqliteDb() {
-  if (useSupabase()) {
-    throw new Error('SQLite functions should not be called in production. Use Async versions with Supabase.')
-  }
-  // Dynamic require to avoid bundling in production
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { getDb } = require('./db')
-  return getDb()
+// Types
+export interface User {
+  _id: string
+  id?: string
+  email: string
+  name: string
+  role: string
+  companyId?: string
+  company_id?: string
+  passwordHash?: string
+  password_hash?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface Session {
+  _id?: string
+  id?: string
+  userId?: string
+  user_id?: string
+  token: string
+  expiresAt?: number
+  expires_at?: string
+  created_at?: string
 }
 
 const JWT_SECRET = process.env.JWT_SECRET
@@ -28,6 +38,17 @@ if (!JWT_SECRET) {
     throw new Error('FATAL: JWT_SECRET environment variable must be set in production')
   }
   console.warn('WARNING: JWT_SECRET not set. Using insecure development secret.')
+}
+
+/**
+ * Get Convex client for server-side operations
+ */
+function getConvexClient(): ConvexHttpClient {
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
+  if (!convexUrl) {
+    throw new Error('NEXT_PUBLIC_CONVEX_URL not set')
+  }
+  return new ConvexHttpClient(convexUrl)
 }
 
 /**
@@ -89,492 +110,189 @@ export function validatePassword(password: string): { valid: boolean; errors: st
 }
 
 /**
- * Create a session for a user (SQLite - development only)
- *
- * WARNING: This function uses synchronous SQLite operations.
- * In production, use createSessionAsync with Supabase instead.
- *
- * @deprecated Use createSessionAsync for production code
+ * Get user by session token (uses Convex)
  */
-export function createSession(userId: string): { session: Session; token: string } {
-  // Dynamic import to avoid loading better-sqlite3 in production serverless
-  const db = getSqliteDb()
-  const sessionId = uuidv4()
-  // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
-  const token = jwt.sign({ sessionId, userId }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '8h' })
-  const expiresAt = new Date(Date.now() + SESSION_DURATION).toISOString()
+export async function getUserByToken(token: string): Promise<User | null> {
+  try {
+    const convex = getConvexClient()
+    const result = await convex.query(api.auth.getUserWithSession, { token })
 
-  const stmt = db.prepare(`
-    INSERT INTO sessions (id, user_id, token, expires_at)
-    VALUES (?, ?, ?, ?)
-  `)
-  stmt.run(sessionId, userId, token, expiresAt)
+    if (!result || !result.user) {
+      return null
+    }
 
-  const session: Session = {
-    id: sessionId,
-    user_id: userId,
-    token,
-    expires_at: expiresAt,
-    created_at: new Date().toISOString()
+    // Map Convex user to expected format
+    const user = result.user
+    return {
+      _id: user._id,
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+      company_id: user.companyId,
+      created_at: user._creationTime ? new Date(user._creationTime).toISOString() : undefined,
+    } as User
+  } catch (error) {
+    console.error('getUserByToken error:', error)
+    return null
   }
-
-  return { session, token }
 }
 
 /**
- * Create a session for a user (async version for Supabase)
+ * Create a magic link token for portal users (uses Convex)
  */
-export async function createSessionAsync(userId: string): Promise<{ session: Session; token: string }> {
+export async function createMagicLinkToken(email: string): Promise<{ token: string; expiresAt: string }> {
+  const convex = getConvexClient()
+  const token = uuidv4()
+  const expiresAt = Date.now() + 15 * 60 * 1000 // 15 minutes
+
+  await convex.mutation(api.auth.createMagicLinkToken, {
+    email: email.toLowerCase(),
+    token,
+    expiresAt,
+  })
+
+  return { token, expiresAt: new Date(expiresAt).toISOString() }
+}
+
+/**
+ * Validate a magic link token (uses Convex)
+ */
+export async function validateMagicLinkToken(token: string): Promise<{ valid: boolean; email?: string; error?: string }> {
+  try {
+    const convex = getConvexClient()
+    const tokenDoc = await convex.query(api.auth.getMagicLinkToken, { token })
+
+    if (!tokenDoc) {
+      return { valid: false, error: 'Invalid or expired magic link' }
+    }
+
+    return { valid: true, email: tokenDoc.email }
+  } catch (error) {
+    console.error('validateMagicLinkToken error:', error)
+    return { valid: false, error: 'Invalid or expired magic link' }
+  }
+}
+
+/**
+ * Use a magic link token (mark as used) (uses Convex)
+ */
+export async function useMagicLinkToken(token: string): Promise<void> {
+  const convex = getConvexClient()
+  await convex.mutation(api.auth.markMagicLinkTokenUsed, { token })
+}
+
+/**
+ * Get or create a portal user by email (uses Convex)
+ */
+export async function getOrCreatePortalUser(email: string, role: 'subcontractor' | 'broker' = 'subcontractor'): Promise<User> {
+  const convex = getConvexClient()
+  const normalizedEmail = email.toLowerCase()
+
+  // Check if user exists
+  const existingUser = await convex.query(api.users.getByEmail, { email: normalizedEmail })
+
+  if (existingUser) {
+    return {
+      _id: existingUser._id,
+      id: existingUser._id,
+      email: existingUser.email,
+      name: existingUser.name,
+      role: existingUser.role,
+      companyId: existingUser.companyId,
+      company_id: existingUser.companyId,
+    } as User
+  }
+
+  // Create new portal user
+  const userId = await convex.mutation(api.users.create, {
+    email: normalizedEmail,
+    name: 'Portal User',
+    role: role,
+    passwordHash: '$portal-user-no-password$',
+  })
+
+  const newUser = await convex.query(api.users.getById, { id: userId })
+
+  if (!newUser) {
+    throw new Error('Failed to get or create portal user')
+  }
+
+  return {
+    _id: newUser._id,
+    id: newUser._id,
+    email: newUser.email,
+    name: newUser.name,
+    role: newUser.role,
+    companyId: newUser.companyId,
+    company_id: newUser.companyId,
+  } as User
+}
+
+/**
+ * Create a portal session for a user (uses Convex)
+ */
+export async function createPortalSession(userId: string): Promise<{ session: Session; token: string }> {
+  const convex = getConvexClient()
   const sessionId = uuidv4()
   // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
-  const token = jwt.sign({ sessionId, userId }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '8h' })
-  const expiresAt = new Date(Date.now() + SESSION_DURATION).toISOString()
+  const token = jwt.sign({ sessionId, userId, isPortal: true }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '24h' })
+  const expiresAt = Date.now() + 24 * 60 * 60 * 1000 // 24 hours for portal
 
-  const supabase = getSupabase()
-  await supabase.from('sessions').insert({
-    id: sessionId,
-    user_id: userId,
+  // Need to convert userId string to Convex Id - the route should pass the proper Id
+  await convex.mutation(api.auth.createSession, {
+    userId: userId as any, // Trust that userId is a valid Convex Id
     token,
-    expires_at: expiresAt,
-    created_at: new Date().toISOString()
+    expiresAt,
   })
 
   const session: Session = {
     id: sessionId,
+    userId: userId,
     user_id: userId,
     token,
-    expires_at: expiresAt,
-    created_at: new Date().toISOString()
+    expiresAt,
+    expires_at: new Date(expiresAt).toISOString(),
+    created_at: new Date().toISOString(),
   }
 
   return { session, token }
 }
 
 /**
- * Validate a session token (async version for Supabase)
+ * Validate a session token
  */
-export async function validateSessionAsync(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
+export async function validateSession(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
   try {
     // Security: Explicitly specify allowed algorithms
     const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string; userId: string }
-    const supabase = getSupabase()
+    const convex = getConvexClient()
 
-    const { data: session, error } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('id', decoded.sessionId)
-      .eq('token', token)
-      .single()
-
-    if (error || !session) {
-      return { valid: false, error: 'Session not found' }
-    }
-
-    if (new Date(session.expires_at) < new Date()) {
-      // Clean up expired session
-      await supabase.from('sessions').delete().eq('id', session.id)
-      return { valid: false, error: 'Session expired' }
-    }
-
-    return { valid: true, userId: session.user_id }
-  } catch (error) {
-    return { valid: false, error: 'Invalid token' }
-  }
-}
-
-/**
- * Get user by session token (async version for Supabase)
- */
-export async function getUserByTokenAsync(token: string): Promise<User | null> {
-  const validation = await validateSessionAsync(token)
-  if (!validation.valid || !validation.userId) {
-    return null
-  }
-
-  const supabase = getSupabase()
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', validation.userId)
-    .single()
-
-  if (error || !user) return null
-  return user as User
-}
-
-/**
- * Validate a session token (SQLite - development only)
- * @deprecated Use validateSessionAsync for production
- */
-export function validateSession(token: string): { valid: boolean; userId?: string; error?: string } {
-  try {
-    // Security: Explicitly specify allowed algorithms
-    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string; userId: string }
-    const db = getSqliteDb()
-
-    const session = db.prepare(`
-      SELECT * FROM sessions WHERE id = ? AND token = ?
-    `).get(decoded.sessionId, token) as Session | undefined
+    const session = await convex.query(api.auth.getSessionByToken, { token })
 
     if (!session) {
       return { valid: false, error: 'Session not found' }
     }
 
-    if (new Date(session.expires_at) < new Date()) {
-      // Clean up expired session
-      db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id)
+    if (session.expiresAt < Date.now()) {
       return { valid: false, error: 'Session expired' }
     }
 
-    return { valid: true, userId: session.user_id }
+    return { valid: true, userId: decoded.userId }
   } catch (error) {
     return { valid: false, error: 'Invalid token' }
   }
 }
 
 /**
- * Get user by session token (SQLite - development only)
- * @deprecated Use getUserByTokenAsync for production
+ * Delete a session (logout)
  */
-export function getUserByToken(token: string): User | null {
-  const validation = validateSession(token)
-  if (!validation.valid || !validation.userId) {
-    return null
-  }
-
-  const db = getSqliteDb()
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(validation.userId) as User | undefined
-  return user || null
-}
-
-/**
- * Delete a session (logout) (SQLite - development only)
- * @deprecated Use deleteSessionAsync for production
- */
-export function deleteSession(token: string): void {
+export async function deleteSession(token: string): Promise<void> {
   try {
-    // Security: Explicitly specify allowed algorithms
-    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string }
-    const db = getSqliteDb()
-    db.prepare('DELETE FROM sessions WHERE id = ?').run(decoded.sessionId)
+    const convex = getConvexClient()
+    await convex.mutation(api.auth.deleteSession, { token })
   } catch {
     // Token invalid, nothing to delete
   }
-}
-
-/**
- * Delete a session (async version for Supabase)
- */
-export async function deleteSessionAsync(token: string): Promise<void> {
-  try {
-    // Security: Explicitly specify allowed algorithms
-    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { sessionId: string }
-    const supabase = getSupabase()
-    await supabase.from('sessions').delete().eq('id', decoded.sessionId)
-  } catch {
-    // Token invalid, nothing to delete
-  }
-}
-
-/**
- * Clean up expired sessions (SQLite - development only)
- */
-export function cleanupExpiredSessions(): number {
-  const db = getSqliteDb()
-  const result = db.prepare(`
-    DELETE FROM sessions WHERE expires_at < datetime('now')
-  `).run()
-  return result.changes
-}
-
-/**
- * Get user with company info (SQLite - development only)
- */
-export function getUserWithCompany(userId: string): (User & { company_name?: string }) | null {
-  const db = getSqliteDb()
-  const user = db.prepare(`
-    SELECT u.*, c.name as company_name
-    FROM users u
-    LEFT JOIN companies c ON u.company_id = c.id
-    WHERE u.id = ?
-  `).get(userId) as (User & { company_name?: string }) | undefined
-  return user || null
-}
-
-/**
- * Create a password reset token (SQLite - development only)
- * @deprecated Use createPasswordResetTokenAsync for production
- */
-export function createPasswordResetToken(userId: string): { token: string; expiresAt: string } {
-  const db = getSqliteDb()
-  const tokenId = uuidv4()
-  const token = uuidv4() // Use a simple UUID as the reset token
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour expiry
-
-  // Invalidate any existing tokens for this user
-  db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(userId)
-
-  // Create new token
-  db.prepare(`
-    INSERT INTO password_reset_tokens (id, user_id, token, expires_at)
-    VALUES (?, ?, ?, ?)
-  `).run(tokenId, userId, token, expiresAt)
-
-  return { token, expiresAt }
-}
-
-/**
- * Create a password reset token (async version for Supabase)
- */
-export async function createPasswordResetTokenAsync(userId: string): Promise<{ token: string; expiresAt: string }> {
-  const supabase = getSupabase()
-  const tokenId = uuidv4()
-  const token = uuidv4()
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
-
-  // Invalidate any existing tokens for this user
-  await supabase.from('password_reset_tokens').delete().eq('user_id', userId)
-
-  // Create new token
-  await supabase.from('password_reset_tokens').insert({
-    id: tokenId,
-    user_id: userId,
-    token,
-    expires_at: expiresAt,
-    created_at: new Date().toISOString()
-  })
-
-  return { token, expiresAt }
-}
-
-/**
- * Validate a password reset token (SQLite - development only)
- * @deprecated Use validatePasswordResetTokenAsync for production
- */
-export function validatePasswordResetToken(token: string): { valid: boolean; userId?: string; error?: string } {
-  const db = getSqliteDb()
-
-  const resetToken = db.prepare(`
-    SELECT * FROM password_reset_tokens WHERE token = ?
-  `).get(token) as { id: string; user_id: string; token: string; expires_at: string; used: number } | undefined
-
-  if (!resetToken) {
-    return { valid: false, error: 'Invalid or expired reset link' }
-  }
-
-  if (resetToken.used) {
-    return { valid: false, error: 'This reset link has already been used' }
-  }
-
-  if (new Date(resetToken.expires_at) < new Date()) {
-    return { valid: false, error: 'This reset link has expired' }
-  }
-
-  return { valid: true, userId: resetToken.user_id }
-}
-
-/**
- * Validate a password reset token (async version for Supabase)
- */
-export async function validatePasswordResetTokenAsync(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
-  const supabase = getSupabase()
-
-  const { data: resetToken, error } = await supabase
-    .from('password_reset_tokens')
-    .select('*')
-    .eq('token', token)
-    .single()
-
-  if (error || !resetToken) {
-    return { valid: false, error: 'Invalid or expired reset link' }
-  }
-
-  if (resetToken.used) {
-    return { valid: false, error: 'This reset link has already been used' }
-  }
-
-  if (new Date(resetToken.expires_at) < new Date()) {
-    return { valid: false, error: 'This reset link has expired' }
-  }
-
-  return { valid: true, userId: resetToken.user_id }
-}
-
-/**
- * Use a password reset token (mark as used) (SQLite - development only)
- * @deprecated Use usePasswordResetTokenAsync for production
- */
-export function usePasswordResetToken(token: string): void {
-  const db = getSqliteDb()
-  db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(token)
-}
-
-/**
- * Use a password reset token (async version for Supabase)
- */
-export async function usePasswordResetTokenAsync(token: string): Promise<void> {
-  const supabase = getSupabase()
-  await supabase.from('password_reset_tokens').update({ used: true }).eq('token', token)
-}
-
-/**
- * Get user by email (SQLite - development only)
- * @deprecated Use getUserByEmailAsync for production
- */
-export function getUserByEmail(email: string): User | null {
-  const db = getSqliteDb()
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase()) as User | undefined
-  return user || null
-}
-
-/**
- * Get user by email (async version for Supabase)
- */
-export async function getUserByEmailAsync(email: string): Promise<User | null> {
-  const supabase = getSupabase()
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email.toLowerCase())
-    .single()
-
-  if (error || !data) return null
-  return data as User
-}
-
-/**
- * Update user password (SQLite - development only)
- * @deprecated Use updateUserPasswordAsync for production
- */
-export async function updateUserPassword(userId: string, newPassword: string): Promise<void> {
-  const db = getSqliteDb()
-  const passwordHash = await hashPassword(newPassword)
-  db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(passwordHash, userId)
-
-  // Invalidate all existing sessions for this user
-  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId)
-}
-
-/**
- * Update user password (async version for Supabase)
- */
-export async function updateUserPasswordAsync(userId: string, newPassword: string): Promise<void> {
-  const supabase = getSupabase()
-  const passwordHash = await hashPassword(newPassword)
-
-  await supabase
-    .from('users')
-    .update({ password_hash: passwordHash, updated_at: new Date().toISOString() })
-    .eq('id', userId)
-
-  // Invalidate all existing sessions for this user
-  await supabase.from('sessions').delete().eq('user_id', userId)
-}
-
-/**
- * Create a magic link token for portal users (SQLite - development only)
- */
-export function createMagicLinkToken(email: string): { token: string; expiresAt: string } {
-  const db = getSqliteDb()
-  const tokenId = uuidv4()
-  const token = uuidv4() // Use a simple UUID as the magic link token
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minute expiry
-
-  // Invalidate any existing tokens for this email
-  db.prepare('DELETE FROM magic_link_tokens WHERE email = ?').run(email.toLowerCase())
-
-  // Create new token
-  db.prepare(`
-    INSERT INTO magic_link_tokens (id, email, token, expires_at)
-    VALUES (?, ?, ?, ?)
-  `).run(tokenId, email.toLowerCase(), token, expiresAt)
-
-  return { token, expiresAt }
-}
-
-/**
- * Validate a magic link token (SQLite - development only)
- */
-export function validateMagicLinkToken(token: string): { valid: boolean; email?: string; error?: string } {
-  const db = getSqliteDb()
-
-  const magicToken = db.prepare(`
-    SELECT * FROM magic_link_tokens WHERE token = ?
-  `).get(token) as { id: string; email: string; token: string; expires_at: string; used: number } | undefined
-
-  if (!magicToken) {
-    return { valid: false, error: 'Invalid or expired magic link' }
-  }
-
-  if (magicToken.used) {
-    return { valid: false, error: 'This magic link has already been used' }
-  }
-
-  if (new Date(magicToken.expires_at) < new Date()) {
-    return { valid: false, error: 'This magic link has expired' }
-  }
-
-  return { valid: true, email: magicToken.email }
-}
-
-/**
- * Use a magic link token (mark as used) (SQLite - development only)
- */
-export function useMagicLinkToken(token: string): void {
-  const db = getSqliteDb()
-  db.prepare('UPDATE magic_link_tokens SET used = 1 WHERE token = ?').run(token)
-}
-
-/**
- * Get or create a portal user by email (SQLite - development only)
- * Portal users are subcontractors or brokers with limited access
- */
-export function getOrCreatePortalUser(email: string, role: 'subcontractor' | 'broker' = 'subcontractor'): User {
-  const db = getSqliteDb()
-  const normalizedEmail = email.toLowerCase()
-
-  // Check if user already exists
-  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail) as User | undefined
-
-  if (!user) {
-    // Create a new portal user
-    const userId = uuidv4()
-    const passwordHash = '$portal-user-no-password$' // Portal users don't have passwords
-
-    db.prepare(`
-      INSERT INTO users (id, email, password_hash, name, role)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(userId, normalizedEmail, passwordHash, 'Portal User', role)
-
-    user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User
-  }
-
-  return user
-}
-
-/**
- * Create a portal session for a user (SQLite - development only)
- */
-export function createPortalSession(userId: string): { session: Session; token: string } {
-  const db = getSqliteDb()
-  const sessionId = uuidv4()
-  // Security: Explicitly specify algorithm to prevent algorithm confusion attacks
-  const token = jwt.sign({ sessionId, userId, isPortal: true }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '24h' })
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours for portal
-
-  const stmt = db.prepare(`
-    INSERT INTO sessions (id, user_id, token, expires_at)
-    VALUES (?, ?, ?, ?)
-  `)
-  stmt.run(sessionId, userId, token, expiresAt)
-
-  const session: Session = {
-    id: sessionId,
-    user_id: userId,
-    token,
-    expires_at: expiresAt,
-    created_at: new Date().toISOString()
-  }
-
-  return { session, token }
 }

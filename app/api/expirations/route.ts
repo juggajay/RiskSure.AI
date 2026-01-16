@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }

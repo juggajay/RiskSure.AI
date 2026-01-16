@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // If authenticated, check for actual OAuth connections
     if (token) {
-      const user = getUserByToken(token)
+      const user = await getUserByToken(token)
 
       if (user && user.company_id) {
         // Get all connection statuses from Convex

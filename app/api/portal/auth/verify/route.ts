@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     }
 
     // Validate the magic link token
-    const validation = validateMagicLinkToken(token)
+    const validation = await validateMagicLinkToken(token)
 
     if (!validation.valid || !validation.email) {
       return NextResponse.json(
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       await markInvitationUsed(token)
     } else {
       // Validate the magic link token
-      const validation = validateMagicLinkToken(token)
+      const validation = await validateMagicLinkToken(token)
 
       if (!validation.valid || !validation.email) {
         return NextResponse.json(
@@ -102,20 +102,20 @@ export async function POST(request: Request) {
       email = validation.email
 
       // Mark the magic link token as used
-      useMagicLinkToken(token)
+      await useMagicLinkToken(token)
     }
 
     // Get or create the portal user
-    const user = getOrCreatePortalUser(email, 'subcontractor')
+    const user = await getOrCreatePortalUser(email, 'subcontractor')
 
     // Create a session
-    const { token: sessionToken } = createPortalSession(user.id)
+    const { token: sessionToken } = await createPortalSession(user._id)
 
     console.log('\n========================================')
     console.log(isInvitation ? 'PORTAL INVITATION LOGIN SUCCESSFUL' : 'PORTAL LOGIN SUCCESSFUL')
     console.log('========================================')
     console.log(`Email: ${email}`)
-    console.log(`User ID: ${user.id}`)
+    console.log(`User ID: ${user._id}`)
     if (isInvitation) {
       console.log(`Project ID: ${projectId}`)
       console.log(`Subcontractor ID: ${subcontractorId}`)
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       success: true,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         name: user.name,
         role: user.role

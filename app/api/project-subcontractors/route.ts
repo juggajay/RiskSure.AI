@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       api.projectSubcontractors.listByCompanyWithRoleFilter,
       {
         companyId: user.company_id as Id<"companies">,
-        userId: filterByProjectManagerOnly ? user.id as Id<"users"> : undefined,
+        userId: filterByProjectManagerOnly ? user._id as Id<"users"> : undefined,
         filterByProjectManagerOnly,
       }
     )

@@ -14,13 +14,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
 
     const dbUser = await convex.query(api.users.getById, {
-      id: user.id as Id<"users">,
+      id: user._id as Id<"users">,
     })
 
     if (!dbUser) {
@@ -52,7 +52,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
@@ -85,7 +85,7 @@ export async function PUT(request: NextRequest) {
 
     // Update user
     await convex.mutation(api.users.update, {
-      id: user.id as Id<"users">,
+      id: user._id as Id<"users">,
       ...updates,
     })
 
@@ -98,9 +98,9 @@ export async function PUT(request: NextRequest) {
     if (user.company_id) {
       await convex.mutation(api.auditLogs.create, {
         companyId: user.company_id as Id<"companies">,
-        userId: user.id as Id<"users">,
+        userId: user._id as Id<"users">,
         entityType: "user",
-        entityId: user.id,
+        entityId: user._id,
         action: "update",
         details,
       })
@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest) {
 
     // Get updated profile
     const updatedUser = await convex.query(api.users.getById, {
-      id: user.id as Id<"users">,
+      id: user._id as Id<"users">,
     })
 
     const updatedProfile = {

@@ -3,7 +3,6 @@ import { getConvex, api } from '@/lib/convex'
 import type { Id } from '@/convex/_generated/dataModel'
 import { createNotificationForProjectTeam } from '@/lib/notifications'
 import { performSimulatedFraudAnalysis, type FraudAnalysisResult } from '@/lib/fraud-detection'
-import { uploadFile, getStorageInfo } from '@/lib/storage'
 import { extractDocumentData, convertToLegacyFormat, shouldSkipFraudDetection } from '@/lib/gemini'
 
 interface InsuranceRequirement {
@@ -461,13 +460,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'You do not have permission to upload documents' }, { status: 403 })
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
-    const projectId = formData.get('projectId') as string | null
-    const subcontractorId = formData.get('subcontractorId') as string | null
+    // Parse JSON body with storage ID from Convex storage
+    const body = await request.json()
+    const { storageId, fileName, fileSize, fileType, projectId, subcontractorId } = body
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    if (!storageId) {
+      return NextResponse.json({ error: 'No storage ID provided' }, { status: 400 })
     }
 
     if (!projectId || !subcontractorId) {
@@ -477,17 +475,17 @@ export async function POST(request: NextRequest) {
     // Validate file type (PDF or image)
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif']
     const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif']
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
+    const fileExtension = '.' + (fileName || '').split('.').pop()?.toLowerCase()
 
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+    if (fileType && !allowedTypes.includes(fileType) && !allowedExtensions.includes(fileExtension)) {
       return NextResponse.json({
-        error: `Invalid file type. Only PDF and image files are accepted (${allowedExtensions.join(', ')}). You uploaded: ${file.name}`
+        error: `Invalid file type. Only PDF and image files are accepted (${allowedExtensions.join(', ')}). You uploaded: ${fileName}`
       }, { status: 400 })
     }
 
     // Check file size (max 10MB)
     const maxSize = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSize) {
+    if (fileSize && fileSize > maxSize) {
       return NextResponse.json({
         error: 'File too large. Maximum size is 10MB'
       }, { status: 400 })
@@ -529,32 +527,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Subcontractor is not assigned to this project' }, { status: 400 })
     }
 
-    // Upload file using storage library
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    const uploadResult = await uploadFile(buffer, file.name, {
-      folder: 'documents',
-      contentType: file.type
+    // Get file URL from Convex storage
+    const fileUrl = await convex.query(api.documents.getFileUrl, {
+      storageId: storageId as Id<"_storage">
     })
 
-    if (!uploadResult.success) {
-      return NextResponse.json({
-        error: `Failed to upload file: ${uploadResult.error}`
-      }, { status: 500 })
+    if (!fileUrl) {
+      return NextResponse.json({ error: 'File not found in storage' }, { status: 404 })
     }
 
-    const fileUrl = uploadResult.fileUrl
-    const storageInfo = getStorageInfo()
-    console.log(`[DOCUMENTS] File uploaded via ${storageInfo.provider}: ${fileUrl}`)
+    // Fetch the file from Convex storage for AI processing
+    const fileResponse = await fetch(fileUrl)
+    if (!fileResponse.ok) {
+      return NextResponse.json({ error: 'Failed to fetch file from storage' }, { status: 500 })
+    }
 
-    // Create document record
+    const arrayBuffer = await fileResponse.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const actualFileType = fileType || fileResponse.headers.get('content-type') || 'application/pdf'
+
+    console.log(`[DOCUMENTS] File fetched from Convex storage: ${fileName}`)
+
+    // Create document record with Convex storage ID
     const documentId = await convex.mutation(api.documents.create, {
       subcontractorId: subcontractorId as Id<"subcontractors">,
       projectId: projectId as Id<"projects">,
       fileUrl,
-      fileName: file.name,
-      fileSize: file.size,
+      fileName: fileName || 'document.pdf',
+      fileSize: fileSize || buffer.length,
+      storageId: storageId as Id<"_storage">,
       source: 'upload',
       receivedAt: Date.now(),
     })
@@ -577,10 +578,11 @@ export async function POST(request: NextRequest) {
       entityId: documentId,
       action: 'upload',
       details: {
-        fileName: file.name,
-        fileSize: file.size,
+        fileName: fileName || 'document.pdf',
+        fileSize: fileSize || buffer.length,
         projectId,
-        subcontractorId
+        subcontractorId,
+        storageProvider: 'convex'
       },
     })
 
@@ -595,7 +597,7 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url)
 
     // Perform AI extraction using Gemini 3 Flash
-    const extractionResult = await extractDocumentData(buffer, file.type, file.name)
+    const extractionResult = await extractDocumentData(buffer, actualFileType, fileName || 'document.pdf')
 
     // Handle extraction failure
     if (!extractionResult.success || !extractionResult.data) {
@@ -624,7 +626,7 @@ export async function POST(request: NextRequest) {
         action: 'extraction_failed',
         details: {
           error: extractionResult.error,
-          fileName: file.name
+          fileName: fileName
         },
       })
 
@@ -634,7 +636,7 @@ export async function POST(request: NextRequest) {
         document: {
           id: documentId,
           fileUrl,
-          fileName: file.name,
+          fileName: fileName,
           processingStatus: 'extraction_failed'
         },
         error: {
@@ -679,7 +681,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Check if fraud detection should be skipped (for testing)
-    const skipFraud = shouldSkipFraudDetection(file.name, searchParams)
+    const skipFraud = shouldSkipFraudDetection(fileName, searchParams)
 
     // Perform fraud detection analysis
     const fraudAnalysis: FraudAnalysisResult = skipFraud
@@ -703,7 +705,7 @@ export async function POST(request: NextRequest) {
               limit: c.limit
             }))
           },
-          file.name
+          fileName
         )
 
     // If fraud is detected, override verification status
@@ -850,11 +852,11 @@ export async function POST(request: NextRequest) {
       document: {
         id: documentId,
         fileUrl,
-        fileName: file.name,
-        fileSize: file.size,
+        fileName: fileName,
+        fileSize: fileSize,
         processingStatus: 'completed',
-        storageProvider: uploadResult.provider,
-        storagePath: uploadResult.storagePath,
+        storageProvider: 'convex',
+        storageId: storageId,
         verification: {
           status: finalStatus,
           confidence_score: verification.confidence_score,

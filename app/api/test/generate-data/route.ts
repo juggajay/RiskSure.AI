@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     db.prepare(`
       INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
       VALUES (?, ?, ?, 'test_data', ?, 'generate', ?)
-    `).run(uuidv4(), user.company_id, user.id, 'bulk', JSON.stringify({ count: created.length, type: 'subcontractors' }))
+    `).run(uuidv4(), user.company_id, user._id, 'bulk', JSON.stringify({ count: created.length, type: 'subcontractors' }))
 
     // Get final count
     const finalCount = db.prepare('SELECT COUNT(*) as count FROM subcontractors WHERE company_id = ?').get(user.company_id) as { count: number }
@@ -177,7 +177,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }

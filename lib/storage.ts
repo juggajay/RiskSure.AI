@@ -2,45 +2,29 @@
  * Unified File Storage Library
  *
  * Provides a consistent API for file storage operations.
- * - Uses Supabase Storage when SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are configured
+ * - Uses Convex Storage when NEXT_PUBLIC_CONVEX_URL is configured
  * - Falls back to local file storage in development mode
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { ConvexHttpClient } from 'convex/browser'
+import { api } from '@/convex/_generated/api'
 import fs from 'fs'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 
-// Storage bucket name for COC documents
-const COC_BUCKET = 'coc-documents'
-
-// Check if Supabase is configured
-function isSupabaseConfigured(): boolean {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  // Consider configured only if both URL and service role key are real values
-  // (not just 'test' or empty)
-  return !!(
-    supabaseUrl &&
-    supabaseServiceKey &&
-    supabaseUrl !== 'test' &&
-    supabaseServiceKey !== 'test' &&
-    supabaseUrl.includes('supabase')
-  )
+// Check if Convex is configured
+function isConvexConfigured(): boolean {
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
+  return !!(convexUrl && convexUrl.includes('convex'))
 }
 
-// Create Supabase client for storage operations
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
+// Create Convex client for storage operations
+function getConvexClient(): ConvexHttpClient {
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
+  if (!convexUrl) {
+    throw new Error('NEXT_PUBLIC_CONVEX_URL not set')
+  }
+  return new ConvexHttpClient(convexUrl)
 }
 
 // Get the app URL for constructing file URLs
@@ -52,7 +36,8 @@ export interface UploadResult {
   success: boolean
   fileUrl: string
   storagePath: string
-  provider: 'supabase' | 'local'
+  storageId?: string
+  provider: 'convex' | 'local'
   error?: string
 }
 
@@ -92,58 +77,45 @@ export async function uploadFile(
   // Detect content type
   const contentType = options?.contentType || detectContentType(fileName)
 
-  if (isSupabaseConfigured()) {
-    // Use Supabase Storage
+  if (isConvexConfigured()) {
+    // Use Convex Storage
     try {
-      const supabase = getSupabaseClient()
+      const convex = getConvexClient()
 
-      // Ensure bucket exists (create if not)
-      const { data: buckets } = await supabase.storage.listBuckets()
-      const bucketExists = buckets?.some(b => b.name === COC_BUCKET)
+      // Get upload URL from Convex
+      const uploadUrl = await convex.mutation(api.documents.generateUploadUrl, {})
 
-      if (!bucketExists) {
-        await supabase.storage.createBucket(COC_BUCKET, {
-          public: true,
-          fileSizeLimit: 10485760 // 10MB
-        })
+      // Upload file to Convex storage
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': contentType,
+        },
+        body: new Uint8Array(buffer),
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.statusText}`)
       }
 
-      // Upload file
-      const { data, error } = await supabase.storage
-        .from(COC_BUCKET)
-        .upload(storagePath, buffer, {
-          contentType,
-          upsert: false
-        })
+      const { storageId } = await uploadResponse.json()
 
-      if (error) {
-        console.error('Supabase upload error:', error)
-        return {
-          success: false,
-          fileUrl: '',
-          storagePath: '',
-          provider: 'supabase',
-          error: error.message
-        }
-      }
+      // Get the public URL for the uploaded file
+      const fileUrl = await convex.query(api.documents.getFileUrl, { storageId })
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from(COC_BUCKET)
-        .getPublicUrl(storagePath)
-
-      console.log(`[STORAGE] File uploaded to Supabase: ${storagePath}`)
+      console.log(`[STORAGE] File uploaded to Convex: ${storageId}`)
 
       return {
         success: true,
-        fileUrl: urlData.publicUrl,
+        fileUrl: fileUrl || '',
         storagePath,
-        provider: 'supabase'
+        storageId,
+        provider: 'convex'
       }
     } catch (error) {
-      console.error('Supabase storage error:', error)
+      console.error('Convex storage error:', error)
       // Fall back to local storage
-      console.log('[STORAGE] Falling back to local storage due to Supabase error')
+      console.log('[STORAGE] Falling back to local storage due to Convex error')
     }
   }
 
@@ -184,36 +156,37 @@ export async function uploadFile(
 /**
  * Download a file from storage
  *
- * @param storagePath - Path to file in storage
+ * @param storagePath - Path to file in storage OR a full URL
  * @returns Download result with file buffer
  */
 export async function downloadFile(storagePath: string): Promise<DownloadResult> {
-  if (isSupabaseConfigured()) {
+  // If it's a full URL (Convex or any HTTP URL), fetch it directly
+  if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) {
     try {
-      const supabase = getSupabaseClient()
+      const response = await fetch(storagePath)
 
-      const { data, error } = await supabase.storage
-        .from(COC_BUCKET)
-        .download(storagePath)
-
-      if (error) {
-        console.error('Supabase download error:', error)
+      if (!response.ok) {
         return {
           success: false,
-          error: error.message
+          error: `Failed to download: ${response.statusText}`
         }
       }
 
-      const buffer = Buffer.from(await data.arrayBuffer())
+      const arrayBuffer = await response.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      const contentType = response.headers.get('content-type') || detectContentType(storagePath)
 
       return {
         success: true,
         buffer,
-        contentType: data.type
+        contentType
       }
     } catch (error) {
-      console.error('Supabase download error:', error)
-      // Fall back to local storage
+      console.error('URL download error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }
   }
 
@@ -253,47 +226,34 @@ export async function downloadFile(storagePath: string): Promise<DownloadResult>
  * @returns Delete result
  */
 export async function deleteFile(storagePath: string): Promise<DeleteResult> {
-  if (isSupabaseConfigured()) {
+  // For Convex storage, files are managed through the documents API
+  // Deletion should be handled by deleting the document record
+  // which will orphan the storage file (Convex handles cleanup)
+
+  // For local files, delete directly
+  if (!storagePath.startsWith('http://') && !storagePath.startsWith('https://')) {
     try {
-      const supabase = getSupabaseClient()
+      const filePath = path.join(process.cwd(), 'public', 'uploads', storagePath)
 
-      const { error } = await supabase.storage
-        .from(COC_BUCKET)
-        .remove([storagePath])
-
-      if (error) {
-        console.error('Supabase delete error:', error)
-        return {
-          success: false,
-          error: error.message
-        }
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath)
+        console.log(`[STORAGE] File deleted locally: ${storagePath}`)
       }
 
-      console.log(`[STORAGE] File deleted from Supabase: ${storagePath}`)
       return { success: true }
     } catch (error) {
-      console.error('Supabase delete error:', error)
-      // Fall back to local storage
+      console.error('Local delete error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }
   }
 
-  // Local file storage
-  try {
-    const filePath = path.join(process.cwd(), 'public', 'uploads', storagePath)
-
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath)
-      console.log(`[STORAGE] File deleted locally: ${storagePath}`)
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error('Local delete error:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }
-  }
+  // For remote URLs, we can't delete directly - return success
+  // The file should be cleaned up when the document is deleted from Convex
+  console.log(`[STORAGE] Remote file deletion skipped (handled by Convex): ${storagePath}`)
+  return { success: true }
 }
 
 /**
@@ -314,15 +274,6 @@ export function getFileUrl(storagePath: string): string {
     return `${appUrl}${storagePath}`
   }
 
-  // If Supabase is configured, construct Supabase URL
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseClient()
-    const { data } = supabase.storage
-      .from(COC_BUCKET)
-      .getPublicUrl(storagePath)
-    return data.publicUrl
-  }
-
   // Default to local URL
   const appUrl = getAppUrl()
   return `${appUrl}/uploads/${storagePath}`
@@ -331,21 +282,15 @@ export function getFileUrl(storagePath: string): string {
 /**
  * Check if file exists in storage
  *
- * @param storagePath - Path to file in storage
+ * @param storagePath - Path to file in storage or URL
  * @returns True if file exists
  */
 export async function fileExists(storagePath: string): Promise<boolean> {
-  if (isSupabaseConfigured()) {
+  // For remote URLs, try a HEAD request
+  if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) {
     try {
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase.storage
-        .from(COC_BUCKET)
-        .list(path.dirname(storagePath))
-
-      if (error) return false
-
-      const fileName = path.basename(storagePath)
-      return data.some(file => file.name === fileName)
+      const response = await fetch(storagePath, { method: 'HEAD' })
+      return response.ok
     } catch {
       return false
     }
@@ -362,15 +307,13 @@ export async function fileExists(storagePath: string): Promise<boolean> {
  * @returns Current storage provider configuration
  */
 export function getStorageInfo(): {
-  provider: 'supabase' | 'local'
+  provider: 'convex' | 'local'
   configured: boolean
-  bucket: string
 } {
-  const configured = isSupabaseConfigured()
+  const configured = isConvexConfigured()
   return {
-    provider: configured ? 'supabase' : 'local',
-    configured,
-    bucket: COC_BUCKET
+    provider: configured ? 'convex' : 'local',
+    configured
   }
 }
 

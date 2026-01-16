@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       id: sessionId,
       projectId,
       companyId: user.company_id!,
-      userId: user.id,
+      userId: user._id,
       status: 'uploading',
       documents: [],
       vendorsToCreate: [],
@@ -383,7 +383,7 @@ export async function POST(request: NextRequest) {
     db.prepare(`
       INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
       VALUES (?, ?, ?, 'migration', ?, 'create', ?)
-    `).run(uuidv4(), user.company_id, user.id, sessionId, JSON.stringify({
+    `).run(uuidv4(), user.company_id, user._id, sessionId, JSON.stringify({
       projectId,
       documentCount: session.documents.length,
       vendorsToCreate: session.vendorsToCreate.length,
@@ -425,7 +425,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }

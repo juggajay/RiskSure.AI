@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.toLowerCase().trim()
 
     // Create magic link token
-    const { token, expiresAt } = createMagicLinkToken(normalizedEmail)
+    const { token, expiresAt } = await createMagicLinkToken(normalizedEmail)
 
     // In development, log the magic link to the console
     const magicLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/broker/verify?token=${token}`

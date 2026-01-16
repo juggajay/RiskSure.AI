@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -27,10 +27,9 @@ export async function GET(request: NextRequest) {
       storage: {
         provider: storageInfo.provider,
         configured: storageInfo.configured,
-        bucket: storageInfo.bucket,
         description: storageInfo.configured
-          ? 'Supabase Storage is configured and active'
-          : 'Using local file storage (development mode). Configure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for Supabase Storage.',
+          ? 'Convex Storage is configured and active'
+          : 'Using local file storage (development mode). Configure NEXT_PUBLIC_CONVEX_URL for Convex Storage.',
         features: {
           upload: true,
           download: true,

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -126,7 +126,7 @@ The Compliance Team`
       // Log the audit entry
       await convex.mutation(api.auditLogs.create, {
         companyId: user.company_id as Id<"companies">,
-        userId: user.id as Id<"users">,
+        userId: user._id as Id<"users">,
         entityType: 'communication',
         entityId: communicationId,
         action: 'auto_follow_up',
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }

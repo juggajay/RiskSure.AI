@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const result = await convex.query(api.exceptions.listByCompany, {
       companyId: user.company_id as Id<"companies">,
-      filterByUserId: filterByProjectManagerOnly ? user.id as Id<"users"> : undefined,
+      filterByUserId: filterByProjectManagerOnly ? user._id as Id<"users"> : undefined,
       filterByProjectManagerOnly,
     })
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Project managers can only create exceptions for their assigned projects
-    if (user.role === 'project_manager' && projectSubcontractor.projectManagerId !== user.id) {
+    if (user.role === 'project_manager' && projectSubcontractor.projectManagerId !== user._id) {
       return NextResponse.json({ error: 'You can only create exceptions for your assigned projects' }, { status: 403 })
     }
 
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       issueSummary: issueSummary.trim(),
       reason: reason.trim(),
       riskLevel: finalRiskLevel as 'low' | 'medium' | 'high',
-      createdByUserId: user.id as Id<"users">,
+      createdByUserId: user._id as Id<"users">,
       expiresAt: expiresAt ? new Date(expiresAt).getTime() : undefined,
       expirationType: (expirationType || 'until_resolved') as 'until_resolved' | 'fixed_duration' | 'specific_date' | 'permanent',
       autoApprove,
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     // Log the action
     await convex.mutation(api.auditLogs.create, {
       companyId: user.company_id as Id<"companies">,
-      userId: user.id as Id<"users">,
+      userId: user._id as Id<"users">,
       entityType: 'exception',
       entityId: result.exceptionId,
       action: 'create',
@@ -197,7 +197,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -239,7 +239,7 @@ export async function PUT(request: NextRequest) {
     if (action === 'approve') {
       await convex.mutation(api.exceptions.approve, {
         id: exceptionId as Id<"exceptions">,
-        approvedByUserId: user.id as Id<"users">,
+        approvedByUserId: user._id as Id<"users">,
       })
 
       // Update project_subcontractor status to 'exception'
@@ -250,14 +250,14 @@ export async function PUT(request: NextRequest) {
     } else {
       await convex.mutation(api.exceptions.reject, {
         id: exceptionId as Id<"exceptions">,
-        rejectedByUserId: user.id as Id<"users">,
+        rejectedByUserId: user._id as Id<"users">,
       })
     }
 
     // Log the action
     await convex.mutation(api.auditLogs.create, {
       companyId: user.company_id as Id<"companies">,
-      userId: user.id as Id<"users">,
+      userId: user._id as Id<"users">,
       entityType: 'exception',
       entityId: exceptionId,
       action,

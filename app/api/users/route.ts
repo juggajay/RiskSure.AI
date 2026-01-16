@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const currentUser = getUserByToken(token)
+    const currentUser = await getUserByToken(token)
     if (!currentUser) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }

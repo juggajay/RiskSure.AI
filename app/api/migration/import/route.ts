@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = getUserByToken(token)
+    const user = await getUserByToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
       db.prepare(`
         INSERT INTO audit_logs (id, company_id, user_id, entity_type, entity_id, action, details)
         VALUES (?, ?, ?, 'migration', ?, 'complete', ?)
-      `).run(uuidv4(), user.company_id, user.id, sessionId, JSON.stringify(results))
+      `).run(uuidv4(), user.company_id, user._id, sessionId, JSON.stringify(results))
 
       // Create notification
       const project = db.prepare('SELECT name FROM projects WHERE id = ?').get(session.projectId) as { name: string } | undefined
