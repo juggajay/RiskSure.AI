@@ -452,7 +452,7 @@ function StopWorkRiskItem({ risk }: { risk: StopWorkRisk }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Link href={`/dashboard/subcontractors?id=${risk.subcontractor_id}`}>
+        <Link href={`/dashboard/subcontractors/${risk.subcontractor_id}?project=${risk.project_id}`}>
           <Button variant="outline" size="sm" className="text-slate-600 border-slate-200">
             View
           </Button>
