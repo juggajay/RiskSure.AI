@@ -181,15 +181,6 @@ export default function SubcontractorsPage() {
     return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 11)}`
   }
 
-  const handleABNChange = (value: string) => {
-    const formatted = formatABN(value)
-    setFormData(prev => ({ ...prev, abn: formatted }))
-
-    // Clear previous validation
-    setAbnError(null)
-    setAbnLookupResult(null)
-  }
-
   // Validate ABN format and checksum client-side
   const validateABNFormat = (abn: string): { valid: boolean; error?: string } => {
     const digits = abn.replace(/\s/g, '')
@@ -219,9 +210,9 @@ export default function SubcontractorsPage() {
     return { valid: true }
   }
 
-  // Look up ABN against ABR (Australian Business Register)
-  const lookupABN = async () => {
-    const digits = formData.abn.replace(/\s/g, '')
+  // Look up ABN against ABR (Australian Business Register) and auto-populate fields
+  const lookupABN = async (abnValue?: string) => {
+    const digits = (abnValue || formData.abn).replace(/\s/g, '')
 
     // First validate format
     const validation = validateABNFormat(digits)
@@ -245,41 +236,69 @@ export default function SubcontractorsPage() {
 
       setAbnLookupResult(data)
 
-      // Auto-populate company name if available and name field is empty
-      if (data.entityName && !formData.name.trim()) {
-        setFormData(prev => ({ ...prev, name: data.entityName }))
-        toast({
-          title: "ABN Verified",
-          description: `Company name auto-populated: ${data.entityName}`
-        })
-      } else if (data.entityName) {
-        // Check if the current name matches the registered entity
-        const currentName = formData.name.trim().toLowerCase()
-        const registeredName = data.entityName.toLowerCase()
-        // Simple check - normalize by removing common suffixes
-        const normalizeForComparison = (name: string) =>
-          name.replace(/\b(pty\.?\s*ltd\.?|proprietary\s+limited|limited|pty|ltd)\b/gi, '')
-              .replace(/[.,\-'"`()&]/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim()
+      // Auto-populate all available fields
+      if (data.entityName) {
+        const updates: Partial<typeof formData> = {}
+        let fieldsPopulated: string[] = []
 
-        const normalizedCurrent = normalizeForComparison(currentName)
-        const normalizedRegistered = normalizeForComparison(registeredName)
+        // Company name
+        if (!formData.name.trim()) {
+          updates.name = data.entityName
+          fieldsPopulated.push('Company Name')
+        }
 
-        if (normalizedCurrent !== normalizedRegistered &&
-            !normalizedCurrent.includes(normalizedRegistered) &&
-            !normalizedRegistered.includes(normalizedCurrent)) {
-          toast({
-            title: "Name Mismatch Warning",
-            description: `The ABN is registered to "${data.entityName}". Your entered name may not match.`,
-            variant: "destructive",
-            duration: 8000
-          })
-        } else {
+        // Trading name
+        if (data.tradingName && !formData.tradingName.trim()) {
+          updates.tradingName = data.tradingName
+          fieldsPopulated.push('Trading Name')
+        }
+
+        // Address - construct from state and postcode if available
+        if (data.address && !formData.address.trim()) {
+          const addressParts: string[] = []
+          if (data.address.state) addressParts.push(data.address.state)
+          if (data.address.postcode) addressParts.push(data.address.postcode)
+          if (addressParts.length > 0) {
+            updates.address = addressParts.join(' ')
+            fieldsPopulated.push('Address')
+          }
+        }
+
+        // Apply updates if any
+        if (Object.keys(updates).length > 0) {
+          setFormData(prev => ({ ...prev, ...updates }))
           toast({
             title: "ABN Verified",
-            description: `Registered entity: ${data.entityName}`
+            description: `Auto-populated: ${fieldsPopulated.join(', ')}`,
           })
+        } else {
+          // Check if existing name matches
+          const currentName = formData.name.trim().toLowerCase()
+          const registeredName = data.entityName.toLowerCase()
+          const normalizeForComparison = (name: string) =>
+            name.replace(/\b(pty\.?\s*ltd\.?|proprietary\s+limited|limited|pty|ltd)\b/gi, '')
+                .replace(/[.,\-'"`()&]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+
+          const normalizedCurrent = normalizeForComparison(currentName)
+          const normalizedRegistered = normalizeForComparison(registeredName)
+
+          if (normalizedCurrent !== normalizedRegistered &&
+              !normalizedCurrent.includes(normalizedRegistered) &&
+              !normalizedRegistered.includes(normalizedCurrent)) {
+            toast({
+              title: "Name Mismatch Warning",
+              description: `The ABN is registered to "${data.entityName}". Your entered name may not match.`,
+              variant: "destructive",
+              duration: 8000
+            })
+          } else {
+            toast({
+              title: "ABN Verified",
+              description: `Registered entity: ${data.entityName}`
+            })
+          }
         }
       } else {
         toast({
@@ -291,6 +310,26 @@ export default function SubcontractorsPage() {
       setAbnError('Failed to validate ABN')
     } finally {
       setAbnLookupLoading(false)
+    }
+  }
+
+  const handleABNChange = (value: string) => {
+    const formatted = formatABN(value)
+    setFormData(prev => ({ ...prev, abn: formatted }))
+
+    // Clear previous validation
+    setAbnError(null)
+    setAbnLookupResult(null)
+
+    // Auto-lookup when ABN is complete (11 digits)
+    const digits = formatted.replace(/\s/g, '')
+    if (digits.length === 11) {
+      // Validate checksum before auto-lookup
+      const validation = validateABNFormat(digits)
+      if (validation.valid) {
+        // Delay slightly to allow UI to update
+        setTimeout(() => lookupABN(formatted), 100)
+      }
     }
   }
 
@@ -1023,7 +1062,7 @@ export default function SubcontractorsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={lookupABN}
+                      onClick={() => lookupABN()}
                       disabled={abnLookupLoading || !formData.abn.trim()}
                       className="whitespace-nowrap"
                     >
