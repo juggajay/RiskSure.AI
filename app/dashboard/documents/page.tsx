@@ -67,17 +67,17 @@ interface ProjectSubcontractor {
   status: string
 }
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; icon: typeof CheckCircle }> = {
-  pass: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
-  fail: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-  review: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock }
+const STATUS_STYLES: Record<string, { class: string; icon: typeof CheckCircle }> = {
+  pass: { class: 'status-compliant', icon: CheckCircle },
+  fail: { class: 'status-non-compliant', icon: XCircle },
+  review: { class: 'status-pending', icon: Clock }
 }
 
 const PROCESSING_STYLES: Record<string, { bg: string; text: string }> = {
   pending: { bg: 'bg-slate-100', text: 'text-slate-600' },
-  processing: { bg: 'bg-blue-100', text: 'text-blue-700' },
-  completed: { bg: 'bg-green-100', text: 'text-green-700' },
-  failed: { bg: 'bg-red-100', text: 'text-red-700' }
+  processing: { bg: 'bg-slate-100', text: 'text-slate-600' },
+  completed: { bg: 'bg-slate-100', text: 'text-slate-600' },
+  failed: { bg: 'bg-slate-100', text: 'text-slate-600' }
 }
 
 export default function DocumentsPage() {
@@ -350,64 +350,45 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - restrained design */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Total Documents</p>
-                  <p className="text-3xl font-bold mt-1">{documents.length}</p>
-                </div>
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <FileText className="h-5 w-5 text-slate-500" />
-                </div>
-              </div>
+              <p className="text-sm font-medium text-slate-500">Total Documents</p>
+              <p className="text-3xl font-bold mt-1 tabular-nums text-slate-900">{documents.length}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Passed</p>
-                  <p className="text-3xl font-bold mt-1 text-green-600">
-                    {documents.filter(d => d.verification_status === 'pass').length}
-                  </p>
-                </div>
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="status-dot status-dot-ok" />
+                <p className="text-sm font-medium text-slate-500">Passed</p>
               </div>
+              <p className="text-3xl font-bold mt-1 tabular-nums text-slate-900">
+                {documents.filter(d => d.verification_status === 'pass').length}
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Failed</p>
-                  <p className="text-3xl font-bold mt-1 text-red-600">
-                    {documents.filter(d => d.verification_status === 'fail').length}
-                  </p>
-                </div>
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <XCircle className="h-5 w-5 text-red-500" />
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="status-dot status-dot-error" />
+                <p className="text-sm font-medium text-slate-500">Failed</p>
               </div>
+              <p className="text-3xl font-bold mt-1 tabular-nums text-slate-900">
+                {documents.filter(d => d.verification_status === 'fail').length}
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Pending Review</p>
-                  <p className="text-3xl font-bold mt-1 text-amber-600">
-                    {documents.filter(d => d.verification_status === 'review').length}
-                  </p>
-                </div>
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <Clock className="h-5 w-5 text-amber-500" />
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="status-dot status-dot-warn" />
+                <p className="text-sm font-medium text-slate-500">Pending Review</p>
               </div>
+              <p className="text-3xl font-bold mt-1 tabular-nums text-slate-900">
+                {documents.filter(d => d.verification_status === 'review').length}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -493,7 +474,7 @@ export default function DocumentsPage() {
                             >
                               {doc.file_name || 'Untitled Document'}
                             </span>
-                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${verificationStyle.bg} ${verificationStyle.text}`}>
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${verificationStyle.class}`}>
                               <StatusIcon className="h-3 w-3 inline mr-1" />
                               {doc.verification_status ? doc.verification_status.charAt(0).toUpperCase() + doc.verification_status.slice(1) : 'Review'}
                             </span>

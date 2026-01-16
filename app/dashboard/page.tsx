@@ -170,17 +170,14 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Good {getTimeOfDay()}, {user.name.split(" ")[0]}!</h1>
-            <p className="text-slate-500">Here&apos;s your compliance overview for today.</p>
+            <p className="text-slate-500 max-w-prose">Here&apos;s your compliance overview for today.</p>
           </div>
           <div className="flex items-center gap-4">
-            {/* Real-time update indicator */}
+            {/* Real-time update indicator - subtle */}
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <div className="flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span className="hidden sm:inline">Live</span>
+                <span className="status-dot status-dot-ok" />
+                <span className="hidden sm:inline text-slate-400">Live</span>
               </div>
               {lastUpdated && (
                 <span className="hidden md:inline text-xs text-slate-400">
@@ -338,19 +335,25 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Morning Brief Section */}
+        {/* Morning Brief Section - Restrained design */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className={morningBrief?.stopWorkRisks?.length ? "border-red-200 bg-red-50/30" : ""}>
+          <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ShieldAlert className={`h-5 w-5 ${morningBrief?.stopWorkRisks?.length ? "text-red-500" : "text-slate-400"}`} />
-                Stop Work Risks
-              </CardTitle>
-              <CardDescription>Subcontractors on-site today with compliance issues</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                    Requires Attention
+                  </CardTitle>
+                  <CardDescription>Subcontractors on-site today with compliance issues</CardDescription>
+                </div>
+                {morningBrief?.stopWorkRisks?.length ? (
+                  <span className="text-xs text-slate-500">{morningBrief.stopWorkRisks.length} items</span>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent>
               {morningBrief?.stopWorkRisks?.length ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {morningBrief.stopWorkRisks.map((risk) => (
                     <StopWorkRiskItem key={risk.id} risk={risk} />
                   ))}
@@ -369,38 +372,19 @@ export default function DashboardPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-lg">New COCs Received</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                    Recent Certificates
+                  </CardTitle>
                   <CardDescription>Certificates received in the last 24 hours</CardDescription>
                 </div>
                 {morningBrief?.cocStats && morningBrief.cocStats.total > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-slate-100 text-slate-700">
-                      {morningBrief.cocStats.total} Total
-                    </Badge>
-                  </div>
+                  <span className="text-xs text-slate-500">Today</span>
                 )}
               </div>
-              {/* COC Stats Summary */}
-              {morningBrief?.cocStats && morningBrief.cocStats.total > 0 && (
-                <div className="flex gap-4 mt-3 pt-3 border-t">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500" />
-                    <span className="text-sm text-slate-600">
-                      <span className="font-medium">{morningBrief.cocStats.autoApproved}</span> Auto-approved
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-amber-500" />
-                    <span className="text-sm text-slate-600">
-                      <span className="font-medium">{morningBrief.cocStats.needsReview}</span> Needs review
-                    </span>
-                  </div>
-                </div>
-              )}
             </CardHeader>
             <CardContent>
               {morningBrief?.newCocs?.length ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {morningBrief.newCocs.map((coc) => (
                     <NewCocItem key={coc.id} coc={coc} />
                   ))}
@@ -416,27 +400,24 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Pending Responses Section */}
-        <Card className={morningBrief?.pendingResponses?.length ? "border-amber-200 bg-amber-50/30" : ""}>
+        {/* Pending Responses Section - Restrained */}
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Mail className={`h-5 w-5 ${morningBrief?.pendingResponses?.length ? "text-amber-500" : "text-slate-400"}`} />
-                  Pending Responses
+                <CardTitle className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                  Awaiting Response
                 </CardTitle>
                 <CardDescription>Subcontractors who haven&apos;t responded to deficiency notices</CardDescription>
               </div>
               {morningBrief?.pendingResponses && morningBrief.pendingResponses.length > 0 && (
-                <Badge variant="outline" className="bg-amber-100 text-amber-700">
-                  {morningBrief.pendingResponses.length} Waiting
-                </Badge>
+                <span className="text-xs text-slate-500">{morningBrief.pendingResponses.length} pending</span>
               )}
             </div>
           </CardHeader>
           <CardContent>
             {morningBrief?.pendingResponses?.length ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {morningBrief.pendingResponses.map((response) => (
                   <PendingResponseItem key={response.verification_id} response={response} />
                 ))}
@@ -456,43 +437,29 @@ export default function DashboardPage() {
 }
 
 function StopWorkRiskItem({ risk }: { risk: StopWorkRisk }) {
-  const severityColor = risk.status === 'non_compliant' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-  const severityLabel = risk.status === 'non_compliant' ? 'Non-Compliant' : 'Pending'
+  const isNonCompliant = risk.status === 'non_compliant'
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-200 shadow-sm">
+    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200">
       <div className="flex items-start gap-3">
-        <div className="p-2 bg-red-100 rounded-lg">
-          <FileWarning className="h-4 w-4 text-red-600" />
-        </div>
+        <span className={`status-dot mt-1.5 ${isNonCompliant ? 'status-dot-error' : 'status-dot-warn'}`} />
         <div>
           <p className="font-medium text-slate-900">{risk.subcontractor_name}</p>
-          <p className="text-sm text-slate-500">{risk.project_name}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className={severityColor}>
-              {severityLabel}
-            </Badge>
-            {risk.active_exceptions > 0 && (
-              <Badge variant="outline" className="bg-amber-100 text-amber-700">
-                {risk.active_exceptions} Exception{risk.active_exceptions > 1 ? 's' : ''}
-              </Badge>
-            )}
-            <span className="text-xs text-slate-400">
-              On-site: {new Date(risk.on_site_date).toLocaleDateString()}
-            </span>
-          </div>
+          <p className="text-sm text-slate-500 mt-0.5">{risk.project_name}</p>
+          <p className="text-xs text-slate-400 mt-1">
+            On-site today{risk.active_exceptions > 0 ? ` · ${risk.active_exceptions} active exception${risk.active_exceptions > 1 ? 's' : ''}` : ''}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
         <Link href={`/dashboard/subcontractors?id=${risk.subcontractor_id}`}>
-          <Button variant="outline" size="sm">
-            <ExternalLink className="h-4 w-4 mr-1" />
+          <Button variant="outline" size="sm" className="text-slate-600 border-slate-200">
             View
           </Button>
         </Link>
         <Link href={`/dashboard/exceptions?new=true&ps=${risk.id}`}>
-          <Button variant="destructive" size="sm">
-            Create Exception
+          <Button variant="outline" size="sm" className="text-slate-600 border-slate-200">
+            Exception
           </Button>
         </Link>
       </div>
@@ -501,46 +468,50 @@ function StopWorkRiskItem({ risk }: { risk: StopWorkRisk }) {
 }
 
 function NewCocItem({ coc }: { coc: NewCoc }) {
-  const statusColor = coc.verification_status === 'pass'
-    ? 'bg-green-100 text-green-700'
+  const dotClass = coc.verification_status === 'pass'
+    ? 'status-dot-ok'
     : coc.verification_status === 'fail'
-    ? 'bg-red-100 text-red-700'
-    : 'bg-amber-100 text-amber-700'
+    ? 'status-dot-error'
+    : 'status-dot-warn'
+
+  const textClass = coc.verification_status === 'pass'
+    ? 'status-text-ok'
+    : coc.verification_status === 'fail'
+    ? 'status-text-error'
+    : 'status-text-warn'
 
   const statusLabel = coc.verification_status === 'pass'
     ? 'Passed'
     : coc.verification_status === 'fail'
     ? 'Failed'
-    : 'Pending'
+    : 'Review'
 
   return (
     <Link
       href={`/dashboard/documents/${coc.id}`}
-      className="flex items-center justify-between p-3 rounded-lg border hover:border-primary hover:bg-slate-50 transition-colors"
+      className="flex items-center justify-between p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
     >
-      <div className="flex items-start gap-3">
-        <div className="p-2 bg-slate-100 rounded-lg">
-          <FileCheck className="h-4 w-4 text-slate-600" />
-        </div>
+      <div className="flex items-center gap-3">
+        <span className={`status-dot ${dotClass}`} />
         <div>
-          <p className="font-medium text-slate-900 truncate max-w-[200px]">{coc.file_name}</p>
-          <p className="text-sm text-slate-500">{coc.subcontractor_name} • {coc.project_name}</p>
+          <p className="text-sm font-medium text-slate-900">{coc.subcontractor_name}</p>
+          <p className="text-xs text-slate-500">{coc.project_name}</p>
         </div>
       </div>
-      <Badge variant="outline" className={statusColor}>
+      <span className={`text-xs font-medium ${textClass}`}>
         {statusLabel}
-      </Badge>
+      </span>
     </Link>
   )
 }
 
 function PendingResponseItem({ response }: { response: PendingResponse }) {
   const { toast } = useToast()
-  const urgencyColor = response.days_waiting >= 7
-    ? 'bg-red-100 text-red-700'
+  const textClass = response.days_waiting >= 7
+    ? 'status-text-error'
     : response.days_waiting >= 3
-    ? 'bg-amber-100 text-amber-700'
-    : 'bg-slate-100 text-slate-700'
+    ? 'status-text-warn'
+    : 'text-slate-400'
 
   const handleResend = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -580,33 +551,19 @@ function PendingResponseItem({ response }: { response: PendingResponse }) {
   }
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-200 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="p-2 bg-amber-100 rounded-lg">
-          <Clock className="h-4 w-4 text-amber-600" />
-        </div>
-        <div>
-          <p className="font-medium text-slate-900">{response.subcontractor_name}</p>
-          <p className="text-sm text-slate-500">{response.project_name}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className={urgencyColor}>
-              {response.days_waiting} day{response.days_waiting !== 1 ? 's' : ''} waiting
-            </Badge>
-            {response.broker_email && (
-              <span className="text-xs text-slate-400">{response.broker_email}</span>
-            )}
-          </div>
-        </div>
+    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200">
+      <div>
+        <p className="text-sm font-medium text-slate-900">{response.subcontractor_name}</p>
+        <p className="text-xs text-slate-500">
+          Sent {new Date(response.last_communication_date).toLocaleDateString('en-AU', { month: 'short', day: 'numeric' })}
+          {response.broker_email ? ` · ${response.broker_email}` : ''}
+        </p>
       </div>
-      <div className="flex items-center gap-2">
-        <Link href={`/dashboard/documents/${response.document_id}`}>
-          <Button variant="outline" size="sm">
-            <ExternalLink className="h-4 w-4 mr-1" />
-            View
-          </Button>
-        </Link>
-        <Button variant="default" size="sm" onClick={handleResend}>
-          <RefreshCw className="h-4 w-4 mr-1" />
+      <div className="flex items-center gap-3">
+        <span className={`text-xs font-medium ${textClass}`}>
+          {response.days_waiting}d
+        </span>
+        <Button variant="outline" size="sm" onClick={handleResend} className="text-slate-600 border-slate-200">
           Resend
         </Button>
       </div>
@@ -631,13 +588,10 @@ function ComplianceGauge({
 }) {
   const [showBreakdown, setShowBreakdown] = useState(false)
 
-  // Calculate gauge properties
+  // Calculate gauge properties - using landing page color palette
   const displayPercentage = percentage ?? 0
-  const gaugeColor = displayPercentage >= 80
-    ? 'text-green-500'
-    : displayPercentage >= 60
-    ? 'text-amber-500'
-    : 'text-red-500'
+  // Use primary slate blue for gauge - semantic meaning comes from the percentage number
+  const gaugeColor = 'text-slate-700'
 
   // SVG circle properties
   const radius = 40
@@ -646,7 +600,7 @@ function ComplianceGauge({
 
   return (
     <Card
-      className="cursor-pointer hover:border-primary transition-colors"
+      className="cursor-pointer hover:shadow-md transition-shadow"
       onClick={() => setShowBreakdown(!showBreakdown)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowBreakdown(!showBreakdown); }}}
       role="button"
@@ -705,40 +659,40 @@ function ComplianceGauge({
           </div>
         </div>
 
-        {/* Expandable Breakdown */}
+        {/* Expandable Breakdown - restrained colors */}
         {showBreakdown && total > 0 && (
           <div className="mt-4 pt-4 border-t space-y-2">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-green-500" />
-                <span>Compliant</span>
+                <span className="status-dot status-dot-ok" />
+                <span className="text-slate-600">Compliant</span>
               </div>
-              <span className="font-medium">{compliant}</span>
+              <span className="font-medium tabular-nums text-slate-900">{compliant}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-blue-500" />
-                <span>With Exception</span>
+                <span className="status-dot" style={{ backgroundColor: 'hsl(215 50% 48%)' }} />
+                <span className="text-slate-600">With Exception</span>
               </div>
-              <span className="font-medium">{exception}</span>
+              <span className="font-medium tabular-nums text-slate-900">{exception}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-red-500" />
-                <span>Non-Compliant</span>
+                <span className="status-dot status-dot-error" />
+                <span className="text-slate-600">Non-Compliant</span>
               </div>
-              <span className="font-medium">{nonCompliant}</span>
+              <span className="font-medium tabular-nums text-slate-900">{nonCompliant}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-amber-500" />
-                <span>Pending Review</span>
+                <span className="status-dot status-dot-warn" />
+                <span className="text-slate-600">Pending Review</span>
               </div>
-              <span className="font-medium">{pending}</span>
+              <span className="font-medium tabular-nums text-slate-900">{pending}</span>
             </div>
             <Link
               href="/dashboard/subcontractors"
-              className="block text-center text-sm text-primary hover:underline mt-3"
+              className="block text-center text-sm text-slate-500 hover:text-slate-700 mt-3"
               onClick={(e) => e.stopPropagation()}
             >
               View All Subcontractors →
@@ -766,20 +720,18 @@ const StatCard = memo(function StatCard({
   highlight?: boolean
 }) {
   return (
-    <Card className={highlight ? "border-red-200 bg-red-50" : ""}>
+    <Card>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500">{title}</p>
-            <p className={`text-3xl font-bold mt-1 ${highlight ? "text-red-600" : ""}`}>{value}</p>
+            <p className={`text-3xl font-bold mt-1 tabular-nums ${highlight ? "status-text-error" : "text-slate-900"}`}>{value}</p>
             <p className="text-sm text-slate-500 mt-1">{description}</p>
             {trend && (
               <p className="text-xs text-slate-400 mt-2">{trend}</p>
             )}
           </div>
-          <div className={`p-2 rounded-lg ${highlight ? "bg-red-100" : "bg-slate-100"}`}>
-            {icon}
-          </div>
+          {/* Icon removed for cleaner look - info is clear from title */}
         </div>
       </CardContent>
     </Card>
@@ -802,13 +754,13 @@ function QuickStartItem({
   return (
     <Link
       href={href}
-      className="flex items-center gap-4 p-4 rounded-lg border hover:border-primary hover:bg-slate-50 transition-colors group"
+      className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors group"
     >
       <div className={`
         h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium
         ${completed
-          ? "bg-green-100 text-green-600"
-          : "bg-slate-100 text-slate-600 group-hover:bg-primary group-hover:text-white"
+          ? "bg-slate-100 text-slate-700"
+          : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
         }
       `}>
         {completed ? <CheckCircle className="h-5 w-5" /> : step}
@@ -817,7 +769,7 @@ function QuickStartItem({
         <p className="font-medium text-slate-900">{title}</p>
         <p className="text-sm text-slate-500">{description}</p>
       </div>
-      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-primary" />
+      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-slate-600" />
     </Link>
   )
 }

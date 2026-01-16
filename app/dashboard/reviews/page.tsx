@@ -43,15 +43,15 @@ export default function ReviewsPage() {
 
   const getConfidenceColor = (score: number | null) => {
     if (!score) return 'text-slate-500'
-    if (score >= 80) return 'text-green-600'
-    if (score >= 60) return 'text-amber-600'
-    return 'text-red-600'
+    if (score >= 80) return 'status-text-ok'
+    if (score >= 60) return 'status-text-warn'
+    return 'status-text-error'
   }
 
   const getDaysWaitingBadge = (days: number) => {
-    if (days >= 7) return 'bg-red-100 text-red-700'
-    if (days >= 3) return 'bg-amber-100 text-amber-700'
-    return 'bg-slate-100 text-slate-600'
+    if (days >= 7) return 'status-non-compliant'
+    if (days >= 3) return 'status-pending'
+    return 'status-neutral'
   }
 
   return (
@@ -82,47 +82,29 @@ export default function ReviewsPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - restrained design */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Total Pending</p>
-                  <p className="text-3xl font-bold mt-1">{totalPending}</p>
-                </div>
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <Clock className="h-5 w-5 text-amber-600" />
-                </div>
-              </div>
+              <p className="text-sm font-medium text-slate-500">Total Pending</p>
+              <p className="text-3xl font-bold mt-1 tabular-nums text-slate-900">{totalPending}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Oldest Waiting</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {oldestDays > 0 ? `${oldestDays} days` : '-'}
-                  </p>
-                </div>
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-slate-500" />
-                </div>
-              </div>
+              <p className="text-sm font-medium text-slate-500">Oldest Waiting</p>
+              <p className="text-3xl font-bold mt-1 tabular-nums text-slate-900">
+                {oldestDays > 0 ? `${oldestDays}d` : '-'}
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Low Confidence</p>
-                  <p className="text-3xl font-bold mt-1 text-amber-600">{lowConfidenceCount}</p>
-                </div>
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <Percent className="h-5 w-5 text-amber-600" />
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="status-dot status-dot-warn" />
+                <p className="text-sm font-medium text-slate-500">Low Confidence</p>
               </div>
+              <p className="text-3xl font-bold mt-1 tabular-nums text-slate-900">{lowConfidenceCount}</p>
             </CardContent>
           </Card>
         </div>

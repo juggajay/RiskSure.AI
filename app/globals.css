@@ -7,8 +7,8 @@
 
 @layer base {
   :root {
-    /* Refined Industrial Color System */
-    --background: 40 20% 98%;
+    /* Professional Color System - Slate Blue Accent */
+    --background: 0 0% 100%;
     --foreground: 220 20% 15%;
 
     --card: 0 0% 100%;
@@ -19,18 +19,18 @@
 
     /* Navy - Trust & Authority */
     --primary: 220 60% 20%;
-    --primary-foreground: 40 20% 98%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Warm Gray */
-    --secondary: 40 10% 94%;
+    /* Cool Gray */
+    --secondary: 220 14% 94%;
     --secondary-foreground: 220 20% 25%;
 
-    --muted: 40 10% 94%;
+    --muted: 220 14% 94%;
     --muted-foreground: 220 10% 45%;
 
-    /* Amber - Action & Urgency */
-    --accent: 35 95% 55%;
-    --accent-foreground: 220 60% 15%;
+    /* Slate Blue - Professional Action */
+    --accent: 215 50% 48%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -39,12 +39,12 @@
     --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning - Attention */
-    --warning: 35 95% 55%;
-    --warning-foreground: 220 60% 15%;
+    /* Warning - Now uses Slate Blue */
+    --warning: 215 50% 48%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 40 15% 88%;
-    --input: 40 15% 88%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 220 60% 20%;
 
     --radius: 0.5rem;
@@ -198,8 +198,8 @@
 .bg-gradient-warm {
   background: linear-gradient(
     180deg,
-    hsl(40 20% 98%) 0%,
-    hsl(40 15% 96%) 100%
+    hsl(0 0% 100%) 0%,
+    hsl(220 14% 97%) 100%
   );
 }
 
@@ -250,9 +250,9 @@
 /* Badge styles */
 .badge-amber {
   @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
-  background: hsl(35 95% 55% / 0.12);
-  color: hsl(25 90% 40%);
-  border: 1px solid hsl(35 95% 55% / 0.25);
+  background: hsl(215 50% 48% / 0.08);
+  color: hsl(215 45% 35%);
+  border: 1px solid hsl(215 50% 48% / 0.15);
 }
 
 .badge-navy {
@@ -272,21 +272,15 @@
 /* Button styles */
 .btn-primary {
   @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-semibold text-base transition-all duration-200;
-  background: hsl(35 95% 55%);
-  color: hsl(220 60% 10%);
-  box-shadow:
-    0 1px 2px hsl(35 95% 45% / 0.3),
-    0 4px 12px hsl(35 95% 50% / 0.2),
-    inset 0 1px 0 hsl(35 95% 70% / 0.3);
+  background: hsl(215 50% 48%);
+  color: white;
+  box-shadow: 0 1px 3px hsl(215 50% 30% / 0.2);
 }
 
 .btn-primary:hover {
-  background: hsl(35 95% 50%);
+  background: hsl(215 50% 43%);
   transform: translateY(-1px);
-  box-shadow:
-    0 2px 4px hsl(35 95% 45% / 0.3),
-    0 8px 20px hsl(35 95% 50% / 0.25),
-    inset 0 1px 0 hsl(35 95% 70% / 0.3);
+  box-shadow: 0 2px 6px hsl(215 50% 30% / 0.25);
 }
 
 .btn-primary:active {
@@ -348,8 +342,8 @@
 /* Icon containers */
 .icon-box {
   @apply flex items-center justify-center w-12 h-12 rounded-xl;
-  background: hsl(35 95% 55% / 0.1);
-  color: hsl(25 90% 40%);
+  background: hsl(215 50% 48% / 0.08);
+  color: hsl(215 50% 38%);
 }
 
 .icon-box-navy {
@@ -479,7 +473,7 @@
 
 /* Selection color */
 ::selection {
-  background: hsl(35 95% 55% / 0.25);
+  background: hsl(215 50% 48% / 0.2);
   color: hsl(220 60% 15%);
 }
 
@@ -496,19 +490,13 @@
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Subtle noise texture overlay for depth */
+/* Subtle noise texture overlay for depth - DISABLED for cleaner look */
 .texture-grain {
   position: relative;
 }
 
 .texture-grain::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
-  opacity: 0.03;
-  pointer-events: none;
-  z-index: 1;
+  display: none;
 }
 
 /* Blueprint grid pattern */
@@ -521,20 +509,13 @@
   background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
 }
 
-/* Animated gradient orb */
+/* Animated gradient orb - DISABLED for cleaner look */
 .gradient-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(100px);
-  animation: orb-float 20s ease-in-out infinite;
-  will-change: transform;
+  display: none;
 }
 
 @keyframes orb-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(30px, -20px) scale(1.05); }
-  50% { transform: translate(-20px, 20px) scale(0.95); }
-  75% { transform: translate(20px, 10px) scale(1.02); }
 }
 
 /* ================================
@@ -678,19 +659,15 @@
    MOCKUP ANIMATIONS
    ================================ */
 
-/* Floating mockup effect */
+/* Floating mockup effect - DISABLED for cleaner look */
 @keyframes mockup-float {
   0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-10px) rotate(0.5deg);
+    transform: translateY(0);
   }
 }
 
 .mockup-float {
-  animation: mockup-float 6s ease-in-out infinite;
-  will-change: transform;
+  animation: none;
 }
 
 /* Mockup entrance */
@@ -714,22 +691,20 @@
   animation-play-state: running;
 }
 
-/* Subtle shadow pulse on mockups */
+/* Subtle shadow pulse on mockups - DISABLED for cleaner look */
 @keyframes shadow-pulse {
   0%, 100% {
     box-shadow:
       0 25px 50px -12px hsl(220 60% 20% / 0.15),
       0 12px 24px -8px hsl(220 60% 20% / 0.1);
   }
-  50% {
-    box-shadow:
-      0 30px 60px -12px hsl(220 60% 20% / 0.2),
-      0 15px 30px -8px hsl(220 60% 20% / 0.12);
-  }
 }
 
 .shadow-pulse {
-  animation: shadow-pulse 4s ease-in-out infinite;
+  animation: none;
+  box-shadow:
+    0 25px 50px -12px hsl(220 60% 20% / 0.15),
+    0 12px 24px -8px hsl(220 60% 20% / 0.1);
 }
 
 /* ================================
@@ -741,22 +716,9 @@
   overflow: hidden;
 }
 
+/* Shine effect - DISABLED for cleaner look */
 .btn-primary::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    transparent 0%,
-    hsl(0 0% 100% / 0.1) 50%,
-    transparent 100%
-  );
-  transform: translateX(-100%);
-  transition: transform 0.5s ease;
-}
-
-.btn-primary:hover::before {
-  transform: translateX(100%);
+  display: none;
 }
 
 .btn-primary:active {
@@ -777,10 +739,8 @@
 }
 
 .card-lift:hover {
-  transform: translateY(-4px);
-  box-shadow:
-    0 20px 40px -12px hsl(220 60% 20% / 0.12),
-    0 8px 16px -8px hsl(220 60% 20% / 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px hsl(220 20% 20% / 0.06);
 }
 
 /* Card with glow on hover */
@@ -796,8 +756,8 @@
   border-radius: inherit;
   background: linear-gradient(
     135deg,
-    hsl(35 95% 55% / 0),
-    hsl(35 95% 55% / 0)
+    hsl(215 50% 48% / 0),
+    hsl(215 50% 48% / 0)
   );
   opacity: 0;
   z-index: -1;
@@ -808,8 +768,8 @@
   opacity: 1;
   background: linear-gradient(
     135deg,
-    hsl(35 95% 55% / 0.1),
-    hsl(35 95% 55% / 0.05)
+    hsl(215 50% 48% / 0.1),
+    hsl(215 50% 48% / 0.05)
   );
 }
 
@@ -1017,4 +977,88 @@
   .no-print {
     display: none !important;
   }
+}
+
+/* ================================
+   DASHBOARD STATUS UTILITIES
+   Premium = Restraint
+   60% neutral | 30% slate grays | 10% accent
+   Status colors ONLY for semantic meaning
+   ================================ */
+
+/* Status dots - small, discrete indicators (6px) */
+.status-dot {
+  @apply inline-block rounded-full;
+  width: 6px;
+  height: 6px;
+}
+
+.status-dot-ok {
+  background-color: hsl(152 60% 40%); /* Success green from landing */
+}
+
+.status-dot-warn {
+  background-color: hsl(35 95% 50%); /* Amber warning */
+}
+
+.status-dot-error {
+  background-color: hsl(0 72% 51%); /* Red error */
+}
+
+/* Status text colors - used sparingly alongside dots */
+.status-text-ok {
+  color: hsl(152 60% 35%);
+}
+
+.status-text-warn {
+  color: hsl(35 80% 40%);
+}
+
+.status-text-error {
+  color: hsl(0 72% 45%);
+}
+
+/* Legacy status badges - kept for backward compatibility but simplified */
+.status-compliant {
+  @apply text-xs font-medium;
+  color: hsl(152 60% 35%);
+}
+
+.status-pending {
+  @apply text-xs font-medium;
+  color: hsl(35 80% 40%);
+}
+
+.status-non-compliant {
+  @apply text-xs font-medium;
+  color: hsl(0 72% 45%);
+}
+
+.status-neutral {
+  @apply text-xs font-medium text-slate-500;
+}
+
+/* Constrained text width for readability */
+.prose-width {
+  @apply max-w-prose;  /* ~65ch */
+}
+
+.readable-width {
+  @apply max-w-2xl;    /* 672px */
+}
+
+/* Table number alignment */
+.tabular-nums-right {
+  @apply text-right tabular-nums;
+}
+
+/* Dashboard card - clean, no border, subtle shadow */
+.dashboard-card {
+  @apply bg-white rounded-lg;
+  box-shadow: 0 1px 3px hsl(220 20% 20% / 0.04);
+  border: 1px solid hsl(220 13% 91%);
+}
+
+.dashboard-card:hover {
+  border-color: hsl(220 13% 85%);
 }

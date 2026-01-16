@@ -236,11 +236,14 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
       className={`w-64 bg-slate-900 text-white flex flex-col fixed h-screen z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       aria-label="Sidebar"
     >
-      <div className="p-4 border-b border-slate-800">
+      {/* Logo - Clean, no decorative elements */}
+      <div className="px-6 py-5 border-b border-slate-800">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-8 w-8 text-primary" />
-            <span className="text-lg font-semibold">RiskSure.AI</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
+              <Shield className="h-4 w-4 text-slate-300" />
+            </div>
+            <span className="font-semibold text-sm">RiskSure.AI</span>
           </div>
           {/* Close button for mobile */}
           <button
@@ -253,7 +256,21 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto" aria-label="Main navigation">
+      {/* Organization */}
+      <div className="px-4 py-4 border-b border-slate-800">
+        <div className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-left cursor-pointer">
+          <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-medium text-slate-300">
+            {user.company?.name?.substring(0, 2).toUpperCase() || 'CO'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-500">Organization</p>
+            <p className="text-sm font-medium truncate">{user.company?.name || 'No company'}</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Main navigation">
+        <div className="space-y-1">
         <NavItem
           icon={<Sun />}
           label="Morning Brief"
@@ -296,9 +313,10 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
           href="/dashboard/communications"
           active={pathname.startsWith('/dashboard/communications')}
         />
-      </nav>
+        </div>
 
-      <div className="p-4 border-t border-slate-800 space-y-1">
+        {/* Secondary nav */}
+        <div className="mt-8 pt-4 border-t border-slate-800">
         <NavItem
           icon={<Settings />}
           label="Settings"
@@ -321,23 +339,25 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
             />
           </>
         )}
+        </div>
+      </nav>
+
+      {/* User section */}
+      <div className="px-3 py-4 border-t border-slate-800">
         <button
           onClick={onLogout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-left mb-3"
         >
           <LogOut className="h-5 w-5" />
-          <span>Logout</span>
+          <span className="text-sm">Logout</span>
         </button>
-      </div>
-
-      <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+        <div className="flex items-center gap-3 px-3 py-2">
+          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-medium">
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-slate-400 truncate">{user.company?.name || "No company"}</p>
+            <p className="text-xs text-slate-500 truncate">{user.role.replace('_', ' ')}</p>
           </div>
         </div>
       </div>
@@ -359,14 +379,14 @@ function NavItem({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-3 min-h-[44px] rounded-md transition-colors ${
+      className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg transition-colors ${
         active
-          ? "bg-primary text-white"
+          ? "bg-slate-800 text-white"
           : "text-slate-400 hover:text-white hover:bg-slate-800"
       }`}
     >
       <span className="h-5 w-5">{icon}</span>
-      <span>{label}</span>
+      <span className="text-sm">{label}</span>
     </Link>
   )
 }

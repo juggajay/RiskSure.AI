@@ -57,19 +57,19 @@ interface User {
   role: string
 }
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {
-  pending_approval: { bg: 'bg-amber-100', text: 'text-amber-700', icon: <Clock className="h-4 w-4" />, label: 'Pending Approval' },
-  active: { bg: 'bg-green-100', text: 'text-green-700', icon: <CheckCircle className="h-4 w-4" />, label: 'Active' },
-  rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: <XCircle className="h-4 w-4" />, label: 'Rejected' },
-  expired: { bg: 'bg-red-100', text: 'text-red-700', icon: <XCircle className="h-4 w-4" />, label: 'Expired' },
-  resolved: { bg: 'bg-slate-100', text: 'text-slate-700', icon: <CheckCircle className="h-4 w-4" />, label: 'Resolved' },
-  closed: { bg: 'bg-slate-100', text: 'text-slate-700', icon: <XCircle className="h-4 w-4" />, label: 'Closed' }
+const STATUS_STYLES: Record<string, { class: string; icon: React.ReactNode; label: string }> = {
+  pending_approval: { class: 'status-pending', icon: <Clock className="h-4 w-4" />, label: 'Pending Approval' },
+  active: { class: 'status-compliant', icon: <CheckCircle className="h-4 w-4" />, label: 'Active' },
+  rejected: { class: 'status-non-compliant', icon: <XCircle className="h-4 w-4" />, label: 'Rejected' },
+  expired: { class: 'status-non-compliant', icon: <XCircle className="h-4 w-4" />, label: 'Expired' },
+  resolved: { class: 'status-neutral', icon: <CheckCircle className="h-4 w-4" />, label: 'Resolved' },
+  closed: { class: 'status-neutral', icon: <XCircle className="h-4 w-4" />, label: 'Closed' }
 }
 
-const RISK_STYLES: Record<string, { bg: string; text: string }> = {
-  low: { bg: 'bg-green-100', text: 'text-green-700' },
-  medium: { bg: 'bg-amber-100', text: 'text-amber-700' },
-  high: { bg: 'bg-red-100', text: 'text-red-700' }
+const RISK_STYLES: Record<string, { class: string }> = {
+  low: { class: 'status-compliant' },
+  medium: { class: 'status-pending' },
+  high: { class: 'status-non-compliant' }
 }
 
 export default function ExceptionsPage() {
@@ -599,10 +599,10 @@ function ExceptionCard({ exception, user, onApprovalAction, onExportAuditTrail }
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskStyle.bg} ${riskStyle.text} capitalize`}>
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskStyle.class} capitalize`}>
               {exception.risk_level}
             </span>
-            <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 ${statusStyle.bg} ${statusStyle.text}`}>
+            <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 ${statusStyle.class}`}>
               {statusStyle.icon}
               {statusStyle.label}
             </span>

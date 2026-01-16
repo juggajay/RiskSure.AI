@@ -45,10 +45,10 @@ interface User {
   role: string
 }
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  active: { bg: 'bg-green-100', text: 'text-green-700', label: 'Active' },
-  completed: { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Completed' },
-  on_hold: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'On Hold' }
+const STATUS_STYLES: Record<string, { class: string; label: string }> = {
+  active: { class: 'status-compliant', label: 'Active' },
+  completed: { class: 'status-neutral', label: 'Completed' },
+  on_hold: { class: 'status-pending', label: 'On Hold' }
 }
 
 const AUSTRALIAN_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
@@ -338,7 +338,7 @@ function ProjectCard({ project }: { project: Project }) {
 
   return (
     <Link href={`/dashboard/projects/${project.id}`}>
-      <Card className="h-full hover:border-primary transition-colors cursor-pointer group">
+      <Card className="h-full hover:shadow-md transition-shadow cursor-pointer group">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -352,7 +352,7 @@ function ProjectCard({ project }: { project: Project }) {
                 </CardDescription>
               )}
             </div>
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyle.bg} ${statusStyle.text}`}>
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyle.class}`}>
               {statusStyle.label}
             </span>
           </div>
@@ -383,30 +383,24 @@ function ProjectCard({ project }: { project: Project }) {
               </span>
             </div>
 
-            {/* Compliance Rate */}
+            {/* Compliance Rate - restrained design */}
             {complianceRate !== null ? (
               <div className="flex items-center gap-2">
-                {complianceRate === 100 ? (
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                ) : complianceRate < 50 ? (
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                ) : (
-                  <Clock className="h-4 w-4 text-amber-500" />
-                )}
+                <span className={`status-dot ${
+                  complianceRate === 100
+                    ? 'status-dot-ok'
+                    : complianceRate < 50
+                      ? 'status-dot-error'
+                      : 'status-dot-warn'
+                }`} />
                 <div className="flex-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span>Compliance</span>
-                    <span className="font-medium">{complianceRate}%</span>
+                    <span className="text-slate-500">Compliance</span>
+                    <span className="font-medium tabular-nums text-slate-900">{complianceRate}%</span>
                   </div>
-                  <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="mt-1 h-1 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${
-                        complianceRate === 100
-                          ? 'bg-green-500'
-                          : complianceRate < 50
-                            ? 'bg-red-500'
-                            : 'bg-amber-500'
-                      }`}
+                      className="h-full rounded-full bg-slate-600"
                       style={{ width: `${complianceRate}%` }}
                     />
                   </div>
@@ -414,7 +408,7 @@ function ProjectCard({ project }: { project: Project }) {
               </div>
             ) : (
               <div className="flex items-center gap-2 text-sm text-slate-400">
-                <Clock className="h-4 w-4" />
+                <span className="status-dot bg-slate-300" />
                 <span>No subcontractors assigned</span>
               </div>
             )}
