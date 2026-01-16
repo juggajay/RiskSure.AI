@@ -146,7 +146,7 @@ export const runExpirationCheck = internalAction({
                   type: "expiration_warning",
                   title: `Certificate ${alertLevel === "expired" ? "Expired" : "Expiring Soon"}`,
                   message: `${expiration.subcontractor_name}'s certificate for ${expiration.project_name} ${alertLevel === "expired" ? "has expired" : `expires in ${days} days`}`,
-                  link: `/dashboard/verifications/${expiration.id}`,
+                  link: `/dashboard/subcontractors/${expiration.subcontractor_id}?project=${expiration.project_id}`,
                   entityType: "verification",
                   entityId: expiration.id,
                 })
@@ -580,7 +580,7 @@ export const runStopWorkAlerts = internalAction({
                   type: "stop_work_risk",
                   title: "Stop Work Risk Alert",
                   message: `${risk.subcontractor_name} is non-compliant and scheduled on-site today at ${risk.project_name}`,
-                  link: `/dashboard/projects/${risk.project_id}/subcontractors`,
+                  link: `/dashboard/subcontractors/${risk.subcontractor_id}?project=${risk.project_id}`,
                   entityType: "projectSubcontractor",
                   entityId: risk.id as string,
                 })
@@ -719,7 +719,7 @@ export const runExceptionExpiry = internalAction({
                 type: "exception_expired",
                 title: "Exception Expired",
                 message: `Exception for ${subcontractor.name} on ${project.name} has expired`,
-                link: `/dashboard/projects/${project._id}/subcontractors`,
+                link: `/dashboard/exceptions?id=${exception._id}`,
                 entityType: "exception",
                 entityId: exception._id,
               })
