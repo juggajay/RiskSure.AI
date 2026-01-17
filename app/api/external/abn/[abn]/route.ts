@@ -26,39 +26,41 @@ interface ABRBusinessEntity {
 }
 
 // Call the real ABR (Australian Business Register) API
-async function lookupABR(abn: string): Promise<ABRBusinessEntity | null> {
+async function lookupABR(abn: string): Promise<{ entity: ABRBusinessEntity | null; source: 'abr' | 'mock' }> {
   const ABR_GUID = process.env.ABR_GUID
 
-  // If no ABR GUID configured, use mock data
-  if (!ABR_GUID) {
-    return getMockABRData(abn)
-  }
+  // Try ABR API if GUID is configured
+  if (ABR_GUID) {
+    try {
+      // ABR provides an XML web service
+      // Documentation: https://abr.business.gov.au/Documentation/WebServiceResponse
+      const url = `https://abr.business.gov.au/abrxmlsearch/AbrXmlSearch.asmx/SearchByABNv202001?searchString=${abn}&includeHistoricalDetails=N&authenticationGuid=${ABR_GUID}`
 
-  try {
-    // ABR provides an XML web service
-    // Documentation: https://abr.business.gov.au/Documentation/WebServiceResponse
-    const url = `https://abr.business.gov.au/abrxmlsearch/AbrXmlSearch.asmx/SearchByABNv202001?searchString=${abn}&includeHistoricalDetails=N&authenticationGuid=${ABR_GUID}`
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/xml',
+        },
+      })
 
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/xml',
-      },
-    })
-
-    if (!response.ok) {
-      console.error('ABR API error:', response.status)
-      return getMockABRData(abn)
+      if (response.ok) {
+        const xmlText = await response.text()
+        const entity = parseABRXmlResponse(xmlText)
+        if (entity) {
+          console.log('[ABR] Successfully fetched from ABR API')
+          return { entity, source: 'abr' }
+        }
+      }
+    } catch (error) {
+      console.error('[ABR] API error:', error)
     }
-
-    const xmlText = await response.text()
-
-    // Parse the XML response
-    const entity = parseABRXmlResponse(xmlText)
-    return entity
-  } catch (error) {
-    console.error('ABR lookup error:', error)
-    return getMockABRData(abn)
   }
+
+  // Fall back to mock data
+  const mockEntity = getMockABRData(abn)
+  if (mockEntity) {
+    console.log('[ABR] Using mock data for ABN:', abn)
+  }
+  return { entity: mockEntity, source: 'mock' }
 }
 
 // Parse ABR XML response
@@ -239,7 +241,7 @@ export async function GET(
     }
 
     // Look up ABN in ABR
-    const abrData = await lookupABR(abn)
+    const { entity: abrData, source } = await lookupABR(abn)
 
     if (abrData) {
       return NextResponse.json({
@@ -252,11 +254,12 @@ export async function GET(
         address: abrData.address || null,
         gstRegistered: abrData.gstRegistered || false,
         acn: abrData.acn || null,
-        source: process.env.ABR_GUID ? 'abr' : 'mock'
+        source
       })
     }
 
     // ABN format is valid but not found in lookup
+    const hasAbrAccess = !!process.env.ABR_GUID
     return NextResponse.json({
       valid: true,
       abn: abn,
@@ -267,8 +270,10 @@ export async function GET(
       address: null,
       gstRegistered: false,
       acn: null,
-      message: 'ABN format is valid but entity not found in lookup. Entity details not available.',
-      source: process.env.ABR_GUID ? 'abr' : 'mock'
+      message: hasAbrAccess
+        ? 'ABN format is valid but entity not found in ABR lookup.'
+        : 'ABN format is valid. Configure ABR_GUID environment variable to enable real business lookups.',
+      source
     })
 
   } catch (error) {

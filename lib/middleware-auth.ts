@@ -7,6 +7,7 @@ import * as jose from 'jose'
  */
 const PUBLIC_PATHS = [
   '/',
+  '/pricing',
   '/login',
   '/signup',
   '/forgot-password',
@@ -36,6 +37,13 @@ const API_PUBLIC_PATHS = [
 ]
 
 /**
+ * API paths that start with these prefixes are public
+ */
+const API_PUBLIC_PREFIXES = [
+  '/api/external/', // Public external APIs like ABN lookup
+]
+
+/**
  * Check if a path is public (doesn't require authentication)
  */
 export function isPublicPath(pathname: string): boolean {
@@ -44,6 +52,9 @@ export function isPublicPath(pathname: string): boolean {
 
   // Exact match for public API paths
   if (API_PUBLIC_PATHS.includes(pathname)) return true
+
+  // Prefix match for public API paths
+  if (API_PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))) return true
 
   // Next.js internal routes
   if (pathname.startsWith('/_next')) return true
