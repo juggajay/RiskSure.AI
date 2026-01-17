@@ -3,7 +3,8 @@
 import { Suspense } from "react"
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Shield, Loader2, AlertCircle } from "lucide-react"
+import Image from "next/image"
+import { Loader2, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 function BrokerVerifyContent() {
@@ -77,7 +78,15 @@ function BrokerVerifyContent() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
       <div className="text-center">
-        <Shield className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+        <div className="animate-pulse mx-auto mb-4 w-12 h-12 flex items-center justify-center">
+          <Image
+            src="/risksure-icon.svg"
+            alt="RiskSure.AI"
+            width={48}
+            height={51}
+            className="object-contain"
+          />
+        </div>
         <p className="text-slate-600">Signing you in...</p>
       </div>
     </div>

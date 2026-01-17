@@ -55,8 +55,10 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/apple-touch-icon.png",
+    icon: [
+      { url: "/risksure-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/risksure-icon.svg",
   },
   manifest: "/site.webmanifest",
   openGraph: {

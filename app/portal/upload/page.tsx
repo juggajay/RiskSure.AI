@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import {
-  Shield, Loader2, Upload, FileCheck, CheckCircle, XCircle, AlertTriangle,
+  Loader2, Upload, FileCheck, CheckCircle, XCircle, AlertTriangle,
   ArrowLeft, File, X, PartyPopper, ChevronDown, ChevronUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -302,10 +303,16 @@ function UploadContent() {
             <Link href="/portal/dashboard" className="text-slate-600 hover:text-slate-900">
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <div className="flex items-center gap-2">
-              <Shield className="h-8 w-8 text-primary" />
+            <div className="flex items-center gap-3">
+              <Image
+                src="/risksure-icon.svg"
+                alt="RiskSure.AI"
+                width={32}
+                height={34}
+                className="object-contain"
+              />
               <div>
-                <span className="text-lg font-semibold">RiskShield AI</span>
+                <span className="text-lg font-semibold text-[hsl(220,60%,20%)]">RiskSure<span className="text-[hsl(220,10%,45%)]">.AI</span></span>
                 <span className="text-sm text-slate-500 ml-2">Upload Certificate</span>
               </div>
             </div>

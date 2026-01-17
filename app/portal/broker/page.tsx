@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import {
-  Shield, Loader2, Upload, Users, Building2, CheckCircle, XCircle, Clock, LogOut,
+  Loader2, Upload, Users, Building2, CheckCircle, XCircle, Clock, LogOut,
   AlertTriangle, ChevronRight, FileCheck, Phone, Mail, User, FileUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -144,10 +145,16 @@ export default function BrokerPortalPage() {
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-8 w-8 text-primary" />
+          <div className="flex items-center gap-3">
+            <Image
+              src="/risksure-icon.svg"
+              alt="RiskSure.AI"
+              width={32}
+              height={34}
+              className="object-contain"
+            />
             <div>
-              <span className="text-lg font-semibold">RiskShield AI</span>
+              <span className="text-lg font-semibold text-[hsl(220,60%,20%)]">RiskSure<span className="text-[hsl(220,10%,45%)]">.AI</span></span>
               <span className="text-sm text-slate-500 ml-2">Broker Portal</span>
             </div>
           </div>

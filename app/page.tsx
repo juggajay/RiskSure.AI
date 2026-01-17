@@ -1,8 +1,8 @@
 'use client';
 
 import Link from "next/link"
+import Image from "next/image"
 import {
-  Shield,
   ArrowRight,
   FileCheck,
   AlertTriangle,
@@ -19,28 +19,23 @@ import {
   Play,
   BadgeCheck,
   Upload,
-  Smartphone
+  Smartphone,
+  Shield
 } from "lucide-react"
+import { LogoNav, LogoFooter } from "@/components/ui/logo"
 import { MorningBriefMockup } from "./components/landing/MorningBriefMockup"
 import { SubcontractorPortalMockup } from "./components/landing/SubcontractorPortalMockup"
 import { AnimateOnScroll, StaggerChildren, AnimatedCounter, ScrollAnimationInit } from "./components/landing/ScrollAnimations"
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[hsl(40,20%,98%)] texture-grain">
+    <div className="min-h-screen bg-[hsl(0,0%,100%)] texture-grain">
       {/* Initialize scroll animations */}
       <ScrollAnimationInit />
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-[hsl(40,20%,98%)]/80 backdrop-blur-md border-b border-[hsl(40,15%,88%)]">
+      <nav className="fixed top-0 w-full z-50 bg-[hsl(0,0%,100%)]/80 backdrop-blur-md border-b border-[hsl(220,13%,91%)]">
         <div className="container-default h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[hsl(220,60%,20%)] flex items-center justify-center">
-              <Shield className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-lg text-[hsl(220,60%,20%)]">
-              RiskSure<span className="text-[hsl(220,10%,45%)]">.AI</span>
-            </span>
-          </Link>
+          <LogoNav />
 
           <div className="hidden md:flex items-center gap-8">
             <Link href="#how-it-works" className="text-sm font-medium text-[hsl(220,10%,45%)] hover:text-[hsl(220,60%,20%)] transition-colors">
@@ -70,7 +65,7 @@ export default function Home() {
       <section className="pt-28 pb-16 md:pt-36 md:pb-24 relative overflow-hidden">
         {/* Animated background elements */}
         <div className="absolute inset-0 bg-blueprint opacity-60" />
-        <div className="gradient-orb w-[600px] h-[600px] bg-[hsl(35,95%,55%)] top-10 right-[-200px] opacity-[0.08]" />
+        <div className="gradient-orb w-[600px] h-[600px] bg-[hsl(215,50%,48%)] top-10 right-[-200px] opacity-[0.08]" />
         <div className="gradient-orb w-[400px] h-[400px] bg-[hsl(220,60%,50%)] bottom-20 left-[-100px] opacity-[0.05]" style={{ animationDelay: '-10s' }} />
 
         <div className="container-default relative">
@@ -125,7 +120,7 @@ export default function Home() {
           <AnimateOnScroll animation="scale-up" delay={500} className="mt-12 md:mt-16 max-w-6xl mx-auto">
             <div className="relative">
               {/* Glow effect */}
-              <div className="absolute -inset-4 bg-gradient-to-b from-[hsl(35,95%,55%)]/10 to-transparent rounded-3xl blur-2xl" />
+              <div className="absolute -inset-4 bg-gradient-to-b from-[hsl(215,50%,48%)]/10 to-transparent rounded-3xl blur-2xl" />
 
               {/* Label */}
               <div className="text-center mb-4">
@@ -145,7 +140,7 @@ export default function Home() {
       </section>
 
       {/* SECTION B: Subcontractor Portal Showcase */}
-      <section className="py-16 md:py-24 bg-white border-y border-[hsl(40,15%,90%)] relative overflow-hidden">
+      <section className="py-16 md:py-24 bg-white border-y border-[hsl(220,13%,90%)] relative overflow-hidden">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 bg-blueprint opacity-30" />
 
@@ -161,7 +156,7 @@ export default function Home() {
                     Included Free With Every Plan
                   </div>
                   <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold text-[hsl(220,60%,15%)] tracking-tight mb-4">
-                    Subbie<span className="text-[hsl(35,95%,50%)]"> Portal</span>
+                    Subbie<span className="text-[hsl(215,50%,43%)]"> Portal</span>
                   </h2>
                   <p className="text-xl text-[hsl(220,10%,40%)]">
                     by <span className="font-semibold text-[hsl(220,60%,20%)]">RiskSure.AI</span>
@@ -237,7 +232,7 @@ export default function Home() {
       </section>
 
       {/* SECTION C: THE ARGUMENT (Problem → Solution) */}
-      <section className="section-padding bg-[hsl(40,15%,96%)]">
+      <section className="section-padding bg-[hsl(220,14%,96%)]">
         <div className="container-default">
           {/* The Problem */}
           <AnimateOnScroll animation="fade-up" className="max-w-3xl mx-auto text-center mb-16">
@@ -291,7 +286,7 @@ export default function Home() {
           <AnimateOnScroll animation="scale-up" className="max-w-4xl mx-auto">
             <div className="bg-[hsl(220,60%,15%)] rounded-2xl p-8 md:p-12 text-center relative overflow-hidden card-glow">
               {/* Decorative element */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(35,95%,55%)] rounded-full blur-[100px] opacity-20" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(215,50%,48%)] rounded-full blur-[100px] opacity-20" />
 
               <div className="relative">
                 <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-white/80 mb-6">
@@ -314,7 +309,7 @@ export default function Home() {
                     { icon: FileCheck, text: "Audit trail built-in—no spreadsheet gaps" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3 stagger-item">
-                      <div className="w-6 h-6 rounded-md bg-[hsl(35,95%,55%)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-6 h-6 rounded-md bg-[hsl(215,50%,48%)] flex items-center justify-center flex-shrink-0 mt-0.5">
                         <item.icon className="h-3.5 w-3.5 text-[hsl(220,60%,10%)]" />
                       </div>
                       <span className="text-white/90 text-sm">{item.text}</span>
@@ -346,7 +341,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto">
             <StaggerChildren className="grid md:grid-cols-3 gap-8 md:gap-4 relative">
               {/* Connecting line */}
-              <div className="hidden md:block absolute top-16 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-transparent via-[hsl(35,95%,55%)] to-transparent" />
+              <div className="hidden md:block absolute top-16 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-transparent via-[hsl(215,50%,48%)] to-transparent" />
 
               {[
                 {
@@ -370,7 +365,7 @@ export default function Home() {
               ].map((item, i) => (
                 <div key={i} className="relative text-center stagger-item">
                   {/* Step number */}
-                  <div className="w-12 h-12 rounded-full bg-[hsl(35,95%,55%)] flex items-center justify-center mx-auto mb-6 relative z-10 shadow-lg shadow-[hsl(35,95%,55%)]/20 hover:scale-110 transition-transform duration-300">
+                  <div className="w-12 h-12 rounded-full bg-[hsl(215,50%,48%)] flex items-center justify-center mx-auto mb-6 relative z-10 shadow-lg shadow-[hsl(215,50%,48%)]/20 hover:scale-110 transition-transform duration-300">
                     <span className="text-lg font-bold text-[hsl(220,60%,10%)]">{item.step}</span>
                   </div>
                   <h3 className="text-lg font-bold text-[hsl(220,60%,15%)] mb-3">{item.title}</h3>
@@ -383,7 +378,7 @@ export default function Home() {
       </section>
 
       {/* SECTION E: FEATURES */}
-      <section id="features" className="section-padding bg-[hsl(40,15%,96%)] border-y border-[hsl(40,15%,90%)]">
+      <section id="features" className="section-padding bg-[hsl(220,14%,96%)] border-y border-[hsl(220,13%,90%)]">
         <div className="container-default">
           <AnimateOnScroll animation="fade-up" className="text-center mb-16">
             <span className="badge-navy mb-4">Capabilities</span>
@@ -450,9 +445,9 @@ export default function Home() {
 
           {/* Procore integration callout */}
           <AnimateOnScroll animation="fade-up" delay={400} className="mt-12">
-            <div className="p-6 md:p-8 rounded-2xl bg-white border border-[hsl(40,15%,88%)] flex flex-col md:flex-row items-center justify-between gap-6 card-lift">
+            <div className="p-6 md:p-8 rounded-2xl bg-white border border-[hsl(220,13%,91%)] flex flex-col md:flex-row items-center justify-between gap-6 card-lift">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl bg-[hsl(40,15%,96%)] flex items-center justify-center border border-[hsl(40,15%,88%)]">
+                <div className="w-14 h-14 rounded-xl bg-[hsl(220,14%,96%)] flex items-center justify-center border border-[hsl(220,13%,91%)]">
                   <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none">
                     <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#F47E20"/>
                     <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#F47E20" strokeWidth="2"/>
@@ -486,19 +481,19 @@ export default function Home() {
 
           <StaggerChildren className="grid md:grid-cols-3 gap-8">
             <div className="text-center stagger-item">
-              <div className="text-4xl md:text-5xl font-bold text-[hsl(35,95%,45%)] mb-2">
+              <div className="text-4xl md:text-5xl font-bold text-[hsl(215,50%,38%)] mb-2">
                 <AnimatedCounter value={30} suffix="s" />
               </div>
               <div className="text-[hsl(220,10%,45%)]">to verify a certificate (vs 3-5 days manually chasing)</div>
             </div>
             <div className="text-center stagger-item">
-              <div className="text-4xl md:text-5xl font-bold text-[hsl(35,95%,45%)] mb-2">
+              <div className="text-4xl md:text-5xl font-bold text-[hsl(215,50%,38%)] mb-2">
                 <AnimatedCounter value={19} suffix="" />
               </div>
               <div className="text-[hsl(220,10%,45%)]">APRA-regulated Australian insurers in our database</div>
             </div>
             <div className="text-center stagger-item">
-              <div className="text-4xl md:text-5xl font-bold text-[hsl(35,95%,45%)] mb-2">
+              <div className="text-4xl md:text-5xl font-bold text-[hsl(215,50%,38%)] mb-2">
                 $<AnimatedCounter value={0} suffix="" />
               </div>
               <div className="text-[hsl(220,10%,45%)]">cost for your subbies (vs $400-$3,000/yr on Cm3)</div>
@@ -507,7 +502,7 @@ export default function Home() {
 
           {/* Specificity / expertise signals */}
           <AnimateOnScroll animation="fade-up" delay={300} className="mt-16">
-            <div className="p-8 rounded-2xl bg-[hsl(40,15%,97%)] border border-[hsl(40,15%,88%)] card-lift">
+            <div className="p-8 rounded-2xl bg-[hsl(220,14%,97%)] border border-[hsl(220,13%,91%)] card-lift">
               <div className="flex flex-col md:flex-row items-start gap-8">
                 <div className="md:w-1/3">
                   <span className="badge-success mb-3">
@@ -543,7 +538,7 @@ export default function Home() {
       </section>
 
       {/* SECTION G: FAQ */}
-      <section className="section-padding bg-[hsl(40,15%,96%)] border-t border-[hsl(40,15%,90%)]">
+      <section className="section-padding bg-[hsl(220,14%,96%)] border-t border-[hsl(220,13%,90%)]">
         <div className="container-narrow">
           <AnimateOnScroll animation="fade-up" className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold text-[hsl(220,60%,15%)] mb-4">
@@ -574,7 +569,7 @@ export default function Home() {
                 a: "We integrate directly—sync your vendors and projects, push compliance status back automatically. Your team keeps using the tools they know. Available on Compliance and Business plans.",
               },
             ].map((faq, i) => (
-              <div key={i} className="p-6 rounded-xl bg-white border border-[hsl(40,15%,90%)] card-lift stagger-item">
+              <div key={i} className="p-6 rounded-xl bg-white border border-[hsl(220,13%,90%)] card-lift stagger-item">
                 <h3 className="font-bold text-[hsl(220,60%,15%)] mb-2">{faq.q}</h3>
                 <p className="text-[hsl(220,10%,45%)] text-sm leading-relaxed">{faq.a}</p>
               </div>
@@ -586,7 +581,7 @@ export default function Home() {
       {/* SECTION H: THE CLOSER */}
       <section className="section-padding-lg bg-[hsl(220,60%,15%)] relative overflow-hidden">
         {/* Decorative elements with floating animation */}
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[hsl(35,95%,55%)] rounded-full blur-[150px] opacity-15 gradient-orb" style={{ animationDuration: '25s' }} />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[hsl(215,50%,48%)] rounded-full blur-[150px] opacity-15 gradient-orb" style={{ animationDuration: '25s' }} />
         <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(200,80%,50%)] rounded-full blur-[120px] opacity-10 gradient-orb" style={{ animationDuration: '30s', animationDelay: '-15s' }} />
 
         <div className="container-narrow relative text-center">
@@ -596,8 +591,8 @@ export default function Home() {
               <span className="px-4 py-2 rounded-lg bg-white/10 text-white/70 text-sm">
                 Spreadsheets & email chains
               </span>
-              <ArrowRight className="h-5 w-5 text-[hsl(35,95%,55%)] rotate-90 sm:rotate-0" />
-              <span className="px-4 py-2 rounded-lg bg-[hsl(35,95%,55%)] text-[hsl(220,60%,10%)] text-sm font-medium">
+              <ArrowRight className="h-5 w-5 text-[hsl(215,50%,48%)] rotate-90 sm:rotate-0" />
+              <span className="px-4 py-2 rounded-lg bg-[hsl(215,50%,48%)] text-[hsl(220,60%,10%)] text-sm font-medium">
                 Automated compliance dashboard
               </span>
             </div>
@@ -642,12 +637,7 @@ export default function Home() {
       <footer className="py-12 bg-[hsl(220,25%,10%)] border-t border-white/5">
         <div className="container-default">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center">
-                <Shield className="h-4 w-4 text-white/70" />
-              </div>
-              <span className="font-bold text-white/70">RiskSure AI</span>
-            </div>
+            <LogoFooter />
 
             <div className="flex items-center gap-6 text-sm text-white/40">
               <Link href="/pricing" className="hover:text-white/70 transition-colors">Pricing</Link>

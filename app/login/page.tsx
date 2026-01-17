@@ -3,8 +3,9 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Shield, Loader2, Eye, EyeOff } from "lucide-react"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { LogoFull } from "@/components/ui/logo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -98,10 +99,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Link href="/" className="flex items-center gap-2">
-              <Shield className="h-10 w-10 text-primary" />
-              <span className="text-2xl font-bold">RiskSure.AI</span>
-            </Link>
+            <LogoFull size="sm" href="/" />
           </div>
           <CardTitle>Welcome back</CardTitle>
           <CardDescription>

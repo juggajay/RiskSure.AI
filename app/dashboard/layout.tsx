@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { LogoDark, LogoIcon } from "@/components/ui/logo"
 import {
   Shield,
   LogOut,
@@ -145,8 +146,10 @@ export default function DashboardLayout({
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex items-center gap-2">
-          <Shield className="h-8 w-8 text-primary animate-pulse" />
+        <div className="flex items-center gap-3">
+          <div className="animate-pulse">
+            <LogoIcon size="lg" />
+          </div>
           <span className="text-lg text-slate-600">Loading...</span>
         </div>
       </div>
@@ -236,15 +239,10 @@ function Sidebar({ user, pathname, onLogout, isOpen, onToggle }: { user: User; p
       className={`w-64 bg-slate-900 text-white flex flex-col fixed h-screen z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       aria-label="Sidebar"
     >
-      {/* Logo - Clean, no decorative elements */}
+      {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-800">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
-              <Shield className="h-4 w-4 text-slate-300" />
-            </div>
-            <span className="font-semibold text-sm">RiskSure.AI</span>
-          </div>
+          <LogoDark size="sm" href="/dashboard" />
           {/* Close button for mobile */}
           <button
             onClick={onToggle}
